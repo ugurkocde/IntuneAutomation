@@ -1,4 +1,7 @@
 <#
+.TITLE
+    Device Compliance Report
+
 .SYNOPSIS
     Generate a comprehensive device compliance report for managed devices in Intune.
 
@@ -12,9 +15,6 @@
 
 .MINROLE
     Intune Administrator
-
-.TESTEDPLATFORMS
-    Windows 10,Windows 11,macOS,iOS,Android
 
 .PERMISSIONS
     DeviceManagementManagedDevices.Read.All,DeviceManagementConfiguration.Read.All
