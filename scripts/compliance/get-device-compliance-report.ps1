@@ -25,6 +25,9 @@
 .VERSION
     1.0
 
+.CHANGELOG
+    1.0 - Initial release
+
 .EXAMPLE
     .\get-device-compliance-report.ps1
     Generates compliance reports for all managed devices
