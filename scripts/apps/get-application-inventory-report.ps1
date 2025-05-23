@@ -11,7 +11,7 @@
     installation status, version information, and summary statistics across the entire device fleet.
 
 .TAGS
-    Applications,Inventory,Reporting,Devices
+    Apps,Reporting,Devices
 
 .MINROLE
     Intune Administrator
