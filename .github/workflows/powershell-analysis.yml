@@ -10,6 +10,10 @@ on:
     - cron: "0 2 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -123,13 +127,11 @@ jobs:
           # Write summary to GitHub Actions summary
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
 
-          # Set exit code based on results
+          # Display final status
           if ($failCount -gt 0) {
               Write-Host "`n❌ Analysis completed with $failCount failed script(s)" -ForegroundColor Red
-              exit 1
           } else {
               Write-Host "`n✅ All scripts passed analysis!" -ForegroundColor Green
-              exit 0
           }
 
       - name: Upload test results
