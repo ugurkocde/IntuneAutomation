@@ -1,0 +1,153 @@
+name: PowerShell Script Analysis
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "scripts/**/*.ps1"
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    name: Analyze PowerShell Scripts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PowerShell
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          Write-Host "PSScriptAnalyzer installed successfully"
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          # Get all PowerShell script files in the scripts directory
+          $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
+          Write-Host "Found $($scriptFiles.Count) PowerShell script(s) to analyze"
+
+          # Initialize results array
+          $results = @()
+          $summaryResults = @()
+
+          foreach ($file in $scriptFiles) {
+              Write-Host "Analyzing: $($file.FullName)"
+              
+              # Run PSScriptAnalyzer
+              $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning
+              
+              # Determine pass/fail status
+              $status = if ($analysisResults.Count -eq 0) { "pass" } else { "not passed" }
+              
+              # Add to results for JSON output
+              $results += [PSCustomObject]@{
+                  filename = $file.Name
+                  result = $status
+              }
+              
+              # Add to summary results with details
+              $summaryResults += [PSCustomObject]@{
+                  File = $file.FullName.Replace('\', '/').Replace((Get-Location).Path.Replace('\', '/') + '/', '')
+                  Status = $status
+                  Issues = $analysisResults.Count
+                  Details = $analysisResults
+              }
+          }
+
+          # Convert results to JSON and save to file
+          $jsonOutput = $results | ConvertTo-Json -Depth 3
+          $jsonOutput | Out-File -FilePath "testresults.json" -Encoding UTF8
+          Write-Host "Results saved to testresults.json"
+
+          # Display summary
+          Write-Host "`n=== ANALYSIS SUMMARY ===" -ForegroundColor Green
+          foreach ($result in $summaryResults) {
+              $statusColor = if ($result.Status -eq "pass") { "Green" } else { "Red" }
+              Write-Host "📄 $($result.File): " -NoNewline
+              Write-Host "$($result.Status.ToUpper())" -ForegroundColor $statusColor
+              
+              if ($result.Issues -gt 0) {
+                  Write-Host "   Issues found: $($result.Issues)" -ForegroundColor Yellow
+                  foreach ($issue in $result.Details) {
+                      Write-Host "   - $($issue.Severity): $($issue.Message) (Line $($issue.Line))" -ForegroundColor Yellow
+                  }
+              }
+          }
+
+          # Create GitHub Actions summary
+          $passCount = ($summaryResults | Where-Object { $_.Status -eq "pass" }).Count
+          $failCount = ($summaryResults | Where-Object { $_.Status -eq "not passed" }).Count
+          $totalIssues = ($summaryResults | Measure-Object -Property Issues -Sum).Sum
+
+          $summary = @"
+          # 🔍 PowerShell Script Analysis Results
+
+          ## 📊 Summary
+          - **Total Scripts Analyzed**: $($summaryResults.Count)
+          - **✅ Passed**: $passCount
+          - **❌ Failed**: $failCount
+          - **🚨 Total Issues**: $totalIssues
+
+          ## 📋 Detailed Results
+
+          | Script | Status | Issues |
+          |--------|--------|--------|
+          "@
+
+          foreach ($result in $summaryResults) {
+              $statusIcon = if ($result.Status -eq "pass") { "✅" } else { "❌" }
+              $summary += "`n| $($result.File) | $statusIcon $($result.Status) | $($result.Issues) |"
+          }
+
+          if ($failCount -gt 0) {
+              $summary += "`n`n## 🚨 Issues Found`n"
+              foreach ($result in $summaryResults | Where-Object { $_.Status -eq "not passed" }) {
+                  $summary += "`n### $($result.File)`n"
+                  foreach ($issue in $result.Details) {
+                      $summary += "- **$($issue.Severity)** (Line $($issue.Line)): $($issue.Message)`n"
+                  }
+              }
+          }
+
+          # Write summary to GitHub Actions summary
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
+
+          # Set exit code based on results
+          if ($failCount -gt 0) {
+              Write-Host "`n❌ Analysis completed with $failCount failed script(s)" -ForegroundColor Red
+              exit 1
+          } else {
+              Write-Host "`n✅ All scripts passed analysis!" -ForegroundColor Green
+              exit 0
+          }
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: powershell-analysis-results
+          path: testresults.json
+
+      - name: Commit results (if on main/master)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add testresults.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update PowerShell analysis results [skip ci]"
+            git push
+          fi
