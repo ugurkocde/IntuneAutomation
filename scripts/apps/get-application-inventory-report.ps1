@@ -81,9 +81,9 @@ Import-Module Microsoft.Graph.Authentication
 
 # Connect to Microsoft Graph
 try {
-    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
+    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
     Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All", "DeviceManagementApps.Read.All" -NoWelcome
-    Write-Host "✓ Successfully connected to Microsoft Graph" -ForegroundColor Green
+    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -91,7 +91,7 @@ catch {
 }
 
 # Function to get all pages of results with rate limiting
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri,
         [int]$DelayMs = 100
@@ -122,12 +122,12 @@ function Get-MgGraphAllPages {
             
             # Show progress for large datasets
             if ($requestCount % 10 -eq 0) {
-                Write-Host "." -NoNewline -ForegroundColor Yellow
+                Write-Information "." -InformationAction Continue
             }
         }
         catch {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
-                Write-Host "`nRate limit hit, waiting 60 seconds..." -ForegroundColor Yellow
+                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
                 Start-Sleep -Seconds 60
                 continue
             }
@@ -178,13 +178,13 @@ $SystemApps = @(
 
 # Get all managed devices
 try {
-    Write-Host "Retrieving managed devices..." -ForegroundColor Cyan
+    Write-Information "Retrieving managed devices..." -InformationAction Continue
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
     if ($MaxDevices -gt 0) {
         $devicesUri += "?`$top=$MaxDevices"
     }
-    $devices = Get-MgGraphAllPages -Uri $devicesUri
-    Write-Host "`n✓ Found $($devices.Count) managed devices" -ForegroundColor Green
+    $devices = Get-MgGraphAllPage -Uri $devicesUri
+    Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
@@ -196,7 +196,7 @@ $applicationInventory = @()
 $processedDevices = 0
 $totalApplications = 0
 
-Write-Host "Processing device applications..." -ForegroundColor Cyan
+Write-Information "Processing device applications..." -InformationAction Continue
 
 foreach ($device in $devices) {
     $processedDevices++
@@ -274,7 +274,7 @@ foreach ($device in $devices) {
     }
     catch {
         if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
-            Write-Host "`nRate limit hit, waiting 60 seconds..." -ForegroundColor Yellow
+            Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
             Start-Sleep -Seconds 60
             # Retry the same device
             $processedDevices--
@@ -320,7 +320,7 @@ $htmlPath = Join-Path $OutputPath "Intune_Application_Inventory_Report_$timestam
 # Export to CSV
 try {
     $applicationInventory | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-    Write-Host "✓ CSV report saved: $csvPath" -ForegroundColor Green
+    Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -464,7 +464,7 @@ try {
 "@
 
     $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-    Write-Host "✓ HTML report saved: $htmlPath" -ForegroundColor Green
+    Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
     
     if ($OpenReport) {
         Start-Process $htmlPath
@@ -475,33 +475,32 @@ catch {
 }
 
 # Display summary
-Write-Host "`n" -NoNewline
-Write-Host "📱 APPLICATION INVENTORY SUMMARY" -ForegroundColor Yellow
-Write-Host "=================================" -ForegroundColor Yellow
-Write-Host "Total Application Instances: " -NoNewline; Write-Host $totalApplications -ForegroundColor Cyan
-Write-Host "Unique Applications: " -NoNewline; Write-Host $uniqueApplications -ForegroundColor Green
-Write-Host "Unique Publishers: " -NoNewline; Write-Host $uniquePublishers -ForegroundColor Blue
-Write-Host "Devices Processed: " -NoNewline; Write-Host $uniqueDevices -ForegroundColor Magenta
+Write-Output ""
+Write-Information "📱 APPLICATION INVENTORY SUMMARY" -InformationAction Continue
+Write-Information "=================================" -InformationAction Continue
+Write-Information "Total Application Instances: $totalApplications" -InformationAction Continue
+Write-Information "Unique Applications: $uniqueApplications" -InformationAction Continue
+Write-Information "Unique Publishers: $uniquePublishers" -InformationAction Continue
+Write-Information "Devices Processed: $uniqueDevices" -InformationAction Continue
 
 if ($topApplications.Count -gt 0) {
-    Write-Host "`nTop 5 Most Common Applications:" -ForegroundColor Yellow
+    Write-Information "`nTop 5 Most Common Applications:" -InformationAction Continue
     $topApplications | Select-Object -First 5 | ForEach-Object {
-        Write-Host "  • $($_.ApplicationName): " -NoNewline -ForegroundColor White
-        Write-Host "$($_.DeviceCount) devices" -ForegroundColor Cyan
+        Write-Information "  • $($_.ApplicationName): $($_.DeviceCount) devices" -InformationAction Continue
     }
 }
 
-Write-Host "`nReports saved to:" -ForegroundColor Green
-Write-Host "📄 CSV: $csvPath" -ForegroundColor White
-Write-Host "🌐 HTML: $htmlPath" -ForegroundColor White
+Write-Information "`nReports saved to:" -InformationAction Continue
+Write-Information "📄 CSV: $csvPath" -InformationAction Continue
+Write-Information "🌐 HTML: $htmlPath" -InformationAction Continue
 
 # Disconnect from Microsoft Graph
 try {
     Disconnect-MgGraph | Out-Null
-    Write-Host "`n✓ Disconnected from Microsoft Graph" -ForegroundColor Green
+    Write-Information "`n✓ Disconnected from Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Warning "Could not disconnect from Microsoft Graph: $($_.Exception.Message)"
 }
 
-Write-Host "`n🎉 Application inventory report generation completed successfully!" -ForegroundColor Green 
+Write-Information "`n🎉 Application inventory report generation completed successfully!" -InformationAction Continue 

@@ -81,13 +81,13 @@ Import-Module Microsoft.Graph.Authentication
 
 # Connect to Microsoft Graph
 try {
-    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
+    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
     $scopes = @("DeviceManagementManagedDevices.ReadWrite.All", "DeviceManagementManagedDevices.Read.All")
     if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
         $scopes += @("Group.Read.All", "GroupMember.Read.All")
     }
     Connect-MgGraph -Scopes $scopes -NoWelcome
-    Write-Host "✓ Successfully connected to Microsoft Graph" -ForegroundColor Green
+    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -95,7 +95,7 @@ catch {
 }
 
 # Function to get all pages of results
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri,
         [int]$DelayMs = 100
@@ -126,7 +126,7 @@ function Get-MgGraphAllPages {
         }
         catch {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
-                Write-Host "`nRate limit hit, waiting 60 seconds..." -ForegroundColor Yellow
+                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
                 Start-Sleep -Seconds 60
                 continue
             }
@@ -148,11 +148,11 @@ function Invoke-DeviceSync {
     try {
         $syncUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$DeviceId')/syncDevice"
         Invoke-MgGraphRequest -Uri $syncUri -Method POST
-        Write-Host "✓ Sync triggered successfully for device: $DeviceName" -ForegroundColor Green
+        Write-Information "✓ Sync triggered successfully for device: $DeviceName" -InformationAction Continue
         return $true
     }
     catch {
-        Write-Host "✗ Failed to sync device $DeviceName : $($_.Exception.Message)" -ForegroundColor Red
+        Write-Information "✗ Failed to sync device $DeviceName : $($_.Exception.Message)" -InformationAction Continue
         return $false
     }
 }
@@ -162,11 +162,11 @@ function Get-DevicesByEntraGroup {
     param([string]$GroupName)
     
     try {
-        Write-Host "Finding Entra ID group: $GroupName..." -ForegroundColor Cyan
+        Write-Information "Finding Entra ID group: $GroupName..." -InformationAction Continue
         
         # Find the group
         $groupUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$GroupName'"
-        $groups = Get-MgGraphAllPages -Uri $groupUri
+        $groups = Get-MgGraphAllPage -Uri $groupUri
         
         if ($groups.Count -eq 0) {
             throw "Group '$GroupName' not found"
@@ -176,19 +176,19 @@ function Get-DevicesByEntraGroup {
         }
         
         $group = $groups[0]
-        Write-Host "✓ Found group: $($group.displayName) (ID: $($group.id))" -ForegroundColor Green
+        Write-Information "✓ Found group: $($group.displayName) (ID: $($group.id))" -InformationAction Continue
         
         # Get group members
-        Write-Host "Retrieving group members..." -ForegroundColor Cyan
+        Write-Information "Retrieving group members..." -InformationAction Continue
         $membersUri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/members"
-        $members = Get-MgGraphAllPages -Uri $membersUri
+        $members = Get-MgGraphAllPage -Uri $membersUri
         
-        Write-Host "✓ Found $($members.Count) members in group" -ForegroundColor Green
+        Write-Information "✓ Found $($members.Count) members in group" -InformationAction Continue
         
         # Get all managed devices
-        Write-Host "Retrieving managed devices..." -ForegroundColor Cyan
+        Write-Information "Retrieving managed devices..." -InformationAction Continue
         $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $allDevices = Get-MgGraphAllPages -Uri $devicesUri
+        $allDevices = Get-MgGraphAllPage -Uri $devicesUri
         
         # Filter devices by group members
         $targetDevices = @()
@@ -201,7 +201,7 @@ function Get-DevicesByEntraGroup {
             }
         }
         
-        Write-Host "✓ Found $($targetDevices.Count) devices belonging to group members" -ForegroundColor Green
+        Write-Information "✓ Found $($targetDevices.Count) devices belonging to group members" -InformationAction Continue
         return $targetDevices
     }
     catch {
@@ -215,15 +215,15 @@ $targetDevices = @()
 
 switch ($PSCmdlet.ParameterSetName) {
     'DeviceNames' {
-        Write-Host "Retrieving devices by names..." -ForegroundColor Cyan
+        Write-Information "Retrieving devices by names..." -InformationAction Continue
         $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $allDevices = Get-MgGraphAllPages -Uri $devicesUri
+        $allDevices = Get-MgGraphAllPage -Uri $devicesUri
         
         foreach ($deviceName in $DeviceNames) {
             $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
             if ($matchingDevices) {
                 $targetDevices += $matchingDevices
-                Write-Host "✓ Found device: $deviceName" -ForegroundColor Green
+                Write-Information "✓ Found device: $deviceName" -InformationAction Continue
             }
             else {
                 Write-Warning "Device not found: $deviceName"
@@ -232,13 +232,13 @@ switch ($PSCmdlet.ParameterSetName) {
     }
     
     'DeviceIds' {
-        Write-Host "Retrieving devices by IDs..." -ForegroundColor Cyan
+        Write-Information "Retrieving devices by IDs..." -InformationAction Continue
         foreach ($deviceId in $DeviceIds) {
             try {
                 $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
                 $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                 $targetDevices += $device
-                Write-Host "✓ Found device: $($device.deviceName)" -ForegroundColor Green
+                Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
             }
             catch {
                 Write-Warning "Device not found with ID: $deviceId"
@@ -258,9 +258,9 @@ if ($targetDevices.Count -eq 0) {
 }
 
 # Display target information
-Write-Host "`n📱 TARGET DEVICES SUMMARY" -ForegroundColor Yellow
-Write-Host "=========================" -ForegroundColor Yellow
-Write-Host "Total devices to process: " -NoNewline; Write-Host $targetDevices.Count -ForegroundColor Cyan
+Write-Information "`n📱 TARGET DEVICES SUMMARY" -InformationAction Continue
+Write-Information "=========================" -InformationAction Continue
+Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
 
 # Process sync operations
 $successfulSyncs = 0
@@ -268,7 +268,7 @@ $failedSyncs = 0
 $skippedSyncs = 0
 $processedDevices = 0
 
-Write-Host "`nProcessing device synchronization..." -ForegroundColor Cyan
+Write-Information "`nProcessing device synchronization..." -InformationAction Continue
 
 foreach ($device in $targetDevices) {
     $processedDevices++
@@ -283,7 +283,7 @@ foreach ($device in $targetDevices) {
     }
     
     # Determine if sync should be triggered
-    $shouldSync = $ForceSync -or $hoursSinceSync -gt 1 -or $device.lastSyncDateTime -eq $null
+    $shouldSync = $ForceSync -or $hoursSinceSync -gt 1 -or $null -eq $device.lastSyncDateTime
     
     if ($shouldSync) {
         $syncSuccessful = Invoke-DeviceSync -DeviceId $device.id -DeviceName $device.deviceName
@@ -301,7 +301,7 @@ foreach ($device in $targetDevices) {
         }
     }
     else {
-        Write-Host "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago" -ForegroundColor Yellow
+        Write-Information "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago" -InformationAction Continue
         $skippedSyncs++
     }
 }
@@ -309,26 +309,25 @@ foreach ($device in $targetDevices) {
 Write-Progress -Activity "Synchronizing Devices" -Completed
 
 # Display final summary
-Write-Host "`n" -NoNewline
-Write-Host "🔄 SYNC OPERATION SUMMARY" -ForegroundColor Yellow
-Write-Host "=========================" -ForegroundColor Yellow
-Write-Host "Total Devices Processed: " -NoNewline; Write-Host $targetDevices.Count -ForegroundColor Cyan
-Write-Host "Successful Syncs: " -NoNewline; Write-Host $successfulSyncs -ForegroundColor Green
-Write-Host "Failed Syncs: " -NoNewline; Write-Host $failedSyncs -ForegroundColor Red
-Write-Host "Skipped Devices: " -NoNewline; Write-Host $skippedSyncs -ForegroundColor Yellow
+Write-Information "`n🔄 SYNC OPERATION SUMMARY" -InformationAction Continue
+Write-Information "=========================" -InformationAction Continue
+Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
+Write-Information "Successful Syncs: $successfulSyncs" -InformationAction Continue
+Write-Information "Failed Syncs: $failedSyncs" -InformationAction Continue
+Write-Information "Skipped Devices: $skippedSyncs" -InformationAction Continue
 
 # Show failed devices if any
 if ($failedSyncs -gt 0) {
-    Write-Host "`n❌ Failed sync operations require manual review." -ForegroundColor Red
+    Write-Information "`n❌ Failed sync operations require manual review." -InformationAction Continue
 }
 
 # Disconnect from Microsoft Graph
 try {
     Disconnect-MgGraph | Out-Null
-    Write-Host "`n✓ Disconnected from Microsoft Graph" -ForegroundColor Green
+    Write-Information "`n✓ Disconnected from Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Warning "Could not disconnect from Microsoft Graph: $($_.Exception.Message)"
 }
 
-Write-Host "`n🎉 Device synchronization completed successfully!" -ForegroundColor Green
+Write-Information "`n🎉 Device synchronization completed successfully!" -InformationAction Continue

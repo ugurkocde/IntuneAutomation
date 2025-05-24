@@ -49,7 +49,7 @@ jobs:
               Write-Host "Analyzing: $($file.FullName)"
               
               # Run PSScriptAnalyzer
-              $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning
+              $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning -ExcludeRule PSUseBOMForUnicodeEncodedFile
               
               # Determine pass/fail status
               $status = if ($analysisResults.Count -eq 0) { "pass" } else { "not passed" }

@@ -63,9 +63,9 @@ Import-Module Microsoft.Graph.Authentication
 
 # Connect to Microsoft Graph
 try {
-    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
+    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
     Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All", "DeviceManagementConfiguration.Read.All" -NoWelcome
-    Write-Host "✓ Successfully connected to Microsoft Graph" -ForegroundColor Green
+    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -73,7 +73,7 @@ catch {
 }
 
 # Function to get all pages of results
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri
     )
@@ -105,9 +105,9 @@ function Get-MgGraphAllPages {
 
 # Get all managed devices
 try {
-    Write-Host "Retrieving managed devices..." -ForegroundColor Cyan
-    $devices = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-    Write-Host "✓ Found $($devices.Count) managed devices" -ForegroundColor Green
+    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    Write-Information "✓ Found $($devices.Count) managed devices" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
@@ -116,9 +116,9 @@ catch {
 
 # Get compliance policies
 try {
-    Write-Host "Retrieving compliance policies..." -ForegroundColor Cyan
-    $compliancePolicies = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
-    Write-Host "✓ Found $($compliancePolicies.Count) compliance policies" -ForegroundColor Green
+    Write-Information "Retrieving compliance policies..." -InformationAction Continue
+    $compliancePolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
+    Write-Information "✓ Found $($compliancePolicies.Count) compliance policies" -InformationAction Continue
 }
 catch {
     Write-Warning "Could not retrieve compliance policies: $($_.Exception.Message)"
@@ -129,7 +129,7 @@ catch {
 $report = @()
 $processedCount = 0
 
-Write-Host "Processing device compliance data..." -ForegroundColor Cyan
+Write-Information "Processing device compliance data..." -InformationAction Continue
 
 foreach ($device in $devices) {
     $processedCount++
@@ -138,7 +138,7 @@ foreach ($device in $devices) {
     try {
         # Get device compliance details
         $complianceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates"
-        $deviceCompliance = Get-MgGraphAllPages -Uri $complianceUri
+        $deviceCompliance = Get-MgGraphAllPage -Uri $complianceUri
         
         # Calculate compliance summary
         $compliantPolicies = ($deviceCompliance | Where-Object { $_.state -eq "compliant" }).Count
@@ -207,7 +207,7 @@ $htmlPath = Join-Path $OutputPath "Intune_Device_Compliance_Report_$timestamp.ht
 # Export to CSV
 try {
     $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-    Write-Host "✓ CSV report saved: $csvPath" -ForegroundColor Green
+    Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -296,7 +296,7 @@ try {
     $htmlContent += "</body></html>"
     
     $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-    Write-Host "✓ HTML report saved: $htmlPath" -ForegroundColor Green
+    Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
     
     if ($OpenReport) {
         Start-Process $htmlPath
@@ -308,26 +308,28 @@ catch {
 }
 
 # Display summary
-Write-Host "`n" -NoNewline
-Write-Host "📊 COMPLIANCE REPORT SUMMARY" -ForegroundColor Yellow
-Write-Host "================================" -ForegroundColor Yellow
-Write-Host "Total Devices: " -NoNewline; Write-Host $report.Count -ForegroundColor Cyan
-Write-Host "Compliant Devices: " -NoNewline; Write-Host ($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count -ForegroundColor Green
-Write-Host "Non-Compliant Devices: " -NoNewline; Write-Host ($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count -ForegroundColor Red
-Write-Host "Unknown Status: " -NoNewline; Write-Host ($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count -ForegroundColor Yellow
-Write-Host "Stale Devices (>7 days): " -NoNewline; Write-Host ($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count -ForegroundColor Magenta
+Write-Output ""
+Write-Output "📊 COMPLIANCE REPORT SUMMARY"
+Write-Output "================================"
+Write-Output "Total Devices: $($report.Count)"
+Write-Output "Compliant Devices: $(($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)"
+Write-Output "Non-Compliant Devices: $(($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)"
+Write-Output "Unknown Status: $(($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count)"
+Write-Output "Stale Devices (>7 days): $(($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)"
 
-Write-Host "`nReports saved to:" -ForegroundColor Green
-Write-Host "📄 CSV: $csvPath" -ForegroundColor White
-Write-Host "🌐 HTML: $htmlPath" -ForegroundColor White
+Write-Output ""
+Write-Output "Reports saved to:"
+Write-Output "📄 CSV: $csvPath"
+Write-Output "🌐 HTML: $htmlPath"
 
 # Disconnect from Microsoft Graph
 try {
     Disconnect-MgGraph | Out-Null
-    Write-Host "`n✓ Disconnected from Microsoft Graph" -ForegroundColor Green
+    Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
 }
 catch {
     Write-Warning "Could not disconnect from Microsoft Graph: $($_.Exception.Message)"
 }
 
-Write-Host "`n🎉 Device compliance report generation completed successfully!" -ForegroundColor Green 
+Write-Output ""
+Write-Output "🎉 Device compliance report generation completed successfully!" 
