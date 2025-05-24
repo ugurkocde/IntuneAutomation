@@ -84,7 +84,7 @@ jobs:
               if ($result.Issues -gt 0) {
                   Write-Host "   Issues found: $($result.Issues)" -ForegroundColor Yellow
                   foreach ($issue in $result.Details) {
-                      Write-Host "   - $($issue.Severity): $($issue.Message) (Line $($issue.Line))" -ForegroundColor Yellow
+                      Write-Host "   - $($issue.RuleName) (Line $($issue.Line))" -ForegroundColor Yellow
                   }
               }
           }
@@ -119,7 +119,7 @@ jobs:
               foreach ($result in $summaryResults | Where-Object { $_.Status -eq "not passed" }) {
                   $summary += "`n### $($result.File)`n"
                   foreach ($issue in $result.Details) {
-                      $summary += "- **$($issue.Severity)** (Line $($issue.Line)): $($issue.Message)`n"
+                      $summary += "- **$($issue.RuleName)** (Line $($issue.Line))`n"
                   }
               }
           }
