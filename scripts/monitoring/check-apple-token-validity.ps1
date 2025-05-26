@@ -112,7 +112,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphPaginatedData {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -221,7 +221,7 @@ try {
     
     try {
         $DepTokensUri = "https://graph.microsoft.com/beta/deviceManagement/depOnboardingSettings"
-        $DepTokens = Get-MgGraphAllPages -Uri $DepTokensUri
+        $DepTokens = Get-MgGraphPaginatedData -Uri $DepTokensUri
         Write-Information "Retrieving $($DepTokens.Count) DEP token entries..." -InformationAction Continue
         
         $ValidDepTokenCount = 0
