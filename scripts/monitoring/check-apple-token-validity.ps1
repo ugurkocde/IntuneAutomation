@@ -13,7 +13,7 @@
     that are expired, expiring soon, or have sync issues.
 
 .TAGS
-    Monitoring,Apple
+    Monitoring
 
 .MINROLE
     Intune Administrator

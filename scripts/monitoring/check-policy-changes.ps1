@@ -14,7 +14,7 @@
     over device configuration policies.
 
 .TAGS
-    Monitoring,Policies
+    Monitoring
 
 .MINROLE
     Intune Administrator
