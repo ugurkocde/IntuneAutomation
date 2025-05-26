@@ -116,7 +116,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllResult {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -276,7 +276,7 @@ try {
     
     # Retrieve all managed devices
     Write-Information "Retrieving managed devices from Intune..." -InformationAction Continue
-    $AllDevices = Get-MgGraphAllPages -Uri $Uri
+    $AllDevices = Get-MgGraphAllResult -Uri $Uri
     Write-Information "✓ Retrieved $($AllDevices.Count) devices" -InformationAction Continue
     
     # Process devices to find stale ones
@@ -350,13 +350,8 @@ catch {
 }
 finally {
     # Cleanup operations
-    try {
-        Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
-    }
-    catch {
-        # Ignore disconnect errors
-    }
+    Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+    Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
 }
 
 # ============================================================================
