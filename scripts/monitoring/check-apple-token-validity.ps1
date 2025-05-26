@@ -119,7 +119,7 @@ function Get-MgGraphAllPages {
         [int]$DelayMs = 100
     )
     
-    $AllResults = @()
+    $AllResult = @()
     $NextLink = $Uri
     $RequestCount = 0
     
@@ -134,10 +134,10 @@ function Get-MgGraphAllPages {
             $RequestCount++
             
             if ($Response.value) {
-                $AllResults += $Response.value
+                $AllResult += $Response.value
             }
             else {
-                $AllResults += $Response
+                $AllResult += $Response
             }
             
             $NextLink = $Response.'@odata.nextLink'
@@ -153,7 +153,7 @@ function Get-MgGraphAllPages {
         }
     } while ($NextLink)
     
-    return $AllResults
+    return $AllResult
 }
 
 # Function to determine token health status
@@ -515,7 +515,7 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        Write-Verbose "Disconnect operation completed with warnings (this is expected behavior)"
     }
 }
 

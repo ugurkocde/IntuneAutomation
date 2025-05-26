@@ -117,7 +117,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -162,7 +162,7 @@ function Get-MgGraphAllPages {
 }
 
 # Function to format change details
-function Format-ChangeDetails {
+function Format-ChangeDetail {
     param(
         [object]$AuditLog
     )
@@ -231,7 +231,7 @@ try {
     try {
         # Query for Policies changes (DeviceConfiguration category)
         $AuditLogsUri = "https://graph.microsoft.com/beta/deviceManagement/auditEvents?`$filter=activityDateTime ge $StartDateFormatted and category eq 'DeviceConfiguration'&`$orderby=activityDateTime desc&`$top=50"
-        $AuditLogs = Get-MgGraphAllPages -Uri $AuditLogsUri
+        $AuditLogs = Get-MgGraphAllPage -Uri $AuditLogsUri
         
         Write-Information "Retrieved $($AuditLogs.Count) DeviceConfiguration audit events" -InformationAction Continue
         
@@ -248,10 +248,18 @@ try {
     }
     
     # ========================================================================
-    # DISPLAY LAST 5 CHANGES WITH DETAILS
+    # FILTER AND PROCESS CHANGES
     # ========================================================================
     
     Write-Information "Processing Policies policy changes..." -InformationAction Continue
+    
+    # Filter changes if OnlyShowChanges is specified
+    if ($OnlyShowChanges) {
+        $PoliciesActivities = $PoliciesActivities | Where-Object {
+            $_.activityType -like "*Update*" -or $_.activityType -like "*Modify*"
+        }
+        Write-Information "Filtered to show only policy modifications: $($PoliciesActivities.Count) changes" -InformationAction Continue
+    }
     
     # Get the last 5 changes
     $Last5Changes = $PoliciesActivities | Select-Object -First 5
@@ -264,6 +272,9 @@ try {
     Write-Information "`n========================================" -InformationAction Continue
     Write-Information "LAST 5 POLICIES POLICY CHANGES" -InformationAction Continue
     Write-Information "========================================" -InformationAction Continue
+    
+    # Prepare CSV data for export
+    $CsvData = @()
     
     $ChangeNumber = 1
     foreach ($Change in $Last5Changes) {
@@ -286,24 +297,90 @@ try {
             Write-Information "User: $UserName" -InformationAction Continue
             Write-Information "Result: $($Change.activityResult)" -InformationAction Continue
             
+            # Collect change details for CSV export
+            $ChangeDetails = ""
+            $Severity = Get-ChangeSeverity -Activity $Change.activityType -Result $Change.activityResult
+            
             # Show modified properties (before/after values)
             if ($Change.resources -and $Change.resources[0].modifiedProperties) {
                 Write-Information "Changes:" -InformationAction Continue
+                $ChangeDetailsList = @()
                 foreach ($Property in $Change.resources[0].modifiedProperties) {
                     $OldValue = if ($Property.oldValue) { $Property.oldValue } else { "(empty)" }
                     $NewValue = if ($Property.newValue) { $Property.newValue } else { "(empty)" }
                     Write-Information "  - $($Property.displayName): '$OldValue' → '$NewValue'" -InformationAction Continue
+                    
+                    if ($IncludeDetails) {
+                        $ChangeDetailsList += "$($Property.displayName): '$OldValue' → '$NewValue'"
+                    }
                 }
+                $ChangeDetails = $ChangeDetailsList -join "; "
             }
             else {
                 Write-Information "  No detailed change information available" -InformationAction Continue
             }
+            
+            # Add to CSV data
+            $CsvRecord = [PSCustomObject]@{
+                DateTime   = $Change.activityDateTime
+                PolicyName = $PolicyName
+                Action     = $Change.activityType
+                User       = $UserName
+                Result     = $Change.activityResult
+                Severity   = $Severity
+                Details    = if ($IncludeDetails) { $ChangeDetails } else { "" }
+            }
+            $CsvData += $CsvRecord
             
             $ChangeNumber++
         }
         catch {
             Write-Warning "Error processing change: $($_.Exception.Message)"
             continue
+        }
+    }
+    
+    # ========================================================================
+    # EXPORT TO CSV
+    # ========================================================================
+    
+    if ($CsvData.Count -gt 0) {
+        $OutputFile = Join-Path -Path $OutputPath -ChildPath "PolicyChanges_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+        try {
+            $CsvData | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8
+            Write-Information "✓ Report exported to: $OutputFile" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "Failed to export CSV report: $($_.Exception.Message)"
+        }
+    }
+    
+    # ========================================================================
+    # EMAIL ALERTS
+    # ========================================================================
+    
+    if ($SendEmailAlert -and $AlertEmailAddress -and $CsvData.Count -gt 0) {
+        try {
+            $Subject = "Policy Changes Alert - $($CsvData.Count) changes detected"
+            $Body = @"
+Policy Changes Report
+
+Time Period: Last $DaysBack days
+Total Changes: $($CsvData.Count)
+
+Recent Changes:
+$($CsvData | ForEach-Object { "- $($_.DateTime): $($_.PolicyName) - $($_.Action) by $($_.User)" } | Select-Object -First 10 | Out-String)
+
+For full details, please check the attached CSV report or review the Intune audit logs.
+"@
+            
+            # Note: Email sending would require additional modules like Send-MailMessage or Microsoft Graph
+            Write-Information "Email alert prepared for: $AlertEmailAddress" -InformationAction Continue
+            Write-Information "Subject: $Subject" -InformationAction Continue
+            Write-Warning "Email sending functionality requires additional configuration (SMTP settings or Microsoft Graph permissions)"
+        }
+        catch {
+            Write-Warning "Failed to prepare email alert: $($_.Exception.Message)"
         }
     }
     
@@ -320,7 +397,7 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        Write-Warning "Failed to disconnect from Microsoft Graph: $($_.Exception.Message)"
     }
 }
 

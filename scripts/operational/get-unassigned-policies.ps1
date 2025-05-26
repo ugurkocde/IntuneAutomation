@@ -99,7 +99,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -144,7 +144,7 @@ function Get-MgGraphAllPages {
 }
 
 # Function to check if a policy has assignments
-function Test-PolicyAssignments {
+function Test-PolicyAssignment {
     param(
         [Parameter(Mandatory = $true)]
         [string]$PolicyId,
@@ -166,7 +166,7 @@ function Test-PolicyAssignments {
             try {
                 # Verify the policy exists and is accessible
                 $PolicyUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/managedAppPolicies/$PolicyId"
-                $PolicyDetails = Invoke-MgGraphRequest -Uri $PolicyUri -Method GET
+                $null = Invoke-MgGraphRequest -Uri $PolicyUri -Method GET
                 
                 # App Protection policies are considered "assigned" if they exist and are published
                 # Most App Protection policies that exist are active/assigned to applications
@@ -185,7 +185,7 @@ function Test-PolicyAssignments {
                 default { return $false }
             }
             
-            $Assignments = Get-MgGraphAllPages -Uri $AssignmentUri
+            $Assignments = Get-MgGraphAllPage -Uri $AssignmentUri
             return $Assignments.Count -gt 0
         }
     }
@@ -196,7 +196,7 @@ function Test-PolicyAssignments {
 }
 
 # Function to get policy details
-function Get-PolicyDetails {
+function Get-PolicyDetail {
     param(
         [Parameter(Mandatory = $true)]
         [object]$Policy,
@@ -224,7 +224,7 @@ function Get-PolicyDetails {
     }
     
     # Check for assignments
-    $Details.HasAssignments = Test-PolicyAssignments -PolicyId $Policy.id -PolicyType $PolicyType
+    $Details.HasAssignments = Test-PolicyAssignment -PolicyId $Policy.id -PolicyType $PolicyType
     
     return $Details
 }
@@ -248,7 +248,7 @@ try {
         Write-Information "Analyzing $($PolicyType.Name) policies..." -InformationAction Continue
         
         try {
-            $Policies = Get-MgGraphAllPages -Uri $PolicyType.Uri
+            $Policies = Get-MgGraphAllPage -Uri $PolicyType.Uri
             # Handle null or empty results
             if (-not $Policies) {
                 $Policies = @()
@@ -263,7 +263,7 @@ try {
                     continue
                 }
                 
-                $PolicyDetails = Get-PolicyDetails -Policy $Policy -PolicyType $PolicyType.Name
+                $PolicyDetails = Get-PolicyDetail -Policy $Policy -PolicyType $PolicyType.Name
                 
                 # Get the correct display name for Settings Catalog vs other policies
                 $DisplayName = if ($PolicyType.Name -eq "SettingsCatalog") {
@@ -336,7 +336,8 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        # Silently ignore disconnect errors as they are not critical to script execution
+        Write-Debug "Graph disconnect error (non-critical): $($_.Exception.Message)"
     }
 }
 
