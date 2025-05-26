@@ -76,11 +76,11 @@ param(
 # ============================================================================
 
 # Check if required modules are installed
-$RequiredModule = @(
+$RequiredModuleList = @(
     "Microsoft.Graph.Authentication"
 )
 
-foreach ($Module in $RequiredModule) {
+foreach ($Module in $RequiredModuleList) {
     if (-not (Get-Module -ListAvailable -Name $Module)) {
         Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
         exit 1
@@ -88,7 +88,7 @@ foreach ($Module in $RequiredModule) {
 }
 
 # Import required modules
-foreach ($Module in $RequiredModule) {
+foreach ($Module in $RequiredModuleList) {
     Import-Module $Module
 }
 
