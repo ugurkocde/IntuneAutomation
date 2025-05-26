@@ -204,7 +204,7 @@ catch {
 finally {
     # Cleanup operations
     try {
-        Disconnect-MgGraph -ErrorAction SilentlyContinue
+        Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {

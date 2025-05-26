@@ -95,10 +95,13 @@ param(
 
 #### Module Checks
 - Always verify required modules are installed
+- We only use Microsoft.Graph.Authentication module for Connect-MgGraph and Invoke-MgGraphRequest
 - Provide clear installation instructions
 - Import modules explicitly
 
 #### Authentication
+- Use only Microsoft.Graph.Authentication module for authentication and API calls
+- Connect with Connect-MgGraph and make API calls with Invoke-MgGraphRequest
 ```powershell
 Connect-MgGraph -Scopes $Scopes -NoWelcome
 ```
@@ -138,12 +141,13 @@ Connect-MgGraph -Scopes $Scopes -NoWelcome
 - Output formatting
 
 ### Best Practices
-1. **Validation**: Validate all user inputs
-2. **Error Handling**: Use comprehensive try-catch blocks
-3. **Progress**: Show real-time progress to users
-4. **Permissions**: Request only minimum required permissions
-5. **Documentation**: Comment complex logic
-6. **Testing**: Test all scenarios thoroughly
+1. **Module Usage**: Use only Microsoft.Graph.Authentication module with Connect-MgGraph and Invoke-MgGraphRequest
+2. **Validation**: Validate all user inputs
+3. **Error Handling**: Use comprehensive try-catch blocks
+4. **Progress**: Show real-time progress to users
+5. **Permissions**: Request only minimum required permissions
+6. **Documentation**: Comment complex logic
+7. **Testing**: Test all scenarios thoroughly
 
 ## 📝 Header Examples
 
@@ -184,7 +188,8 @@ Connect-MgGraph -Scopes $Scopes -NoWelcome
     Restarts specific devices by name
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication module
+    - Requires only Microsoft.Graph.Authentication module
+    - Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations
     - Devices must be online to receive restart command
     - Use with caution in production environments
 #>

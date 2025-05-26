@@ -11,18 +11,20 @@ This repository contains PowerShell scripts designed to help IT administrators a
 ```
 IntuneAutomation/
 ├── scripts/
-│   ├── operational/        # Device operations
+│   ├── operational/       # Device operations
 │   ├── apps/              # Application management
 │   ├── compliance/        # Compliance reporting
 │   ├── security/          # Security operations
 │   └── devices/           # Device management
+│   └── monitoring/        # Monitoring and reporting
 ├── LICENSE
+├── CONTRIBUTING.md
 └── README.md
 ```
 
 ## Companion Website
 
-This project includes a companion web interface that provides documentation, interactive tools, and best practices for Intune automation. The website is built with Next.js and modern web technologies.
+This project includes a companion web interface that provides documentation, interactive tools, and best practices for Intune automation. Visit [https://intuneautomation.com](https://intuneautomation.com) for more information.
 
 ## Contributing
 
