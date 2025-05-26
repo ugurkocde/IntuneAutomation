@@ -26,7 +26,24 @@ This project includes a companion web interface that provides documentation, int
 
 ## Contributing
 
-Contributions are welcome. Please ensure scripts include proper documentation, error handling, and follow PowerShell best practices.
+We welcome contributions from the community! Whether you're fixing bugs, improving existing scripts, or adding new automation tools, your contributions help IT professionals worldwide.
+
+### Quick Start for Contributors
+
+1. **Fork the repository** and clone it locally
+2. **Use our script template**: Copy `templates/script-template.ps1` to get started
+3. **Follow our guidelines**: Read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed instructions
+4. **Test thoroughly**: Always test your scripts in a lab environment first
+5. **Submit a pull request**: Use our PR template for faster reviews
+
+### What We're Looking For
+
+- **PowerShell scripts** for Intune automation tasks
+- **Comprehensive documentation** and examples
+- **Proper error handling** and security considerations
+- **Real-world use cases** that benefit the community
+
+See our [Contributing Guide](CONTRIBUTING.md) for detailed instructions, coding standards, and submission guidelines.
 
 ## License
 
