@@ -302,10 +302,10 @@ try {
     Write-Information "`n========================================" -InformationAction Continue
     Write-Information "BitLocker Key Storage Summary" -InformationAction Continue
     Write-Information "========================================" -InformationAction Continue
-    Write-Host "Total Windows devices in Intune: $totalDevices" -ForegroundColor Yellow
-    Write-Host "Devices with BitLocker keys in Entra ID: $devicesWithKeys" -ForegroundColor Green
-    Write-Host "Devices without BitLocker keys: $devicesWithoutKeys" -ForegroundColor Red
-    Write-Host "Compliance percentage: $compliancePercentage%" -ForegroundColor $(if ($compliancePercentage -ge 90) { "Green" } elseif ($compliancePercentage -ge 70) { "Yellow" } else { "Red" })
+    Write-Information "Total Windows devices in Intune: $totalDevices" -InformationAction Continue
+    Write-Information "Devices with BitLocker keys in Entra ID: $devicesWithKeys" -InformationAction Continue  
+    Write-Information "Devices without BitLocker keys: $devicesWithoutKeys" -InformationAction Continue
+    Write-Information "Compliance percentage: $compliancePercentage%" -InformationAction Continue
     Write-Information "========================================" -InformationAction Continue
     
     # Export results to CSV
@@ -351,7 +351,7 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        Write-Verbose "Unable to disconnect from Microsoft Graph: $($_.Exception.Message)"
     }
 }
 

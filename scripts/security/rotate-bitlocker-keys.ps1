@@ -91,7 +91,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -167,7 +167,7 @@ try {
     # Get all managed Windows devices from Intune
     Write-Information "Retrieving all Windows devices from Intune..." -InformationAction Continue
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem&`$filter=operatingSystem eq 'Windows'"
-    $managedDevices = Get-MgGraphAllPages -Uri $devicesUri
+    $managedDevices = Get-MgGraphAllPage -Uri $devicesUri
     
     if ($managedDevices.Count -eq 0) {
         Write-Warning "No Windows devices found in Intune."
@@ -230,6 +230,7 @@ finally {
         Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnection errors
+        # Ignore disconnection errors - this is expected behavior when already disconnected
+        Write-Verbose "Graph disconnection completed (may have already been disconnected)"
     }
 } 

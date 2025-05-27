@@ -244,7 +244,7 @@ function Get-DevicesByEntraGroup {
 }
 
 # Function to display device information
-function Show-DeviceDetails {
+function Show-DeviceDetail {
     param([array]$Devices)
     
     Write-Information "`n📱 DEVICE DETAILS" -InformationAction Continue
@@ -330,7 +330,7 @@ else {
 }
 
 # Show device details
-Show-DeviceDetails -Devices $targetDevices
+Show-DeviceDetail -Devices $targetDevices
 
 # Confirmation prompt unless Force is specified
 if (-not $Force) {
