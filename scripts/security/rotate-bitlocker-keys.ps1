@@ -52,38 +52,62 @@ param(
 )
 
 # ============================================================================
-# MODULES AND AUTHENTICATION
+# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT
 # ============================================================================
 
-# Check if required modules are installed
-$RequiredModules = @(
-    "Microsoft.Graph.Authentication"
-)
+# Detect execution environment
+if ($PSPrivateMetadata.JobId.Guid) {
+    Write-Output "Running inside Azure Automation Runbook"
+    $IsRunbook = $true
+} else {
+    Write-Output "Running locally in IDE or terminal"
+    $IsRunbook = $false
+}
 
-foreach ($Module in $RequiredModules) {
-    if (-not (Get-Module -ListAvailable -Name $Module)) {
-        Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
+# Authentication logic based on environment
+if ($IsRunbook) {
+    # Azure Automation Runbook - Use Managed Identity
+    try {
+        Write-Output "Connecting to Microsoft Graph using Managed Identity..."
+        Connect-MgGraph -Identity -NoWelcome
+        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
+    }
+    catch {
+        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: $($_.Exception.Message)"
+        throw
+    }
+} else {
+    # Local execution - Use interactive authentication
+    # Check if required modules are installed
+    $RequiredModules = @(
+        "Microsoft.Graph.Authentication"
+    )
+
+    foreach ($Module in $RequiredModules) {
+        if (-not (Get-Module -ListAvailable -Name $Module)) {
+            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
+            exit 1
+        }
+    }
+
+    # Import required modules
+    foreach ($Module in $RequiredModules) {
+        Import-Module $Module
+    }
+
+    # Connect to Microsoft Graph with required scopes
+    try {
+        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        $Scopes = @(
+            "DeviceManagementManagedDevices.ReadWrite.All"
+        )
+        Connect-MgGraph -Scopes $Scopes -NoWelcome
+        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    }
+    catch {
+        Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
         exit 1
     }
-}
-
-# Import required modules
-foreach ($Module in $RequiredModules) {
-    Import-Module $Module
-}
-
-# Connect to Microsoft Graph
-try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
-    $Scopes = @(
-        "DeviceManagementManagedDevices.ReadWrite.All"
-    )
-    Connect-MgGraph -Scopes $Scopes -NoWelcome
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
-}
-catch {
-    Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
-    exit 1
 }
 
 # ============================================================================
