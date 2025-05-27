@@ -71,64 +71,68 @@ jobs:
               param([string]$OriginalScript, [hashtable]$Metadata)
               
               # Create the dual-environment authentication section
-              $authSection = '# ============================================================================' + "`n"
-              $authSection += '# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT' + "`n"
-              $authSection += '# ============================================================================' + "`n"
-              $authSection += '' + "`n"
-              $authSection += '# Detect execution environment' + "`n"
-              $authSection += 'if ($PSPrivateMetadata.JobId.Guid) {' + "`n"
-              $authSection += '    Write-Output "Running inside Azure Automation Runbook"' + "`n"
-              $authSection += '    $IsRunbook = $true' + "`n"
-              $authSection += '} else {' + "`n"
-              $authSection += '    Write-Output "Running locally in IDE or terminal"' + "`n"
-              $authSection += '    $IsRunbook = $false' + "`n"
-              $authSection += '}' + "`n"
-              $authSection += '' + "`n"
-              $authSection += '# Authentication logic based on environment' + "`n"
-              $authSection += 'if ($IsRunbook) {' + "`n"
-              $authSection += '    # Azure Automation Runbook - Use Managed Identity' + "`n"
-              $authSection += '    try {' + "`n"
-              $authSection += '        Write-Output "Connecting to Microsoft Graph using Managed Identity..."' + "`n"
-              $authSection += '        Connect-MgGraph -Identity -NoWelcome' + "`n"
-              $authSection += '        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '    catch {' + "`n"
-              $authSection += '        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: $($_.Exception.Message)"' + "`n"
-              $authSection += '        throw' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '} else {' + "`n"
-              $authSection += '    # Local execution - Use interactive authentication' + "`n"
-              $authSection += '    # Check if required modules are installed' + "`n"
-              $authSection += '    $RequiredModules = @(' + "`n"
-              $authSection += '        "Microsoft.Graph.Authentication"' + "`n"
-              $authSection += '    )' + "`n"
-              $authSection += '' + "`n"
-              $authSection += '    foreach ($Module in $RequiredModules) {' + "`n"
-              $authSection += '        if (-not (Get-Module -ListAvailable -Name $Module)) {' + "`n"
-              $authSection += '            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"' + "`n"
-              $authSection += '            exit 1' + "`n"
-              $authSection += '        }' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '' + "`n"
-              $authSection += '    # Import required modules' + "`n"
-              $authSection += '    foreach ($Module in $RequiredModules) {' + "`n"
-              $authSection += '        Import-Module $Module' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '' + "`n"
-              $authSection += '    # Connect to Microsoft Graph with required scopes' + "`n"
-              $authSection += '    try {' + "`n"
-              $authSection += '        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue' + "`n"
-              $authSection += '        $Scopes = @(' + "`n"
-              $authSection += '            "' + ($Metadata.PERMISSIONS -replace '"', '\"') + '"' + "`n"
-              $authSection += '        )' + "`n"
-              $authSection += '        Connect-MgGraph -Scopes $Scopes -NoWelcome' + "`n"
-              $authSection += '        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '    catch {' + "`n"
-              $authSection += '        Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"' + "`n"
-              $authSection += '        exit 1' + "`n"
-              $authSection += '    }' + "`n"
-              $authSection += '}'
+              $authLines = @(
+                  '# ============================================================================',
+                  '# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT',
+                  '# ============================================================================',
+                  '',
+                  '# Detect execution environment',
+                  'if ($PSPrivateMetadata.JobId.Guid) {',
+                  '    Write-Output "Running inside Azure Automation Runbook"',
+                  '    $IsRunbook = $true',
+                  '} else {',
+                  '    Write-Output "Running locally in IDE or terminal"',
+                  '    $IsRunbook = $false',
+                  '}',
+                  '',
+                  '# Authentication logic based on environment',
+                  'if ($IsRunbook) {',
+                  '    # Azure Automation Runbook - Use Managed Identity',
+                  '    try {',
+                  '        Write-Output "Connecting to Microsoft Graph using Managed Identity..."',
+                  '        Connect-MgGraph -Identity -NoWelcome',
+                  '        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"',
+                  '    }',
+                  '    catch {',
+                  '        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: $($_.Exception.Message)"',
+                  '        throw',
+                  '    }',
+                  '} else {',
+                  '    # Local execution - Use interactive authentication',
+                  '    # Check if required modules are installed',
+                  '    $RequiredModules = @(',
+                  '        "Microsoft.Graph.Authentication"',
+                  '    )',
+                  '',
+                  '    foreach ($Module in $RequiredModules) {',
+                  '        if (-not (Get-Module -ListAvailable -Name $Module)) {',
+                  '            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"',
+                  '            exit 1',
+                  '        }',
+                  '    }',
+                  '',
+                  '    # Import required modules',
+                  '    foreach ($Module in $RequiredModules) {',
+                  '        Import-Module $Module',
+                  '    }',
+                  '',
+                  '    # Connect to Microsoft Graph with required scopes',
+                  '    try {',
+                  '        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue',
+                  '        $Scopes = @(',
+                  "            `"$($Metadata.PERMISSIONS)`"",
+                  '        )',
+                  '        Connect-MgGraph -Scopes $Scopes -NoWelcome',
+                  '        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue',
+                  '    }',
+                  '    catch {',
+                  '        Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"',
+                  '        exit 1',
+                  '    }',
+                  '}'
+              )
+              
+              $authSection = $authLines -join "`n"
               
               # Replace existing authentication section or insert after modules section
               $authSectionRegex = '(?s)# ============================================================================\s*\r?\n\s*# (?:MODULES AND )?AUTHENTICATION.*?(?=# ============================================================================\s*\r?\n\s*# HELPER FUNCTIONS|# ============================================================================\s*\r?\n\s*# MAIN SCRIPT LOGIC|$)'
@@ -157,6 +161,9 @@ jobs:
                   [hashtable]$Metadata
               )
               
+              # Properly escape the script content for JSON
+              $escapedScriptContent = $ScriptContent -replace '\\', '\\' -replace '"', '\"' -replace "`r", '' -replace "`n", '\n' -replace "`t", '\t'
+              
               $template = @{
                   '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
                   contentVersion = "1.0.0.0"
@@ -164,19 +171,19 @@ jobs:
                       automationAccountName = @{
                           type = "string"
                           metadata = @{
-                              description = "Name of the Azure Automation Account where the runbook will be created"
+                              description = "Name of your existing Azure Automation Account (must exist in the selected resource group)"
                           }
                       }
                       runbookName = @{
                           type = "string"
                           defaultValue = $ScriptId
                           metadata = @{
-                              description = "Name of the runbook to create"
+                              description = "Name for the new runbook (will be created in the Automation Account)"
                           }
                       }
                       runbookDescription = @{
                           type = "string"
-                          defaultValue = $Metadata.DESCRIPTION -replace '"', '\"'
+                          defaultValue = ($Metadata.DESCRIPTION -replace '"', '\"')
                           metadata = @{
                               description = "Description of the runbook"
                           }
@@ -186,7 +193,7 @@ jobs:
                       runbookType = "PowerShell"
                       logProgress = $false
                       logVerbose = $false
-                      scriptContent = $ScriptContent
+                      scriptContent = $escapedScriptContent
                   }
                   resources = @(
                       @{
@@ -225,9 +232,13 @@ jobs:
                           type = "string"
                           value = "[parameters('automationAccountName')]"
                       }
+                      runbookUrl = @{
+                          type = "string"
+                          value = "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+                      }
                       deploymentInstructions = @{
                           type = "string"
-                          value = "Runbook created successfully. You may need to publish the runbook draft and configure managed identity permissions for Microsoft Graph access."
+                          value = "Runbook created successfully! Next steps: 1) Publish the runbook draft, 2) Ensure your Automation Account has Managed Identity enabled, 3) Assign required Microsoft Graph permissions to the Managed Identity."
                       }
                   }
               }
