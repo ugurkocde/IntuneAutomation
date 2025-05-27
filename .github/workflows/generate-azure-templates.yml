@@ -2,293 +2,291 @@ name: Generate Azure Deployment Templates
 
 on:
   push:
-    branches: [ main ]
-    paths: 
-      - 'scripts/**/*.ps1'
+    branches: [main]
+    paths:
+      - "scripts/**/*.ps1"
   pull_request:
-    branches: [ main ]
-    paths: 
-      - 'scripts/**/*.ps1'
+    branches: [main]
+    paths:
+      - "scripts/**/*.ps1"
   workflow_dispatch:
 
 jobs:
   generate-templates:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Setup PowerShell
-      uses: actions/setup-powershell@v1
-      
-    - name: Generate Azure ARM Templates
-      shell: pwsh
-      run: |
-        # Create output directory
-        $outputDir = "azure-templates"
-        if (Test-Path $outputDir) {
-            Remove-Item $outputDir -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-        
-        # Initialize the templates registry
-        $templatesRegistry = @{
-            generated = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-            templates = @{}
-        }
-        
-        # Function to parse PowerShell script metadata
-        function Get-ScriptMetadata {
-            param([string]$FilePath)
-            
-            $content = Get-Content $FilePath -Raw
-            $metadata = @{}
-            
-            # Extract metadata from comment block
-            if ($content -match '(?s)<#(.*?)#>') {
-                $commentBlock = $Matches[1]
-                
-                # Parse each metadata field
-                $fields = @('TITLE', 'SYNOPSIS', 'DESCRIPTION', 'TAGS', 'PERMISSIONS', 'AUTHOR', 'VERSION', 'MINROLE')
-                foreach ($field in $fields) {
-                    if ($commentBlock -match "(?m)^\s*\.$field\s*\r?\n\s*(.+?)(?=\r?\n\s*\.|$)") {
-                        $metadata[$field] = $Matches[1].Trim()
-                    }
-                }
-            }
-            
-            return $metadata
-        }
-        
-        # Function to generate Azure Automation compatible script
-        function ConvertTo-AzureAutomationScript {
-            param([string]$OriginalScript, [hashtable]$Metadata)
-            
-            # Create the dual-environment authentication section
-            $authSection = @"
-# ============================================================================
-# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT
-# ============================================================================
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-# Detect execution environment
-if (`$PSPrivateMetadata.JobId.Guid) {
-    Write-Output "Running inside Azure Automation Runbook"
-    `$IsRunbook = `$true
-} else {
-    Write-Output "Running locally in IDE or terminal"
-    `$IsRunbook = `$false
-}
+      - name: Setup PowerShell
+        uses: actions/setup-powershell@v1
 
-# Authentication logic based on environment
-if (`$IsRunbook) {
-    # Azure Automation Runbook - Use Managed Identity
-    try {
-        Write-Output "Connecting to Microsoft Graph using Managed Identity..."
-        Connect-MgGraph -Identity -NoWelcome
-        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
-    }
-    catch {
-        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: `$(`$_.Exception.Message)"
-        throw
-    }
-} else {
-    # Local execution - Use interactive authentication
-    # Check if required modules are installed
-    `$RequiredModules = @(
-        "Microsoft.Graph.Authentication"
-    )
+      - name: Generate Azure ARM Templates
+        shell: pwsh
+        run: |
+          # Create output directory
+          $outputDir = "azure-templates"
+          if (Test-Path $outputDir) {
+              Remove-Item $outputDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
-    foreach (`$Module in `$RequiredModules) {
-        if (-not (Get-Module -ListAvailable -Name `$Module)) {
-            Write-Error "`$Module module is required. Install it using: Install-Module `$Module -Scope CurrentUser"
-            exit 1
-        }
-    }
+          # Initialize the templates registry
+          $templatesRegistry = @{
+              generated = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+              templates = @{}
+          }
 
-    # Import required modules
-    foreach (`$Module in `$RequiredModules) {
-        Import-Module `$Module
-    }
+          # Function to parse PowerShell script metadata
+          function Get-ScriptMetadata {
+              param([string]$FilePath)
+              
+              $content = Get-Content $FilePath -Raw
+              $metadata = @{}
+              
+              # Extract metadata from comment block
+              if ($content -match '(?s)<#(.*?)#>') {
+                  $commentBlock = $Matches[1]
+                  
+                  # Parse each metadata field
+                  $fields = @('TITLE', 'SYNOPSIS', 'DESCRIPTION', 'TAGS', 'PERMISSIONS', 'AUTHOR', 'VERSION', 'MINROLE')
+                  foreach ($field in $fields) {
+                      if ($commentBlock -match "(?m)^\s*\.$field\s*\r?\n\s*(.+?)(?=\r?\n\s*\.|$)") {
+                          $metadata[$field] = $Matches[1].Trim()
+                      }
+                  }
+              }
+              
+              return $metadata
+          }
 
-    # Connect to Microsoft Graph with required scopes
-    try {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
-        `$Scopes = @(
-            "$($Metadata.PERMISSIONS -replace '"', '\"')"
-        )
-        Connect-MgGraph -Scopes `$Scopes -NoWelcome
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
-    }
-    catch {
-        Write-Error "Failed to connect to Microsoft Graph: `$(`$_.Exception.Message)"
-        exit 1
-    }
-}
-"@
-            
-            # Replace existing authentication section or insert after modules section
-            $authSectionRegex = '(?s)# ============================================================================\s*\r?\n\s*# (?:MODULES AND )?AUTHENTICATION.*?(?=# ============================================================================\s*\r?\n\s*# HELPER FUNCTIONS|# ============================================================================\s*\r?\n\s*# MAIN SCRIPT LOGIC|$)'
-            
-            if ($OriginalScript -match $authSectionRegex) {
-                $modifiedScript = $OriginalScript -replace $authSectionRegex, $authSection
-            } else {
-                # If no authentication section found, insert after parameters
-                $paramEndRegex = '(?s)(\[CmdletBinding\(\)\]\s*param\s*\([^}]*\}\s*)?'
-                if ($OriginalScript -match $paramEndRegex) {
-                    $insertPoint = $Matches[0].Length
-                    $modifiedScript = $OriginalScript.Substring(0, $insertPoint) + "`n`n" + $authSection + "`n`n" + $OriginalScript.Substring($insertPoint)
-                } else {
-                    $modifiedScript = $OriginalScript + "`n`n" + $authSection
-                }
-            }
-            
-            return $modifiedScript
-        }
-        
-        # Function to generate ARM template
-        function New-AzureARMTemplate {
-            param(
-                [string]$ScriptId,
-                [string]$ScriptContent,
-                [hashtable]$Metadata
-            )
-            
-            $template = @{
-                '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
-                contentVersion = "1.0.0.0"
-                parameters = @{
-                    automationAccountName = @{
-                        type = "string"
-                        metadata = @{
-                            description = "Name of the Azure Automation Account where the runbook will be created"
-                        }
-                    }
-                    runbookName = @{
-                        type = "string"
-                        defaultValue = $ScriptId
-                        metadata = @{
-                            description = "Name of the runbook to create"
-                        }
-                    }
-                    runbookDescription = @{
-                        type = "string"
-                        defaultValue = $Metadata.DESCRIPTION -replace '"', '\"'
-                        metadata = @{
-                            description = "Description of the runbook"
-                        }
-                    }
-                }
-                variables = @{
-                    runbookType = "PowerShell"
-                    logProgress = $false
-                    logVerbose = $false
-                    scriptContent = $ScriptContent
-                }
-                resources = @(
-                    @{
-                        type = "Microsoft.Automation/automationAccounts/runbooks"
-                        apiVersion = "2020-01-13-preview"
-                        name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
-                        properties = @{
-                            runbookType = "[variables('runbookType')]"
-                            logProgress = "[variables('logProgress')]"
-                            logVerbose = "[variables('logVerbose')]"
-                            description = "[parameters('runbookDescription')]"
-                            draft = @{
-                                inEdit = $false
-                            }
-                        }
-                    },
-                    @{
-                        type = "Microsoft.Automation/automationAccounts/runbooks/draft"
-                        apiVersion = "2020-01-13-preview"
-                        name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'), '/draft')]"
-                        dependsOn = @(
-                            "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
-                        )
-                        properties = @{
-                            content = "[variables('scriptContent')]"
-                            description = "[parameters('runbookDescription')]"
-                        }
-                    }
-                )
-                outputs = @{
-                    runbookName = @{
-                        type = "string"
-                        value = "[parameters('runbookName')]"
-                    }
-                    automationAccountName = @{
-                        type = "string"
-                        value = "[parameters('automationAccountName')]"
-                    }
-                    deploymentInstructions = @{
-                        type = "string"
-                        value = "Runbook created successfully. You may need to publish the runbook draft and configure managed identity permissions for Microsoft Graph access."
-                    }
-                }
-            }
-            
-            return $template
-        }
-        
-        # Process all PowerShell scripts
-        $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
-        
-        foreach ($scriptFile in $scriptFiles) {
-            Write-Host "Processing: $($scriptFile.FullName)"
-            
-            # Get script metadata
-            $metadata = Get-ScriptMetadata -FilePath $scriptFile.FullName
-            $scriptId = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile.Name)
-            
-            # Read original script content
-            $originalScript = Get-Content $scriptFile.FullName -Raw
-            
-            # Convert to Azure Automation compatible script
-            $azureScript = ConvertTo-AzureAutomationScript -OriginalScript $originalScript -Metadata $metadata
-            
-            # Generate ARM template
-            $armTemplate = New-AzureARMTemplate -ScriptId $scriptId -ScriptContent $azureScript -Metadata $metadata
-            
-            # Save ARM template to file
-            $templateFileName = "$scriptId-azure-deployment.json"
-            $templatePath = Join-Path $outputDir $templateFileName
-            $armTemplate | ConvertTo-Json -Depth 10 | Set-Content $templatePath -Encoding UTF8
-            
-            # Generate GitHub raw URL for the template
-            $templateUrl = "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/$outputDir/$templateFileName"
-            
-            # Add to registry
-            $templatesRegistry.templates[$scriptId] = @{
-                title = $metadata.TITLE
-                description = $metadata.DESCRIPTION
-                tags = $metadata.TAGS -split ','
-                permissions = $metadata.PERMISSIONS -split ','
-                author = $metadata.AUTHOR
-                version = $metadata.VERSION
-                templateUrl = $templateUrl
-                deployUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/$([System.Web.HttpUtility]::UrlEncode($templateUrl))"
-                scriptPath = $scriptFile.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, "").Replace('\', '/')
-            }
-            
-            Write-Host "✓ Generated template for $scriptId"
-        }
-        
-        # Save the templates registry
-        $templatesRegistry | ConvertTo-Json -Depth 10 | Set-Content "azure-deployment-templates.json" -Encoding UTF8
-        
-        Write-Host "✓ Generated $($scriptFiles.Count) Azure deployment templates"
-        Write-Host "✓ Created azure-deployment-templates.json registry"
-        
-    - name: Commit generated templates
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add azure-templates/ azure-deployment-templates.json
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Auto-generate Azure deployment templates [skip ci]"
-          git push
-        fi 
+          # Function to generate Azure Automation compatible script
+          function ConvertTo-AzureAutomationScript {
+              param([string]$OriginalScript, [hashtable]$Metadata)
+              
+              # Create the dual-environment authentication section
+              $authSection = '# ============================================================================' + "`n"
+              $authSection += '# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT' + "`n"
+              $authSection += '# ============================================================================' + "`n"
+              $authSection += '' + "`n"
+              $authSection += '# Detect execution environment' + "`n"
+              $authSection += 'if ($PSPrivateMetadata.JobId.Guid) {' + "`n"
+              $authSection += '    Write-Output "Running inside Azure Automation Runbook"' + "`n"
+              $authSection += '    $IsRunbook = $true' + "`n"
+              $authSection += '} else {' + "`n"
+              $authSection += '    Write-Output "Running locally in IDE or terminal"' + "`n"
+              $authSection += '    $IsRunbook = $false' + "`n"
+              $authSection += '}' + "`n"
+              $authSection += '' + "`n"
+              $authSection += '# Authentication logic based on environment' + "`n"
+              $authSection += 'if ($IsRunbook) {' + "`n"
+              $authSection += '    # Azure Automation Runbook - Use Managed Identity' + "`n"
+              $authSection += '    try {' + "`n"
+              $authSection += '        Write-Output "Connecting to Microsoft Graph using Managed Identity..."' + "`n"
+              $authSection += '        Connect-MgGraph -Identity -NoWelcome' + "`n"
+              $authSection += '        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '    catch {' + "`n"
+              $authSection += '        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: $($_.Exception.Message)"' + "`n"
+              $authSection += '        throw' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '} else {' + "`n"
+              $authSection += '    # Local execution - Use interactive authentication' + "`n"
+              $authSection += '    # Check if required modules are installed' + "`n"
+              $authSection += '    $RequiredModules = @(' + "`n"
+              $authSection += '        "Microsoft.Graph.Authentication"' + "`n"
+              $authSection += '    )' + "`n"
+              $authSection += '' + "`n"
+              $authSection += '    foreach ($Module in $RequiredModules) {' + "`n"
+              $authSection += '        if (-not (Get-Module -ListAvailable -Name $Module)) {' + "`n"
+              $authSection += '            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"' + "`n"
+              $authSection += '            exit 1' + "`n"
+              $authSection += '        }' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '' + "`n"
+              $authSection += '    # Import required modules' + "`n"
+              $authSection += '    foreach ($Module in $RequiredModules) {' + "`n"
+              $authSection += '        Import-Module $Module' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '' + "`n"
+              $authSection += '    # Connect to Microsoft Graph with required scopes' + "`n"
+              $authSection += '    try {' + "`n"
+              $authSection += '        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue' + "`n"
+              $authSection += '        $Scopes = @(' + "`n"
+              $authSection += '            "' + ($Metadata.PERMISSIONS -replace '"', '\"') + '"' + "`n"
+              $authSection += '        )' + "`n"
+              $authSection += '        Connect-MgGraph -Scopes $Scopes -NoWelcome' + "`n"
+              $authSection += '        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '    catch {' + "`n"
+              $authSection += '        Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"' + "`n"
+              $authSection += '        exit 1' + "`n"
+              $authSection += '    }' + "`n"
+              $authSection += '}'
+              
+              # Replace existing authentication section or insert after modules section
+              $authSectionRegex = '(?s)# ============================================================================\s*\r?\n\s*# (?:MODULES AND )?AUTHENTICATION.*?(?=# ============================================================================\s*\r?\n\s*# HELPER FUNCTIONS|# ============================================================================\s*\r?\n\s*# MAIN SCRIPT LOGIC|$)'
+              
+              if ($OriginalScript -match $authSectionRegex) {
+                  $modifiedScript = $OriginalScript -replace $authSectionRegex, $authSection
+              } else {
+                  # If no authentication section found, insert after parameters
+                  $paramEndRegex = '(?s)(\[CmdletBinding\(\)\]\s*param\s*\([^}]*\}\s*)?'
+                  if ($OriginalScript -match $paramEndRegex) {
+                      $insertPoint = $Matches[0].Length
+                      $modifiedScript = $OriginalScript.Substring(0, $insertPoint) + "`n`n" + $authSection + "`n`n" + $OriginalScript.Substring($insertPoint)
+                  } else {
+                      $modifiedScript = $OriginalScript + "`n`n" + $authSection
+                  }
+              }
+              
+              return $modifiedScript
+          }
+
+          # Function to generate ARM template
+          function New-AzureARMTemplate {
+              param(
+                  [string]$ScriptId,
+                  [string]$ScriptContent,
+                  [hashtable]$Metadata
+              )
+              
+              $template = @{
+                  '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+                  contentVersion = "1.0.0.0"
+                  parameters = @{
+                      automationAccountName = @{
+                          type = "string"
+                          metadata = @{
+                              description = "Name of the Azure Automation Account where the runbook will be created"
+                          }
+                      }
+                      runbookName = @{
+                          type = "string"
+                          defaultValue = $ScriptId
+                          metadata = @{
+                              description = "Name of the runbook to create"
+                          }
+                      }
+                      runbookDescription = @{
+                          type = "string"
+                          defaultValue = $Metadata.DESCRIPTION -replace '"', '\"'
+                          metadata = @{
+                              description = "Description of the runbook"
+                          }
+                      }
+                  }
+                  variables = @{
+                      runbookType = "PowerShell"
+                      logProgress = $false
+                      logVerbose = $false
+                      scriptContent = $ScriptContent
+                  }
+                  resources = @(
+                      @{
+                          type = "Microsoft.Automation/automationAccounts/runbooks"
+                          apiVersion = "2020-01-13-preview"
+                          name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+                          properties = @{
+                              runbookType = "[variables('runbookType')]"
+                              logProgress = "[variables('logProgress')]"
+                              logVerbose = "[variables('logVerbose')]"
+                              description = "[parameters('runbookDescription')]"
+                              draft = @{
+                                  inEdit = $false
+                              }
+                          }
+                      },
+                      @{
+                          type = "Microsoft.Automation/automationAccounts/runbooks/draft"
+                          apiVersion = "2020-01-13-preview"
+                          name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'), '/draft')]"
+                          dependsOn = @(
+                              "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
+                          )
+                          properties = @{
+                              content = "[variables('scriptContent')]"
+                              description = "[parameters('runbookDescription')]"
+                          }
+                      }
+                  )
+                  outputs = @{
+                      runbookName = @{
+                          type = "string"
+                          value = "[parameters('runbookName')]"
+                      }
+                      automationAccountName = @{
+                          type = "string"
+                          value = "[parameters('automationAccountName')]"
+                      }
+                      deploymentInstructions = @{
+                          type = "string"
+                          value = "Runbook created successfully. You may need to publish the runbook draft and configure managed identity permissions for Microsoft Graph access."
+                      }
+                  }
+              }
+              
+              return $template
+          }
+
+          # Process all PowerShell scripts
+          $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
+
+          foreach ($scriptFile in $scriptFiles) {
+              Write-Host "Processing: $($scriptFile.FullName)"
+              
+              # Get script metadata
+              $metadata = Get-ScriptMetadata -FilePath $scriptFile.FullName
+              $scriptId = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile.Name)
+              
+              # Read original script content
+              $originalScript = Get-Content $scriptFile.FullName -Raw
+              
+              # Convert to Azure Automation compatible script
+              $azureScript = ConvertTo-AzureAutomationScript -OriginalScript $originalScript -Metadata $metadata
+              
+              # Generate ARM template
+              $armTemplate = New-AzureARMTemplate -ScriptId $scriptId -ScriptContent $azureScript -Metadata $metadata
+              
+              # Save ARM template to file
+              $templateFileName = "$scriptId-azure-deployment.json"
+              $templatePath = Join-Path $outputDir $templateFileName
+              $armTemplate | ConvertTo-Json -Depth 10 | Set-Content $templatePath -Encoding UTF8
+              
+              # Generate GitHub raw URL for the template
+              $templateUrl = "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/$outputDir/$templateFileName"
+              
+              # Add to registry
+              $templatesRegistry.templates[$scriptId] = @{
+                  title = $metadata.TITLE
+                  description = $metadata.DESCRIPTION
+                  tags = $metadata.TAGS -split ','
+                  permissions = $metadata.PERMISSIONS -split ','
+                  author = $metadata.AUTHOR
+                  version = $metadata.VERSION
+                  templateUrl = $templateUrl
+                  deployUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/$([System.Web.HttpUtility]::UrlEncode($templateUrl))"
+                  scriptPath = $scriptFile.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, "").Replace('\', '/')
+              }
+              
+              Write-Host "✓ Generated template for $scriptId"
+          }
+
+          # Save the templates registry
+          $templatesRegistry | ConvertTo-Json -Depth 10 | Set-Content "azure-deployment-templates.json" -Encoding UTF8
+
+          Write-Host "✓ Generated $($scriptFiles.Count) Azure deployment templates"
+          Write-Host "✓ Created azure-deployment-templates.json registry"
+
+      - name: Commit generated templates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add azure-templates/ azure-deployment-templates.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-generate Azure deployment templates [skip ci]"
+            git push
+          fi
