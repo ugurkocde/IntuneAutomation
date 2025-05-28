@@ -1,6 +1,12 @@
-# IntuneAutomation
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/90e81af6-faca-47a6-92ae-00d916977860" alt="grafik" />
+</p>
 
-A collection of PowerShell scripts for automating Microsoft Intune device management tasks.
+<p align="center">
+  A collection of PowerShell scripts for automating Microsoft Intune device management tasks.
+</p>
+
+
 
 ## Overview
 
