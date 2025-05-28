@@ -66,108 +66,14 @@ jobs:
               return $metadata
           }
 
-          # Function to generate Azure Automation compatible script
-          function ConvertTo-AzureAutomationScript {
-              param([string]$OriginalScript, [hashtable]$Metadata)
-              
-              # Create the dual-environment authentication section
-              $authLines = @(
-                  '# ============================================================================',
-                  '# AUTHENTICATION - DUAL ENVIRONMENT SUPPORT',
-                  '# ============================================================================',
-                  '',
-                  '# Detect execution environment',
-                  'if ($PSPrivateMetadata.JobId.Guid) {',
-                  '    Write-Output "Running inside Azure Automation Runbook"',
-                  '    $IsRunbook = $true',
-                  '} else {',
-                  '    Write-Output "Running locally in IDE or terminal"',
-                  '    $IsRunbook = $false',
-                  '}',
-                  '',
-                  '# Authentication logic based on environment',
-                  'if ($IsRunbook) {',
-                  '    # Azure Automation Runbook - Use Managed Identity',
-                  '    try {',
-                  '        Write-Output "Connecting to Microsoft Graph using Managed Identity..."',
-                  '        Connect-MgGraph -Identity -NoWelcome',
-                  '        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"',
-                  '    }',
-                  '    catch {',
-                  '        Write-Error "Failed to connect to Microsoft Graph using Managed Identity: $($_.Exception.Message)"',
-                  '        throw',
-                  '    }',
-                  '} else {',
-                  '    # Local execution - Use interactive authentication',
-                  '    # Check if required modules are installed',
-                  '    $RequiredModules = @(',
-                  '        "Microsoft.Graph.Authentication"',
-                  '    )',
-                  '',
-                  '    foreach ($Module in $RequiredModules) {',
-                  '        if (-not (Get-Module -ListAvailable -Name $Module)) {',
-                  '            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"',
-                  '            exit 1',
-                  '        }',
-                  '    }',
-                  '',
-                  '    # Import required modules',
-                  '    foreach ($Module in $RequiredModules) {',
-                  '        Import-Module $Module',
-                  '    }',
-                  '',
-                  '    # Connect to Microsoft Graph with required scopes',
-                  '    try {',
-                  '        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue',
-                  '        $Scopes = @(',
-                  "            `"$($Metadata.PERMISSIONS)`"",
-                  '        )',
-                  '        Connect-MgGraph -Scopes $Scopes -NoWelcome',
-                  '        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue',
-                  '    }',
-                  '    catch {',
-                  '        Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"',
-                  '        exit 1',
-                  '    }',
-                  '}'
-              )
-              
-              $authSection = $authLines -join "`n"
-              
-              # Replace existing authentication section or insert after modules section
-              $authSectionRegex = '(?s)# ============================================================================\s*\r?\n\s*# (?:MODULES AND )?AUTHENTICATION.*?(?=# ============================================================================\s*\r?\n\s*# HELPER FUNCTIONS|# ============================================================================\s*\r?\n\s*# MAIN SCRIPT LOGIC|$)'
-              
-              if ($OriginalScript -match $authSectionRegex) {
-                  $modifiedScript = $OriginalScript -replace $authSectionRegex, $authSection
-              } else {
-                  # If no authentication section found, insert after parameters
-                  $paramEndRegex = '(?s)(\[CmdletBinding\(\)\]\s*param\s*\([^}]*\}\s*)?'
-                  if ($OriginalScript -match $paramEndRegex) {
-                      $insertPoint = $Matches[0].Length
-                      $modifiedScript = $OriginalScript.Substring(0, $insertPoint) + "`n`n" + $authSection + "`n`n" + $OriginalScript.Substring($insertPoint)
-                  } else {
-                      $modifiedScript = $OriginalScript + "`n`n" + $authSection
-                  }
-              }
-              
-              return $modifiedScript
-          }
-
           # Function to generate ARM template
           function New-AzureARMTemplate {
               param(
                   [string]$ScriptId,
                   [string]$ScriptContent,
-                  [hashtable]$Metadata
+                  [hashtable]$Metadata,
+                  [string]$ScriptPath
               )
-              
-              # Save the Azure Automation compatible script to a separate file
-              $azureScriptPath = "azure-scripts/$ScriptId.ps1"
-              $azureScriptDir = Split-Path $azureScriptPath -Parent
-              if (-not (Test-Path $azureScriptDir)) {
-                  New-Item -ItemType Directory -Path $azureScriptDir -Force | Out-Null
-              }
-              Set-Content -Path $azureScriptPath -Value $ScriptContent -Encoding UTF8
               
               $template = @{
                   '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
@@ -205,7 +111,7 @@ jobs:
                       runbookType = "PowerShell"
                       logProgress = $false
                       logVerbose = $false
-                      scriptUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-scripts/$($ScriptId).ps1"
+                      scriptUri = "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/$($ScriptPath -replace '\\', '/')"
                   }
                   resources = @(
                       @{
@@ -218,7 +124,63 @@ jobs:
                               logProgress = "[variables('logProgress')]"
                               logVerbose = "[variables('logVerbose')]"
                               description = "[parameters('runbookDescription')]"
-                              publishContentLinkUri = "[variables('scriptUrl')]"
+                          }
+                      },
+                      @{
+                          type = "Microsoft.Resources/deploymentScripts"
+                          apiVersion = "2020-10-01"
+                          name = "[concat('upload-', parameters('runbookName'))]"
+                          location = "[parameters('location')]"
+                          dependsOn = @(
+                              "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
+                          )
+                          kind = "AzurePowerShell"
+                          properties = @{
+                              azPowerShellVersion = "8.3"
+                              timeout = "PT30M"
+                              arguments = "[concat('-AutomationAccountName ', parameters('automationAccountName'), ' -RunbookName ', parameters('runbookName'), ' -ResourceGroupName ', resourceGroup().name, ' -ScriptUri \"', variables('scriptUri'), '\"')]"
+                              scriptContent = @"
+param(
+    [string]`$AutomationAccountName,
+    [string]`$RunbookName,
+    [string]`$ResourceGroupName,
+    [string]`$ScriptUri
+)
+
+try {
+    # Download the script content
+    `$scriptContent = Invoke-RestMethod -Uri `$ScriptUri -Method Get
+    
+    # Import the runbook content
+    Import-AzAutomationRunbook -AutomationAccountName `$AutomationAccountName -ResourceGroupName `$ResourceGroupName -Name `$RunbookName -Type PowerShell -Published
+    
+    # Update the runbook content using REST API
+    `$subscriptionId = (Get-AzContext).Subscription.Id
+    `$accessToken = (Get-AzAccessToken).Token
+    
+    `$uri = "https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/draft/content"
+    `$headers = @{
+        'Authorization' = "Bearer `$accessToken"
+        'Content-Type' = 'text/plain'
+    }
+    
+    Invoke-RestMethod -Uri `$uri -Method Put -Body `$scriptContent -Headers `$headers
+    
+    # Publish the runbook
+    `$publishUri = "https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/publish"
+    Invoke-RestMethod -Uri `$publishUri -Method Post -Headers `$headers
+    
+    Write-Output "Successfully uploaded and published runbook: `$RunbookName"
+}
+catch {
+    Write-Error "Failed to upload runbook content: `$(`$_.Exception.Message)"
+    throw
+}
+"@
+                              retentionInterval = "P1D"
+                          }
+                          identity = @{
+                              type = "SystemAssigned"
                           }
                       }
                   )
@@ -258,11 +220,11 @@ jobs:
               # Read original script content
               $originalScript = Get-Content $scriptFile.FullName -Raw
               
-              # Convert to Azure Automation compatible script
-              $azureScript = ConvertTo-AzureAutomationScript -OriginalScript $originalScript -Metadata $metadata
+              # Get relative path from repository root
+              $relativePath = $scriptFile.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, "").Replace('\', '/')
               
               # Generate ARM template
-              $armTemplate = New-AzureARMTemplate -ScriptId $scriptId -ScriptContent $azureScript -Metadata $metadata
+              $armTemplate = New-AzureARMTemplate -ScriptId $scriptId -ScriptContent $originalScript -Metadata $metadata -ScriptPath $relativePath
               
               # Save ARM template to file
               $templateFileName = "$scriptId-azure-deployment.json"
@@ -282,7 +244,7 @@ jobs:
                   version = $metadata.VERSION
                   templateUrl = $templateUrl
                   deployUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/$([System.Web.HttpUtility]::UrlEncode($templateUrl))"
-                  scriptPath = $scriptFile.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, "").Replace('\', '/')
+                  scriptPath = $relativePath
               }
               
               Write-Host "✓ Generated template for $scriptId"
@@ -298,10 +260,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add azure-templates/ azure-scripts/ azure-deployment-templates.json
+          git add azure-templates/ azure-deployment-templates.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Auto-generate Azure deployment templates and scripts [skip ci]"
+            git commit -m "Auto-generate Azure deployment templates [skip ci]"
             git push
           fi
