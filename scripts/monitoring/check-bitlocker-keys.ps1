@@ -66,39 +66,134 @@ param(
     [switch]$ExportJson,
     
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress
+    [switch]$ShowProgress,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
+    [switch]$ForceModuleInstall
 )
 
 # ============================================================================
-# MODULES AND AUTHENTICATION
+# ENVIRONMENT DETECTION AND SETUP
 # ============================================================================
 
-# Check if required modules are installed
+function Initialize-RequiredModule {
+    <#
+    .SYNOPSIS
+    Ensures required modules are available and loaded
+    #>
+    param(
+        [string[]]$ModuleNames,
+        [bool]$IsAutomationEnvironment,
+        [bool]$ForceInstall = $false
+    )
+    
+    foreach ($ModuleName in $ModuleNames) {
+        Write-Verbose "Checking module: $ModuleName"
+        
+        # Check if module is available
+        $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
+        
+        if (-not $module) {
+            if ($IsAutomationEnvironment) {
+                $errorMessage = @"
+Module '$ModuleName' is not available in this Azure Automation Account.
+
+To resolve this issue:
+1. Go to Azure Portal
+2. Navigate to your Automation Account
+3. Go to 'Modules' > 'Browse Gallery'
+4. Search for '$ModuleName'
+5. Click 'Import' and wait for installation to complete
+
+Alternative: Use PowerShell to import the module:
+Import-Module Az.Automation
+Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupName "YourRG" -Name "$ModuleName"
+"@
+                throw $errorMessage
+            }
+            else {
+                # Local environment - attempt to install
+                Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
+                
+                if (-not $ForceInstall) {
+                    $response = Read-Host "Install module '$ModuleName'? (Y/N)"
+                    if ($response -notmatch '^[Yy]') {
+                        throw "Module '$ModuleName' is required but installation was declined."
+                    }
+                }
+                
+                try {
+                    # Check if running as administrator for AllUsers scope
+                    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+                    $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
+                    
+                    Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
+                    Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
+                    Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
+                }
+                catch {
+                    throw "Failed to install module '$ModuleName': $($_.Exception.Message)"
+                }
+            }
+        }
+        
+        # Import the module
+        try {
+            Write-Verbose "Importing module: $ModuleName"
+            Import-Module -Name $ModuleName -Force -ErrorAction Stop
+            Write-Verbose "✓ Successfully imported '$ModuleName'"
+        }
+        catch {
+            throw "Failed to import module '$ModuleName': $($_.Exception.Message)"
+        }
+    }
+}
+
+# Detect execution environment
+if ($PSPrivateMetadata.JobId.Guid) {
+    Write-Output "Running inside Azure Automation Runbook"
+    $IsAzureAutomation = $true
+}
+else {
+    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    $IsAzureAutomation = $false
+}
+
+# Initialize required modules
 $RequiredModuleList = @(
     "Microsoft.Graph.Authentication"
 )
 
-foreach ($Module in $RequiredModuleList) {
-    if (-not (Get-Module -ListAvailable -Name $Module)) {
-        Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
-        exit 1
-    }
-}
-
-# Import required modules
-foreach ($Module in $RequiredModuleList) {
-    Import-Module $Module
-}
-
-# Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
-    $Scopes = @(
-        "DeviceManagementManagedDevices.Read.All",
-        "BitlockerKey.Read.All"
-    )
-    Connect-MgGraph -Scopes $Scopes -NoWelcome | Out-Null
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
+    Write-Verbose "✓ All required modules are available"
+}
+catch {
+    Write-Error "Module initialization failed: $_"
+    exit 1
+}
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+
+try {
+    if ($IsAzureAutomation) {
+        # Azure Automation - Use Managed Identity
+        Write-Output "Connecting to Microsoft Graph using Managed Identity..."
+        Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
+        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
+    }
+    else {
+        # Local execution - Use interactive authentication
+        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        $Scopes = @(
+            "DeviceManagementManagedDevices.Read.All",
+            "BitlockerKey.Read.All"
+        )
+        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    }
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
