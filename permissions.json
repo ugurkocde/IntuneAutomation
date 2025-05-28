@@ -1,0 +1,54 @@
+{
+  "DeviceManagementManagedDevices.ReadWrite.All": {
+    "displayName": "Read and write Microsoft Intune devices",
+    "description": "Allows the app to read and write the properties of devices managed by Microsoft Intune, without a signed-in user. Does not allow high impact operations such as remote wipe and password reset on the device's owner"
+  },
+  "DeviceManagementManagedDevices.Read.All": {
+    "displayName": "Read Microsoft Intune devices",
+    "description": "Allows the app to read the properties of devices managed by Microsoft Intune, without a signed-in user."
+  },
+  "DeviceManagementConfiguration.ReadWrite.All": {
+    "displayName": "Read and write Microsoft Intune device configuration and policies",
+    "description": "Allows the app to read and write properties of Microsoft Intune-managed device configuration and device compliance policies and their assignment to groups, without a signed-in user."
+  },
+  "DeviceManagementConfiguration.Read.All": {
+    "displayName": "Read Microsoft Intune device configuration and policies",
+    "description": "Allows the app to read properties of Microsoft Intune-managed device configuration and device compliance policies and their assignment to groups, without a signed-in user."
+  },
+  "DeviceManagementApps.ReadWrite.All": {
+    "displayName": "Read and write Microsoft Intune apps",
+    "description": "Allows the app to read and write the properties, group assignments and status of apps, app configurations and app protection policies managed by Microsoft Intune, without a signed-in user."
+  },
+  "DeviceManagementApps.Read.All": {
+    "displayName": "Read Microsoft Intune apps",
+    "description": "Allows the app to read the properties, group assignments and status of apps, app configurations and app protection policies managed by Microsoft Intune, without a signed-in user."
+  },
+  "DeviceManagementServiceConfig.ReadWrite.All": {
+    "displayName": "Read and write Microsoft Intune configuration",
+    "description": "Allows the app to read and write Microsoft Intune service properties including device enrollment and third party service connection configuration, without a signed-in user."
+  },
+  "DeviceManagementServiceConfig.Read.All": {
+    "displayName": "Read Microsoft Intune configuration",
+    "description": "Allows the app to read Microsoft Intune service properties including device enrollment and third party service connection configuration, without a signed-in user."
+  },
+  "DeviceManagementRBAC.ReadWrite.All": {
+    "displayName": "Read and write Microsoft Intune RBAC settings",
+    "description": "Allows the app to read and write the properties relating to the Microsoft Intune Role-Based Access Control (RBAC) settings, without a signed-in user."
+  },
+  "DeviceManagementManagedDevices.PrivilegedOperations.All": {
+    "displayName": "Perform user-impacting remote actions on Microsoft Intune devices",
+    "description": "Allows the app to perform remote high impact actions such as wiping the device or resetting the passcode on devices managed by Microsoft Intune, without a signed-in user."
+  },
+  "BitlockerKey.Read.All": {
+    "displayName": "Read all BitLocker keys",
+    "description": "Allows an app to read BitLocker keys for all devices, without a signed-in user. Allows read of the recovery key."
+  },
+  "Group.Read.All": {
+    "displayName": "Read all groups",
+    "description": "Allows the app to read group properties and memberships, and read\u00a0conversations for all groups, without a signed-in user."
+  },
+  "GroupMember.Read.All": {
+    "displayName": "Read all group memberships",
+    "description": "Allows the app to read memberships and basic group properties for all groups without a signed-in user."
+  }
+}

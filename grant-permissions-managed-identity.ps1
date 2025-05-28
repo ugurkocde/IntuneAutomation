@@ -18,12 +18,19 @@ param(
 
 # Default Intune permissions if no custom permissions are provided
 $DefaultIntunePermissions = @(
-    "DeviceManagementManagedDevices.ReadWrite.All", 
-    "DeviceManagementConfiguration.ReadWrite.All", 
-    "DeviceManagementApps.ReadWrite.All", 
-    "DeviceManagementServiceConfig.ReadWrite.All", 
-    "DeviceManagementRBAC.ReadWrite.All", 
-    "DeviceManagementManagedDevices.PrivilegedOperations.All"
+    "DeviceManagementManagedDevices.ReadWrite.All",
+    "DeviceManagementManagedDevices.Read.All",
+    "DeviceManagementConfiguration.ReadWrite.All",
+    "DeviceManagementConfiguration.Read.All",
+    "DeviceManagementApps.ReadWrite.All",
+    "DeviceManagementApps.Read.All",
+    "DeviceManagementServiceConfig.ReadWrite.All",
+    "DeviceManagementServiceConfig.Read.All",
+    "DeviceManagementRBAC.ReadWrite.All",
+    "DeviceManagementManagedDevices.PrivilegedOperations.All",
+    "BitlockerKey.Read.All",
+    "Group.Read.All",
+    "GroupMember.Read.All"
 )
 
 # Use custom permissions if provided, otherwise use default Intune permissions
