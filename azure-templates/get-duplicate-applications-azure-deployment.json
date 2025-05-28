@@ -48,7 +48,7 @@
     },
     "runbookDescription": {
       "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,",
+      "defaultValue": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
       "metadata": {
         "description": "Description of the runbook"
       }
@@ -62,7 +62,7 @@
     },
     "runbookName": {
       "type": "string",
-      "defaultValue": "get-application-inventory-report",
+      "defaultValue": "get-duplicate-applications",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       }
@@ -70,7 +70,7 @@
   },
   "variables": {
     "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-application-inventory-report.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-duplicate-applications.ps1",
     "logProgress": false,
     "runbookType": "PowerShell"
   },
