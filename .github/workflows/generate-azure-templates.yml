@@ -128,7 +128,10 @@ jobs:
                               logProgress = "[variables('logProgress')]"
                               logVerbose = "[variables('logVerbose')]"
                               description = "[parameters('runbookDescription')]"
-                              publishContentLinkUri = "[variables('scriptUri')]"
+                              publishContentLink = @{
+                                  uri = "[variables('scriptUri')]"
+                                  version = "1.0.0.0"
+                              }
                           }
                       }
                   )
