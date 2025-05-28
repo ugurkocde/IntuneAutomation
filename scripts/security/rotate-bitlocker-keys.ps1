@@ -64,6 +64,35 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsRunbook = $false
 }
 
+# Check if required modules are installed (for both environments)
+$RequiredModules = @(
+    "Microsoft.Graph.Authentication"
+)
+
+foreach ($Module in $RequiredModules) {
+    if (-not (Get-Module -ListAvailable -Name $Module)) {
+        if ($IsRunbook) {
+            Write-Error "$Module module is not available in this Azure Automation Account. Please import the '$Module' module through the Azure portal: Automation Account > Modules > Browse Gallery > Search for '$Module' > Import"
+            exit 1
+        } else {
+            Write-Information "Installing required module: $Module" -InformationAction Continue
+            try {
+                Install-Module $Module -Scope CurrentUser -Force -AllowClobber
+                Write-Information "✓ Successfully installed $Module" -InformationAction Continue
+            }
+            catch {
+                Write-Error "Failed to install $Module module: $($_.Exception.Message). Please install manually using: Install-Module $Module -Scope CurrentUser"
+                exit 1
+            }
+        }
+    }
+}
+
+# Import required modules (for both environments)
+foreach ($Module in $RequiredModules) {
+    Import-Module $Module
+}
+
 # Authentication logic based on environment
 if ($IsRunbook) {
     # Azure Automation Runbook - Use Managed Identity
@@ -78,23 +107,6 @@ if ($IsRunbook) {
     }
 } else {
     # Local execution - Use interactive authentication
-    # Check if required modules are installed
-    $RequiredModules = @(
-        "Microsoft.Graph.Authentication"
-    )
-
-    foreach ($Module in $RequiredModules) {
-        if (-not (Get-Module -ListAvailable -Name $Module)) {
-            Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
-            exit 1
-        }
-    }
-
-    # Import required modules
-    foreach ($Module in $RequiredModules) {
-        Import-Module $Module
-    }
-
     # Connect to Microsoft Graph with required scopes
     try {
         Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
