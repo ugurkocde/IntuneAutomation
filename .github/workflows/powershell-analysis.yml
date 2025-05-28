@@ -1,5 +1,5 @@
-name: PowerShell Script Analysis
-run-name: PowerShell Script Analysis
+name: PowerShell Script Analysis and Azure Template Generation
+run-name: PowerShell Script Analysis and Azure Template Generation
 
 on:
   push:
@@ -16,13 +16,15 @@ permissions:
   actions: read
 
 jobs:
-  analyze:
+  analyze-and-generate:
     runs-on: ubuntu-latest
-    name: Analyze PowerShell Scripts
+    name: Analyze PowerShell Scripts and Generate Azure Templates
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup PowerShell
         shell: pwsh
@@ -139,6 +141,193 @@ jobs:
               Write-Host "`n✅ All scripts passed analysis!" -ForegroundColor Green
           }
 
+      - name: Generate Azure ARM Templates
+        shell: pwsh
+        run: |
+          Write-Host "`n=== GENERATING AZURE TEMPLATES ===" -ForegroundColor Green
+
+          # Load required assemblies
+          Add-Type -AssemblyName System.Web
+
+          # Create output directory
+          $outputDir = "azure-templates"
+          if (Test-Path $outputDir) {
+              Remove-Item $outputDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+          # Initialize the templates registry
+          $templatesRegistry = @{
+              generated = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+              templates = @{}
+          }
+
+          # Function to parse PowerShell script metadata
+          function Get-ScriptMetadata {
+              param([string]$FilePath)
+              
+              $content = Get-Content $FilePath -Raw
+              $metadata = @{}
+              
+              # Extract metadata from comment block
+              if ($content -match '(?s)<#(.*?)#>') {
+                  $commentBlock = $Matches[1]
+                  
+                  # Parse each metadata field
+                  $fields = @('TITLE', 'SYNOPSIS', 'DESCRIPTION', 'TAGS', 'PERMISSIONS', 'AUTHOR', 'VERSION', 'MINROLE')
+                  foreach ($field in $fields) {
+                      if ($commentBlock -match "(?m)^\s*\.$field\s*\r?\n\s*(.+?)(?=\r?\n\s*\.|$)") {
+                          $metadata[$field] = $Matches[1].Trim()
+                      }
+                  }
+              }
+              
+              return $metadata
+          }
+
+          # Function to generate ARM template
+          function New-AzureARMTemplate {
+              param(
+                  [string]$ScriptId,
+                  [string]$ScriptContent,
+                  [hashtable]$Metadata,
+                  [string]$ScriptPath
+              )
+              
+              # Use the actual repository name from environment variable
+              $repoName = "$env:GITHUB_REPOSITORY"
+              
+              $template = @{
+                  '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+                  contentVersion = "1.0.0.0"
+                  parameters = @{
+                      automationAccountName = @{
+                          type = "string"
+                          metadata = @{
+                              description = "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+                          }
+                      }
+                      runbookName = @{
+                          type = "string"
+                          defaultValue = $ScriptId
+                          metadata = @{
+                              description = "Name for the new runbook (will be created in the Automation Account)"
+                          }
+                      }
+                      runbookDescription = @{
+                          type = "string"
+                          defaultValue = ($Metadata.DESCRIPTION -replace '"', '\"')
+                          metadata = @{
+                              description = "Description of the runbook"
+                          }
+                      }
+                      location = @{
+                          type = "string"
+                          defaultValue = "[resourceGroup().location]"
+                          metadata = @{
+                              description = "Location for the runbook deployment"
+                          }
+                      }
+                  }
+                  variables = @{
+                      runbookType = "PowerShell"
+                      logProgress = $false
+                      logVerbose = $false
+                      scriptUri = "https://raw.githubusercontent.com/$repoName/main/$($ScriptPath -replace '\\', '/')"
+                  }
+                  resources = @(
+                      @{
+                          type = "Microsoft.Automation/automationAccounts/runbooks"
+                          apiVersion = "2023-11-01"
+                          name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+                          location = "[parameters('location')]"
+                          properties = @{
+                              runbookType = "[variables('runbookType')]"
+                              logProgress = "[variables('logProgress')]"
+                              logVerbose = "[variables('logVerbose')]"
+                              description = "[parameters('runbookDescription')]"
+                              publishContentLink = @{
+                                  uri = "[variables('scriptUri')]"
+                              }
+                          }
+                      }
+                  )
+                  outputs = @{
+                      runbookName = @{
+                          type = "string"
+                          value = "[parameters('runbookName')]"
+                      }
+                      automationAccountName = @{
+                          type = "string"
+                          value = "[parameters('automationAccountName')]"
+                      }
+                      runbookUrl = @{
+                          type = "string"
+                          value = "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+                      }
+                      scriptSourceUrl = @{
+                          type = "string"
+                          value = "[variables('scriptUri')]"
+                      }
+                      deploymentInstructions = @{
+                          type = "string"
+                          value = "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+                      }
+                  }
+              }
+              
+              return $template
+          }
+
+          # Process all PowerShell scripts
+          $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
+
+          foreach ($scriptFile in $scriptFiles) {
+              Write-Host "Processing: $($scriptFile.FullName)"
+              
+              # Get script metadata
+              $metadata = Get-ScriptMetadata -FilePath $scriptFile.FullName
+              $scriptId = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile.Name)
+              
+              # Read original script content
+              $originalScript = Get-Content $scriptFile.FullName -Raw
+              
+              # Get relative path from repository root
+              $relativePath = $scriptFile.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, "").Replace('\', '/')
+              
+              # Generate ARM template
+              $armTemplate = New-AzureARMTemplate -ScriptId $scriptId -ScriptContent $originalScript -Metadata $metadata -ScriptPath $relativePath
+              
+              # Save ARM template to file
+              $templateFileName = "$scriptId-azure-deployment.json"
+              $templatePath = Join-Path $outputDir $templateFileName
+              $armTemplate | ConvertTo-Json -Depth 10 | Set-Content $templatePath -Encoding UTF8
+              
+              # Generate GitHub raw URL for the template
+              $templateUrl = "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/main/$outputDir/$templateFileName"
+              
+              # Add to registry
+              $templatesRegistry.templates[$scriptId] = @{
+                  title = $metadata.TITLE
+                  description = $metadata.DESCRIPTION
+                  tags = $metadata.TAGS -split ','
+                  permissions = $metadata.PERMISSIONS -split ','
+                  author = $metadata.AUTHOR
+                  version = $metadata.VERSION
+                  templateUrl = $templateUrl
+                  deployUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/$([System.Web.HttpUtility]::UrlEncode($templateUrl))"
+                  scriptPath = $relativePath
+              }
+              
+              Write-Host "✓ Generated template for $scriptId"
+          }
+
+          # Save the templates registry
+          $templatesRegistry | ConvertTo-Json -Depth 10 | Set-Content "azure-deployment-templates.json" -Encoding UTF8
+
+          Write-Host "✓ Generated $($scriptFiles.Count) Azure deployment templates"
+          Write-Host "✓ Created azure-deployment-templates.json registry"
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -146,15 +335,15 @@ jobs:
           name: powershell-analysis-results
           path: testresults.json
 
-      - name: Commit results (if on main/master)
+      - name: Commit all results (if on main/master)
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add testresults.json
+          git add testresults.json azure-templates/ azure-deployment-templates.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update PowerShell analysis results [skip ci]"
+            git commit -m "Update PowerShell analysis results and Azure deployment templates [skip ci]"
             git push
           fi
