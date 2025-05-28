@@ -120,7 +120,7 @@ jobs:
                   resources = @(
                       @{
                           type = "Microsoft.Automation/automationAccounts/runbooks"
-                          apiVersion = "2020-01-13-preview"
+                          apiVersion = "2023-11-01"
                           name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
                           location = "[parameters('location')]"
                           properties = @{
@@ -130,7 +130,6 @@ jobs:
                               description = "[parameters('runbookDescription')]"
                               publishContentLink = @{
                                   uri = "[variables('scriptUri')]"
-                                  version = "1.0.0.0"
                               }
                           }
                       }
@@ -148,9 +147,13 @@ jobs:
                           type = "string"
                           value = "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
                       }
+                      scriptSourceUrl = @{
+                          type = "string"
+                          value = "[variables('scriptUri')]"
+                      }
                       deploymentInstructions = @{
                           type = "string"
-                          value = "Runbook created and published successfully! Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+                          value = "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
                       }
                   }
               }
