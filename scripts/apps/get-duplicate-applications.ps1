@@ -95,7 +95,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -144,8 +144,6 @@ function Get-MgGraphAllPages {
     return $AllResults
 }
 
-
-
 # Function to normalize application names for comparison
 function Get-NormalizedAppName {
     param([string]$AppName)
@@ -158,8 +156,6 @@ function Get-NormalizedAppName {
     return $normalized.ToLower()
 }
 
-
-
 # ============================================================================
 # MAIN SCRIPT LOGIC
 # ============================================================================
@@ -170,7 +166,7 @@ try {
     # Get all Intune applications
     Write-Information "Retrieving Intune applications..." -InformationAction Continue
     $appsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
-    $intuneApps = Get-MgGraphAllPages -Uri $appsUri
+    $intuneApps = Get-MgGraphAllPage -Uri $appsUri
     Write-Information "`n✓ Found $($intuneApps.Count) Intune applications" -InformationAction Continue
     
     # Create application inventory array
@@ -425,7 +421,7 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        Write-Verbose "Graph disconnect completed (connection may have already been closed)"
     }
 }
 

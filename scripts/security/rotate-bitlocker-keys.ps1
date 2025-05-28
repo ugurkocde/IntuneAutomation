@@ -60,7 +60,7 @@ param(
 # ENVIRONMENT DETECTION AND SETUP
 # ============================================================================
 
-function Initialize-RequiredModules {
+function Initialize-RequiredModule {
     <#
     .SYNOPSIS
     Ensures required modules are available and loaded
@@ -137,7 +137,8 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
 if ($PSPrivateMetadata.JobId.Guid) {
     Write-Output "Running inside Azure Automation Runbook"
     $IsAzureAutomation = $true
-} else {
+}
+else {
     Write-Information "Running locally in IDE or terminal" -InformationAction Continue
     $IsAzureAutomation = $false
 }
@@ -148,7 +149,7 @@ $RequiredModules = @(
 )
 
 try {
-    Initialize-RequiredModules -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
+    Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
 }
 catch {
@@ -166,7 +167,8 @@ try {
         Write-Output "Connecting to Microsoft Graph using Managed Identity..."
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
-    } else {
+    }
+    else {
         # Local execution - Use interactive authentication
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(

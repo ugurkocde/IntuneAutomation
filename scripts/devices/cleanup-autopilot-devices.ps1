@@ -55,7 +55,7 @@
     - Consider running during maintenance windows
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Only preview orphaned devices without removing them")]
     [switch]$PreviewOnly,
@@ -162,7 +162,7 @@ function Get-MgGraphAllPages {
 }
 
 # Function to get all Autopilot devices
-function Get-AutopilotDevices {
+function Get-AutopilotDevice {
     try {
         Write-Information "Retrieving Autopilot devices..." -InformationAction Continue
         $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities"
@@ -177,7 +177,7 @@ function Get-AutopilotDevices {
 }
 
 # Function to get all Intune managed devices
-function Get-IntuneDevices {
+function Get-IntuneDevice {
     try {
         Write-Information "Retrieving Intune managed devices..." -InformationAction Continue
         $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'"
@@ -192,7 +192,7 @@ function Get-IntuneDevices {
 }
 
 # Function to find orphaned Autopilot devices
-function Find-OrphanedAutopilotDevices {
+function Find-OrphanedAutopilotDevice {
     param(
         [Parameter(Mandatory = $true)]
         [array]$AutopilotDevices,
@@ -271,6 +271,7 @@ function Format-AutopilotDeviceInfo {
 
 # Function to remove Autopilot device
 function Remove-AutopilotDevice {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $true)]
         [string]$DeviceId,
@@ -286,14 +287,20 @@ function Remove-AutopilotDevice {
         "ID: $DeviceId"
     }
     
-    try {
-        $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities/$DeviceId"
-        Invoke-MgGraphRequest -Uri $Uri -Method DELETE
-        Write-Information "✓ Removed Autopilot device: $DeviceIdentifier" -InformationAction Continue
-        return $true
+    if ($PSCmdlet.ShouldProcess($DeviceIdentifier, "Remove Autopilot Device")) {
+        try {
+            $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities/$DeviceId"
+            Invoke-MgGraphRequest -Uri $Uri -Method DELETE
+            Write-Information "✓ Removed Autopilot device: $DeviceIdentifier" -InformationAction Continue
+            return $true
+        }
+        catch {
+            Write-Warning "✗ Failed to remove Autopilot device '$DeviceIdentifier': $($_.Exception.Message)"
+            return $false
+        }
     }
-    catch {
-        Write-Warning "✗ Failed to remove Autopilot device '$DeviceIdentifier': $($_.Exception.Message)"
+    else {
+        Write-Information "Skipped removal of Autopilot device: $DeviceIdentifier" -InformationAction Continue
         return $false
     }
 }
@@ -322,17 +329,17 @@ try {
     Write-Information "  - Include details: $($IncludeDetails.IsPresent)" -InformationAction Continue
     
     # Get all Autopilot devices
-    $AutopilotDevices = Get-AutopilotDevices
+    $AutopilotDevices = Get-AutopilotDevice
     if ($AutopilotDevices.Count -eq 0) {
         Write-Information "No Autopilot devices found. Exiting." -InformationAction Continue
         exit 0
     }
     
     # Get all Intune managed devices
-    $IntuneDevices = Get-IntuneDevices
+    $IntuneDevices = Get-IntuneDevice
     
     # Find orphaned Autopilot devices
-    $OrphanedDevices = Find-OrphanedAutopilotDevices -AutopilotDevices $AutopilotDevices -IntuneDevices $IntuneDevices
+    $OrphanedDevices = Find-OrphanedAutopilotDevice -AutopilotDevices $AutopilotDevices -IntuneDevices $IntuneDevices
     
     # Display results
     Write-Information "" -InformationAction Continue
@@ -431,7 +438,7 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        Write-Verbose "Could not disconnect from Microsoft Graph: $($_.Exception.Message)"
     }
 }
 

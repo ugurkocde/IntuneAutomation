@@ -152,7 +152,7 @@ function Get-MgGraphAllPage {
 }
 
 # Function to get policy assignments
-function Get-PolicyAssignments {
+function Get-PolicyAssignment {
     param(
         [Parameter(Mandatory = $true)]
         [string]$PolicyId,
@@ -200,6 +200,11 @@ function Get-PolicyRiskLevel {
         return "High"
     }
     
+    # High risk: Compliance policies that are unassigned
+    if ($PolicyType -match "(Compliance|DeviceCompliance)") {
+        return "High"
+    }
+    
     # Medium risk: Policies older than 30 days
     if ($DaysOld.Days -gt 30) {
         return "Medium"
@@ -210,7 +215,7 @@ function Get-PolicyRiskLevel {
 }
 
 # Function to format policy details
-function Format-PolicyDetails {
+function Format-PolicyDetail {
     param(
         [object]$Policy,
         [string]$PolicyType
@@ -299,11 +304,11 @@ try {
                 }
             }
             
-            $Assignments = Get-PolicyAssignments -PolicyId $Policy.id -PolicyType "DeviceConfiguration"
+            $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "DeviceConfiguration"
             
             if ($Assignments.Count -eq 0) {
                 $RiskLevel = Get-PolicyRiskLevel -PolicyName $Policy.displayName -CreatedDateTime ([datetime]$Policy.createdDateTime) -PolicyType "DeviceConfiguration"
-                $Details = if ($IncludeDetails) { Format-PolicyDetails -Policy $Policy -PolicyType "DeviceConfiguration" } else { "" }
+                $Details = if ($IncludeDetails) { Format-PolicyDetail -Policy $Policy -PolicyType "DeviceConfiguration" } else { "" }
                 
                 $UnassignedPolicy = [PSCustomObject]@{
                     PolicyName      = $Policy.displayName
@@ -337,11 +342,11 @@ try {
                 }
             }
             
-            $Assignments = Get-PolicyAssignments -PolicyId $Policy.id -PolicyType "ConfigurationPolicy"
+            $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "ConfigurationPolicy"
             
             if ($Assignments.Count -eq 0) {
                 $RiskLevel = Get-PolicyRiskLevel -PolicyName $Policy.name -CreatedDateTime ([datetime]$Policy.createdDateTime) -PolicyType "ConfigurationPolicy"
-                $Details = if ($IncludeDetails) { Format-PolicyDetails -Policy $Policy -PolicyType "ConfigurationPolicy" } else { "" }
+                $Details = if ($IncludeDetails) { Format-PolicyDetail -Policy $Policy -PolicyType "ConfigurationPolicy" } else { "" }
                 
                 $UnassignedPolicy = [PSCustomObject]@{
                     PolicyName      = $Policy.name
@@ -375,11 +380,11 @@ try {
                 }
             }
             
-            $Assignments = Get-PolicyAssignments -PolicyId $Policy.id -PolicyType "GroupPolicyConfiguration"
+            $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "GroupPolicyConfiguration"
             
             if ($Assignments.Count -eq 0) {
                 $RiskLevel = Get-PolicyRiskLevel -PolicyName $Policy.displayName -CreatedDateTime ([datetime]$Policy.createdDateTime) -PolicyType "GroupPolicyConfiguration"
-                $Details = if ($IncludeDetails) { Format-PolicyDetails -Policy $Policy -PolicyType "GroupPolicyConfiguration" } else { "" }
+                $Details = if ($IncludeDetails) { Format-PolicyDetail -Policy $Policy -PolicyType "GroupPolicyConfiguration" } else { "" }
                 
                 $UnassignedPolicy = [PSCustomObject]@{
                     PolicyName      = $Policy.displayName
