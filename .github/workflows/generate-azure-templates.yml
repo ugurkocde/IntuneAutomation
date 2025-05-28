@@ -161,8 +161,13 @@ jobs:
                   [hashtable]$Metadata
               )
               
-              # Properly escape the script content for JSON
-              $escapedScriptContent = $ScriptContent -replace '\\', '\\' -replace '"', '\"' -replace "`r", '' -replace "`n", '\n' -replace "`t", '\t'
+              # Save the Azure Automation compatible script to a separate file
+              $azureScriptPath = "azure-scripts/$ScriptId.ps1"
+              $azureScriptDir = Split-Path $azureScriptPath -Parent
+              if (-not (Test-Path $azureScriptDir)) {
+                  New-Item -ItemType Directory -Path $azureScriptDir -Force | Out-Null
+              }
+              Set-Content -Path $azureScriptPath -Value $ScriptContent -Encoding UTF8
               
               $template = @{
                   '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
@@ -200,7 +205,7 @@ jobs:
                       runbookType = "PowerShell"
                       logProgress = $false
                       logVerbose = $false
-                      scriptContent = $escapedScriptContent
+                      scriptUrl = "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-scripts/$($ScriptId).ps1"
                   }
                   resources = @(
                       @{
@@ -213,22 +218,7 @@ jobs:
                               logProgress = "[variables('logProgress')]"
                               logVerbose = "[variables('logVerbose')]"
                               description = "[parameters('runbookDescription')]"
-                              draft = @{
-                                  inEdit = $false
-                              }
-                          }
-                      },
-                      @{
-                          type = "Microsoft.Automation/automationAccounts/runbooks/draft"
-                          apiVersion = "2020-01-13-preview"
-                          name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'), '/draft')]"
-                          location = "[parameters('location')]"
-                          dependsOn = @(
-                              "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
-                          )
-                          properties = @{
-                              content = "[variables('scriptContent')]"
-                              description = "[parameters('runbookDescription')]"
+                              publishContentLinkUri = "[variables('scriptUrl')]"
                           }
                       }
                   )
@@ -247,7 +237,7 @@ jobs:
                       }
                       deploymentInstructions = @{
                           type = "string"
-                          value = "Runbook created successfully! Next steps: 1) Publish the runbook draft, 2) Ensure your Automation Account has Managed Identity enabled, 3) Assign required Microsoft Graph permissions to the Managed Identity."
+                          value = "Runbook created and published successfully! Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
                       }
                   }
               }
@@ -308,10 +298,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add azure-templates/ azure-deployment-templates.json
+          git add azure-templates/ azure-scripts/ azure-deployment-templates.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Auto-generate Azure deployment templates [skip ci]"
+            git commit -m "Auto-generate Azure deployment templates and scripts [skip ci]"
             git push
           fi
