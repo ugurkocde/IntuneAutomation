@@ -1,62 +1,46 @@
 {
-  "resources": [
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "runbookType": "[variables('runbookType')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      },
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
-    }
-  ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "parameters": {
-    "runbookDescription": {
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "defaultValue": "This script connects to Microsoft Graph and retrieves recent changes to Policies"
-    },
-    "location": {
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "defaultValue": "[resourceGroup().location]"
-    },
     "runbookName": {
-      "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "defaultValue": "check-policy-changes"
+      "defaultValue": "check-policy-changes",
+      "type": "string"
+    },
+    "location": {
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string"
     },
     "automationAccountName": {
-      "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "defaultValue": "This script connects to Microsoft Graph and retrieves recent changes to Policies",
+      "type": "string"
     }
   },
   "contentVersion": "1.0.0.0",
-  "variables": {
-    "logProgress": false,
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-policy-changes.ps1"
-  },
   "outputs": {
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
     "scriptSourceUrl": {
       "type": "string",
       "value": "[variables('scriptUri')]"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
     },
     "runbookUrl": {
       "type": "string",
@@ -65,14 +49,30 @@
     "deploymentInstructions": {
       "type": "string",
       "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
     }
-  }
+  },
+  "variables": {
+    "runbookType": "PowerShell",
+    "logVerbose": false,
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-policy-changes.ps1"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "properties": {
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
+    }
+  ],
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
