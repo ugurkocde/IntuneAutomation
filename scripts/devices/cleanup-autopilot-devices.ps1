@@ -117,7 +117,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -166,7 +166,7 @@ function Get-AutopilotDevice {
     try {
         Write-Information "Retrieving Autopilot devices..." -InformationAction Continue
         $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities"
-        $AutopilotDevices = Get-MgGraphAllPages -Uri $Uri
+        $AutopilotDevices = Get-MgGraphAllPage -Uri $Uri
         Write-Information "✓ Retrieved $($AutopilotDevices.Count) Autopilot devices" -InformationAction Continue
         return $AutopilotDevices
     }
@@ -181,7 +181,7 @@ function Get-IntuneDevice {
     try {
         Write-Information "Retrieving Intune managed devices..." -InformationAction Continue
         $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'"
-        $IntuneDevices = Get-MgGraphAllPages -Uri $Uri
+        $IntuneDevices = Get-MgGraphAllPage -Uri $Uri
         Write-Information "✓ Retrieved $($IntuneDevices.Count) Windows managed devices" -InformationAction Continue
         return $IntuneDevices
     }
