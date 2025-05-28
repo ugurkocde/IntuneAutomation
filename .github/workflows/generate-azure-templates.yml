@@ -143,44 +143,7 @@ jobs:
                               azPowerShellVersion = "8.3"
                               timeout = "PT30M"
                               arguments = "[concat('-AutomationAccountName ', parameters('automationAccountName'), ' -RunbookName ', parameters('runbookName'), ' -ResourceGroupName ', resourceGroup().name, ' -ScriptUri \"', variables('scriptUri'), '\"')]"
-                              scriptContent = @"
-param(
-    [string]`$AutomationAccountName,
-    [string]`$RunbookName,
-    [string]`$ResourceGroupName,
-    [string]`$ScriptUri
-)
-
-try {
-    # Download the script content
-    `$scriptContent = Invoke-RestMethod -Uri `$ScriptUri -Method Get
-    
-    # Import the runbook content
-    Import-AzAutomationRunbook -AutomationAccountName `$AutomationAccountName -ResourceGroupName `$ResourceGroupName -Name `$RunbookName -Type PowerShell -Published
-    
-    # Update the runbook content using REST API
-    `$subscriptionId = (Get-AzContext).Subscription.Id
-    `$accessToken = (Get-AzAccessToken).Token
-    
-    `$uri = "https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/draft/content"
-    `$headers = @{
-        'Authorization' = "Bearer `$accessToken"
-        'Content-Type' = 'text/plain'
-    }
-    
-    Invoke-RestMethod -Uri `$uri -Method Put -Body `$scriptContent -Headers `$headers
-    
-    # Publish the runbook
-    `$publishUri = "https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/publish"
-    Invoke-RestMethod -Uri `$publishUri -Method Post -Headers `$headers
-    
-    Write-Output "Successfully uploaded and published runbook: `$RunbookName"
-}
-catch {
-    Write-Error "Failed to upload runbook content: `$(`$_.Exception.Message)"
-    throw
-}
-"@
+                              scriptContent = "param([string]`$AutomationAccountName,[string]`$RunbookName,[string]`$ResourceGroupName,[string]`$ScriptUri);try{`$scriptContent=Invoke-RestMethod -Uri `$ScriptUri -Method Get;Import-AzAutomationRunbook -AutomationAccountName `$AutomationAccountName -ResourceGroupName `$ResourceGroupName -Name `$RunbookName -Type PowerShell -Published;`$subscriptionId=(Get-AzContext).Subscription.Id;`$accessToken=(Get-AzAccessToken).Token;`$uri=\"https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/draft/content\";`$headers=@{'Authorization'=\"Bearer `$accessToken\";'Content-Type'='text/plain'};Invoke-RestMethod -Uri `$uri -Method Put -Body `$scriptContent -Headers `$headers;`$publishUri=\"https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/publish\";Invoke-RestMethod -Uri `$publishUri -Method Post -Headers `$headers;Write-Output \"Successfully uploaded and published runbook: `$RunbookName\"}catch{Write-Error \"Failed to upload runbook content: `$(`$_.Exception.Message)\";throw}"
                               retentionInterval = "P1D"
                           }
                           identity = @{
