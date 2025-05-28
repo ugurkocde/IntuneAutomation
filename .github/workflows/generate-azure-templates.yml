@@ -128,26 +128,7 @@ jobs:
                               logProgress = "[variables('logProgress')]"
                               logVerbose = "[variables('logVerbose')]"
                               description = "[parameters('runbookDescription')]"
-                          }
-                      },
-                      @{
-                          type = "Microsoft.Resources/deploymentScripts"
-                          apiVersion = "2020-10-01"
-                          name = "[concat('upload-', parameters('runbookName'))]"
-                          location = "[parameters('location')]"
-                          dependsOn = @(
-                              "[resourceId('Microsoft.Automation/automationAccounts/runbooks', parameters('automationAccountName'), parameters('runbookName'))]"
-                          )
-                          kind = "AzurePowerShell"
-                          properties = @{
-                              azPowerShellVersion = "8.3"
-                              timeout = "PT30M"
-                              arguments = "[concat('-AutomationAccountName ', parameters('automationAccountName'), ' -RunbookName ', parameters('runbookName'), ' -ResourceGroupName ', resourceGroup().name, ' -ScriptUri \"', variables('scriptUri'), '\"')]"
-                              scriptContent = "param([string]`$AutomationAccountName,[string]`$RunbookName,[string]`$ResourceGroupName,[string]`$ScriptUri);try{`$scriptContent=Invoke-RestMethod -Uri `$ScriptUri -Method Get;Import-AzAutomationRunbook -AutomationAccountName `$AutomationAccountName -ResourceGroupName `$ResourceGroupName -Name `$RunbookName -Type PowerShell -Published;`$subscriptionId=(Get-AzContext).Subscription.Id;`$accessToken=(Get-AzAccessToken).Token;`$uri=\"https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/draft/content\";`$headers=@{'Authorization'=\"Bearer `$accessToken\";'Content-Type'='text/plain'};Invoke-RestMethod -Uri `$uri -Method Put -Body `$scriptContent -Headers `$headers;`$publishUri=\"https://management.azure.com/subscriptions/`$subscriptionId/resourceGroups/`$ResourceGroupName/providers/Microsoft.Automation/automationAccounts/`$AutomationAccountName/runbooks/`$RunbookName/publish\";Invoke-RestMethod -Uri `$publishUri -Method Post -Headers `$headers;Write-Output \"Successfully uploaded and published runbook: `$RunbookName\"}catch{Write-Error \"Failed to upload runbook content: `$(`$_.Exception.Message)\";throw}"
-                              retentionInterval = "P1D"
-                          }
-                          identity = @{
-                              type = "SystemAssigned"
+                              publishContentLinkUri = "[variables('scriptUri')]"
                           }
                       }
                   )
