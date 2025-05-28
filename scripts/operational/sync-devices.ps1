@@ -45,7 +45,12 @@
     Forces synchronization of all devices for users in the Sales Team group
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
+    - Supports both local execution and Azure Automation Runbook environments
+    - Automatically detects execution environment and uses appropriate authentication method
+    - Local execution: Uses interactive authentication with specified scopes
+    - Azure Automation: Uses Managed Identity authentication
+    - Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)
+    - Use -ForceModuleInstall to skip installation prompts in local environment
     - Requires appropriate permissions in Azure AD
     - Sync operations are triggered immediately but may take time to complete on the device
     - Use -ForceSync to override the 1-hour sync threshold
@@ -67,27 +72,134 @@ param(
     [switch]$ForceSync,
     
     [Parameter(Mandatory = $false)]
-    [int]$SyncDelaySeconds = 2
+    [int]$SyncDelaySeconds = 2,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
+    [switch]$ForceModuleInstall
 )
 
-# Check if required module is installed
-if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
-    Write-Error "Microsoft.Graph.Authentication module is required. Install it using: Install-Module Microsoft.Graph.Authentication -Scope CurrentUser"
+# ============================================================================
+# ENVIRONMENT DETECTION AND SETUP
+# ============================================================================
+
+function Initialize-RequiredModule {
+    <#
+    .SYNOPSIS
+    Ensures required modules are available and loaded
+    #>
+    param(
+        [string[]]$ModuleNames,
+        [bool]$IsAutomationEnvironment,
+        [bool]$ForceInstall = $false
+    )
+    
+    foreach ($ModuleName in $ModuleNames) {
+        Write-Verbose "Checking module: $ModuleName"
+        
+        # Check if module is available
+        $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
+        
+        if (-not $module) {
+            if ($IsAutomationEnvironment) {
+                $errorMessage = @"
+Module '$ModuleName' is not available in this Azure Automation Account.
+
+To resolve this issue:
+1. Go to Azure Portal
+2. Navigate to your Automation Account
+3. Go to 'Modules' > 'Browse Gallery'
+4. Search for '$ModuleName'
+5. Click 'Import' and wait for installation to complete
+
+Alternative: Use PowerShell to import the module:
+Import-Module Az.Automation
+Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupName "YourRG" -Name "$ModuleName"
+"@
+                throw $errorMessage
+            }
+            else {
+                # Local environment - attempt to install
+                Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
+                
+                if (-not $ForceInstall) {
+                    $response = Read-Host "Install module '$ModuleName'? (Y/N)"
+                    if ($response -notmatch '^[Yy]') {
+                        throw "Module '$ModuleName' is required but installation was declined."
+                    }
+                }
+                
+                try {
+                    # Check if running as administrator for AllUsers scope
+                    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+                    $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
+                    
+                    Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
+                    Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
+                    Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
+                }
+                catch {
+                    throw "Failed to install module '$ModuleName': $($_.Exception.Message)"
+                }
+            }
+        }
+        
+        # Import the module
+        try {
+            Write-Verbose "Importing module: $ModuleName"
+            Import-Module -Name $ModuleName -Force -ErrorAction Stop
+            Write-Verbose "✓ Successfully imported '$ModuleName'"
+        }
+        catch {
+            throw "Failed to import module '$ModuleName': $($_.Exception.Message)"
+        }
+    }
+}
+
+# Detect execution environment
+if ($PSPrivateMetadata.JobId.Guid) {
+    Write-Output "Running inside Azure Automation Runbook"
+    $IsAzureAutomation = $true
+}
+else {
+    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    $IsAzureAutomation = $false
+}
+
+# Initialize required modules
+$RequiredModules = @(
+    "Microsoft.Graph.Authentication"
+)
+
+try {
+    Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
+    Write-Verbose "✓ All required modules are available"
+}
+catch {
+    Write-Error "Module initialization failed: $_"
     exit 1
 }
 
-# Import required module
-Import-Module Microsoft.Graph.Authentication
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
 
-# Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
-    $scopes = @("DeviceManagementManagedDevices.ReadWrite.All", "DeviceManagementManagedDevices.Read.All")
-    if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
-        $scopes += @("Group.Read.All", "GroupMember.Read.All")
+    if ($IsAzureAutomation) {
+        # Azure Automation - Use Managed Identity
+        Write-Output "Connecting to Microsoft Graph using Managed Identity..."
+        Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
+        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
-    Connect-MgGraph -Scopes $scopes -NoWelcome
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    else {
+        # Local execution - Use interactive authentication
+        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        $scopes = @("DeviceManagementManagedDevices.ReadWrite.All", "DeviceManagementManagedDevices.Read.All")
+        if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
+            $scopes += @("Group.Read.All", "GroupMember.Read.All")
+        }
+        Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
+        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    }
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -210,124 +322,137 @@ function Get-DevicesByEntraGroup {
     }
 }
 
-# Get target devices based on parameter set
-$targetDevices = @()
+# ============================================================================
+# MAIN SCRIPT LOGIC
+# ============================================================================
 
-switch ($PSCmdlet.ParameterSetName) {
-    'DeviceNames' {
-        Write-Information "Retrieving devices by names..." -InformationAction Continue
-        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $allDevices = Get-MgGraphAllPage -Uri $devicesUri
-        
-        foreach ($deviceName in $DeviceNames) {
-            $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
-            if ($matchingDevices) {
-                $targetDevices += $matchingDevices
-                Write-Information "✓ Found device: $deviceName" -InformationAction Continue
-            }
-            else {
-                Write-Warning "Device not found: $deviceName"
-            }
-        }
-    }
-    
-    'DeviceIds' {
-        Write-Information "Retrieving devices by IDs..." -InformationAction Continue
-        foreach ($deviceId in $DeviceIds) {
-            try {
-                $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
-                $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
-                $targetDevices += $device
-                Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
-            }
-            catch {
-                Write-Warning "Device not found with ID: $deviceId"
+try {
+    # Get target devices based on parameter set
+    $targetDevices = @()
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'DeviceNames' {
+            Write-Information "Retrieving devices by names..." -InformationAction Continue
+            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+            $allDevices = Get-MgGraphAllPage -Uri $devicesUri
+            
+            foreach ($deviceName in $DeviceNames) {
+                $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
+                if ($matchingDevices) {
+                    $targetDevices += $matchingDevices
+                    Write-Information "✓ Found device: $deviceName" -InformationAction Continue
+                }
+                else {
+                    Write-Warning "Device not found: $deviceName"
+                }
             }
         }
-    }
-    
-    'EntraGroup' {
-        $targetDevices = Get-DevicesByEntraGroup -GroupName $EntraGroupName
-    }
-}
-
-if ($targetDevices.Count -eq 0) {
-    Write-Warning "No target devices found. Exiting."
-    Disconnect-MgGraph | Out-Null
-    exit 0
-}
-
-# Display target information
-Write-Information "`n📱 TARGET DEVICES SUMMARY" -InformationAction Continue
-Write-Information "=========================" -InformationAction Continue
-Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
-
-# Process sync operations
-$successfulSyncs = 0
-$failedSyncs = 0
-$skippedSyncs = 0
-$processedDevices = 0
-
-Write-Information "`nProcessing device synchronization..." -InformationAction Continue
-
-foreach ($device in $targetDevices) {
-    $processedDevices++
-    Write-Progress -Activity "Synchronizing Devices" -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
-    
-    # Calculate time since last sync
-    $hoursSinceSync = if ($device.lastSyncDateTime) {
-        [math]::Round(((Get-Date) - [DateTime]$device.lastSyncDateTime).TotalHours, 1)
-    }
-    else {
-        999
-    }
-    
-    # Determine if sync should be triggered
-    $shouldSync = $ForceSync -or $hoursSinceSync -gt 1 -or $null -eq $device.lastSyncDateTime
-    
-    if ($shouldSync) {
-        $syncSuccessful = Invoke-DeviceSync -DeviceId $device.id -DeviceName $device.deviceName
         
-        if ($syncSuccessful) {
-            $successfulSyncs++
+        'DeviceIds' {
+            Write-Information "Retrieving devices by IDs..." -InformationAction Continue
+            foreach ($deviceId in $DeviceIds) {
+                try {
+                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
+                    $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
+                    $targetDevices += $device
+                    Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
+                }
+                catch {
+                    Write-Warning "Device not found with ID: $deviceId"
+                }
+            }
+        }
+        
+        'EntraGroup' {
+            $targetDevices = Get-DevicesByEntraGroup -GroupName $EntraGroupName
+        }
+    }
+
+    if ($targetDevices.Count -eq 0) {
+        Write-Warning "No target devices found. Exiting."
+        Disconnect-MgGraph | Out-Null
+        exit 0
+    }
+
+    # Display target information
+    Write-Information "`n📱 TARGET DEVICES SUMMARY" -InformationAction Continue
+    Write-Information "=========================" -InformationAction Continue
+    Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
+
+    # Process sync operations
+    $successfulSyncs = 0
+    $failedSyncs = 0
+    $skippedSyncs = 0
+    $processedDevices = 0
+
+    Write-Information "`nProcessing device synchronization..." -InformationAction Continue
+
+    foreach ($device in $targetDevices) {
+        $processedDevices++
+        Write-Progress -Activity "Synchronizing Devices" -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
+        
+        # Calculate time since last sync
+        $hoursSinceSync = if ($device.lastSyncDateTime) {
+            [math]::Round(((Get-Date) - [DateTime]$device.lastSyncDateTime).TotalHours, 1)
         }
         else {
-            $failedSyncs++
+            999
         }
         
-        # Add delay between sync operations to avoid overwhelming the service
-        if ($processedDevices -lt $targetDevices.Count) {
-            Start-Sleep -Seconds $SyncDelaySeconds
+        # Determine if sync should be triggered
+        $shouldSync = $ForceSync -or $hoursSinceSync -gt 1 -or $null -eq $device.lastSyncDateTime
+        
+        if ($shouldSync) {
+            $syncSuccessful = Invoke-DeviceSync -DeviceId $device.id -DeviceName $device.deviceName
+            
+            if ($syncSuccessful) {
+                $successfulSyncs++
+            }
+            else {
+                $failedSyncs++
+            }
+            
+            # Add delay between sync operations to avoid overwhelming the service
+            if ($processedDevices -lt $targetDevices.Count) {
+                Start-Sleep -Seconds $SyncDelaySeconds
+            }
+        }
+        else {
+            Write-Information "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago" -InformationAction Continue
+            $skippedSyncs++
         }
     }
-    else {
-        Write-Information "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago" -InformationAction Continue
-        $skippedSyncs++
+
+    Write-Progress -Activity "Synchronizing Devices" -Completed
+
+    # Display final summary
+    Write-Information "`n🔄 SYNC OPERATION SUMMARY" -InformationAction Continue
+    Write-Information "=========================" -InformationAction Continue
+    Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
+    Write-Information "Successful Syncs: $successfulSyncs" -InformationAction Continue
+    Write-Information "Failed Syncs: $failedSyncs" -InformationAction Continue
+    Write-Information "Skipped Devices: $skippedSyncs" -InformationAction Continue
+
+    # Show failed devices if any
+    if ($failedSyncs -gt 0) {
+        Write-Information "`n❌ Failed sync operations require manual review." -InformationAction Continue
     }
-}
 
-Write-Progress -Activity "Synchronizing Devices" -Completed
+    Write-Information "`n🎉 Device synchronization completed successfully!" -InformationAction Continue
 
-# Display final summary
-Write-Information "`n🔄 SYNC OPERATION SUMMARY" -InformationAction Continue
-Write-Information "=========================" -InformationAction Continue
-Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
-Write-Information "Successful Syncs: $successfulSyncs" -InformationAction Continue
-Write-Information "Failed Syncs: $failedSyncs" -InformationAction Continue
-Write-Information "Skipped Devices: $skippedSyncs" -InformationAction Continue
-
-# Show failed devices if any
-if ($failedSyncs -gt 0) {
-    Write-Information "`n❌ Failed sync operations require manual review." -InformationAction Continue
-}
-
-# Disconnect from Microsoft Graph
-try {
-    Disconnect-MgGraph | Out-Null
-    Write-Information "`n✓ Disconnected from Microsoft Graph" -InformationAction Continue
 }
 catch {
-    Write-Warning "Could not disconnect from Microsoft Graph: $($_.Exception.Message)"
+    Write-Error "Script execution failed: $($_.Exception.Message)"
+    exit 1
 }
-
-Write-Information "`n🎉 Device synchronization completed successfully!" -InformationAction Continue
+finally {
+    # Disconnect from Microsoft Graph
+    try {
+        Disconnect-MgGraph | Out-Null
+        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+    }
+    catch {
+        # Ignore disconnection errors - this is expected behavior when already disconnected
+        Write-Verbose "Graph disconnection completed (may have already been disconnected)"
+    }
+}
