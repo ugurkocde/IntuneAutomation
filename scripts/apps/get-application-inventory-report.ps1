@@ -13,7 +13,7 @@
     installation status, version information, and summary statistics across the entire device fleet.
 
 .TAGS
-    Apps,Reporting,Devices
+    Apps,Reporting
 
 .MINROLE
     Intune Administrator

@@ -15,7 +15,7 @@
     and standardization efforts.
 
 .TAGS
-    Apps,Reporting,Cleanup,Duplicates
+    Apps,Reporting
 
 .MINROLE
     Intune Administrator
