@@ -86,13 +86,19 @@ async function checkAndNotify() {
         });
         
         // Insert into database
-        await supabase.from('script_versions').insert({
+        const { error: insertError } = await supabase.from('script_versions').insert({
           script_path: scriptPath,
           script_name: metadata.title || scriptName,
           category: metadata.category,
           current_version: metadata.version,
           changelog: metadata.changelog
         });
+        
+        if (insertError) {
+          console.error(`Failed to insert script ${scriptPath}:`, insertError);
+        } else {
+          console.log(`Inserted new script: ${scriptPath}`);
+        }
       } else if (existingScript.current_version !== metadata.version) {
         // Updated script
         updates.push({
@@ -105,7 +111,7 @@ async function checkAndNotify() {
         });
         
         // Update database
-        await supabase
+        const { error: updateError } = await supabase
           .from('script_versions')
           .update({
             previous_version: existingScript.current_version,
@@ -114,6 +120,12 @@ async function checkAndNotify() {
             last_updated: new Date().toISOString()
           })
           .eq('id', existingScript.id);
+          
+        if (updateError) {
+          console.error(`Failed to update script ${scriptPath}:`, updateError);
+        } else {
+          console.log(`Updated script: ${scriptPath}`);
+        }
       }
     }
     
