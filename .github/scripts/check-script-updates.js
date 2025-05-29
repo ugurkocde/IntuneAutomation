@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
 const fs = require('fs').promises;
 const path = require('path');
-const glob = require('glob');
+const { glob } = require('glob');
 
 // Initialize clients
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -38,12 +38,13 @@ async function parseScriptMetadata(filePath) {
 
 // Get all PowerShell scripts
 async function getAllScripts() {
-  return new Promise((resolve, reject) => {
-    glob('scripts/**/*.ps1', (err, files) => {
-      if (err) reject(err);
-      else resolve(files);
-    });
-  });
+  try {
+    const files = await glob('scripts/**/*.ps1');
+    return files;
+  } catch (error) {
+    console.error('Error finding scripts:', error);
+    return [];
+  }
 }
 
 // Main function
