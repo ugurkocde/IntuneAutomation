@@ -8,6 +8,14 @@ const { glob } = require('glob');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Generate unsubscribe URL
+function generateUnsubscribeUrl(email) {
+  // For now, using the website URL with email parameter
+  // You'll need to implement the unsubscribe page on your website
+  const encodedEmail = encodeURIComponent(email);
+  return `https://intuneautomation.com/unsubscribe?email=${encodedEmail}`;
+}
+
 // Parse PowerShell script metadata
 async function parseScriptMetadata(filePath) {
   const content = await fs.readFile(filePath, 'utf8');
@@ -157,56 +165,200 @@ async function sendNotifications(updates, newScripts) {
   
   const emails = subscribers.map(s => s.email);
   
-  // Build email content
-  let emailHtml = '<h2>Intune Automation Script Updates</h2>';
+  // Build email content with improved design
+  let emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f4f4;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <!-- Header -->
+              <tr>
+                <td style="background-color: #0078d4; padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Intune Automation Updates</h1>
+                  <p style="color: #e6f2ff; margin: 10px 0 0 0; font-size: 16px;">Your daily script notification</p>
+                </td>
+              </tr>
+              
+              <!-- Summary -->
+              <tr>
+                <td style="padding: 30px 40px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td width="50%" style="text-align: center; padding: 20px;">
+                        <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px;">
+                          <div style="font-size: 36px; font-weight: bold; color: #0078d4;">${newScripts.length}</div>
+                          <div style="color: #666; margin-top: 5px;">New Scripts</div>
+                        </div>
+                      </td>
+                      <td width="50%" style="text-align: center; padding: 20px;">
+                        <div style="background-color: #f3e5f5; padding: 20px; border-radius: 8px;">
+                          <div style="font-size: 36px; font-weight: bold; color: #7b1fa2;">${updates.length}</div>
+                          <div style="color: #666; margin-top: 5px;">Updated Scripts</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>`;
   
+  // New Scripts Section
   if (newScripts.length > 0) {
-    emailHtml += '<h3>🆕 New Scripts</h3><ul>';
+    emailHtml += `
+              <tr>
+                <td style="padding: 0 40px 30px;">
+                  <h2 style="color: #0078d4; margin: 0 0 20px 0; font-size: 24px;">
+                    <span style="margin-right: 10px;">🆕</span>New Scripts
+                  </h2>`;
+    
     for (const script of newScripts) {
       const url = `https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}`;
       emailHtml += `
-        <li>
-          <strong>${script.name}</strong> (${script.category})
-          <br>Version: ${script.version}
-          <br>Description: ${script.description}
-          <br><a href="${url}">View Script</a>
-        </li>
-      `;
+                  <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #0078d4;">
+                    <h3 style="margin: 0 0 10px 0; color: #333;">${script.name}</h3>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color: #666; padding: 5px 0;">
+                          <strong>Category:</strong> <span style="background-color: #e3f2fd; padding: 2px 8px; border-radius: 4px; color: #0078d4;">${script.category}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="color: #666; padding: 5px 0;">
+                          <strong>Version:</strong> ${script.version}
+                        </td>
+                      </tr>
+                      ${script.description ? `
+                      <tr>
+                        <td style="color: #666; padding: 5px 0;">
+                          <strong>Description:</strong> ${script.description}
+                        </td>
+                      </tr>` : ''}
+                    </table>
+                    <div style="margin-top: 15px;">
+                      <a href="${url}" style="background-color: #0078d4; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">View Script →</a>
+                    </div>
+                  </div>`;
     }
-    emailHtml += '</ul>';
+    
+    emailHtml += `
+                </td>
+              </tr>`;
   }
   
+  // Updated Scripts Section
   if (updates.length > 0) {
-    emailHtml += '<h3>🔄 Updated Scripts</h3><ul>';
+    emailHtml += `
+              <tr>
+                <td style="padding: 0 40px 30px;">
+                  <h2 style="color: #7b1fa2; margin: 0 0 20px 0; font-size: 24px;">
+                    <span style="margin-right: 10px;">🔄</span>Updated Scripts
+                  </h2>`;
+    
     for (const script of updates) {
       const url = `https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}`;
+      const changelogHtml = script.changelog 
+        ? script.changelog.split('\n').map(line => `<div style="margin: 2px 0;">• ${line}</div>`).join('')
+        : '<div style="color: #999;">No changelog provided</div>';
+        
       emailHtml += `
-        <li>
-          <strong>${script.name}</strong> (${script.category})
-          <br>Version: ${script.oldVersion} → ${script.newVersion}
-          <br>Changes: ${script.changelog || 'No changelog provided'}
-          <br><a href="${url}">View Script</a>
-        </li>
-      `;
+                  <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #7b1fa2;">
+                    <h3 style="margin: 0 0 10px 0; color: #333;">${script.name}</h3>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="color: #666; padding: 5px 0;">
+                          <strong>Category:</strong> <span style="background-color: #f3e5f5; padding: 2px 8px; border-radius: 4px; color: #7b1fa2;">${script.category}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="color: #666; padding: 5px 0;">
+                          <strong>Version:</strong> 
+                          <span style="background-color: #ffebee; padding: 2px 6px; border-radius: 4px; text-decoration: line-through;">${script.oldVersion}</span>
+                          <span style="margin: 0 5px;">→</span>
+                          <span style="background-color: #e8f5e9; padding: 2px 6px; border-radius: 4px;">${script.newVersion}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="color: #666; padding: 10px 0 5px 0;">
+                          <strong>Changes:</strong>
+                          <div style="margin-top: 5px; padding-left: 10px; color: #555;">
+                            ${changelogHtml}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="margin-top: 15px;">
+                      <a href="${url}" style="background-color: #7b1fa2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">View Changes →</a>
+                    </div>
+                  </div>`;
     }
-    emailHtml += '</ul>';
+    
+    emailHtml += `
+                </td>
+              </tr>`;
   }
   
-  emailHtml += '<hr><p><small>To unsubscribe, please contact the administrator.</small></p>';
+  // Footer with unsubscribe
+  emailHtml += `
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f8f9fa; padding: 30px 40px; text-align: center; border-radius: 0 0 8px 8px;">
+                  <p style="color: #666; margin: 0 0 15px 0; font-size: 14px;">
+                    Stay updated with the latest Intune automation scripts!
+                  </p>
+                  <div style="margin: 20px 0;">
+                    <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 10px;">GitHub Repository</a>
+                    <span style="color: #ccc;">|</span>
+                    <a href="https://intuneautomation.com" style="color: #0078d4; text-decoration: none; margin: 0 10px;">Website</a>
+                  </div>
+                  <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                    <p style="color: #999; font-size: 12px; margin: 0;">
+                      You received this email because you subscribed to Intune Automation script updates.
+                    </p>
+                    <p style="margin: 10px 0 0 0;">
+                      <a href="${generateUnsubscribeUrl(emails[0])}" style="color: #666; font-size: 12px;">Unsubscribe from these notifications</a>
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
   
   // Send email via Resend
   try {
-    const { error } = await resend.emails.send({
-      from: process.env.FROM_EMAIL,
-      to: emails,
-      subject: `Intune Automation: ${newScripts.length} new, ${updates.length} updated scripts`,
-      html: emailHtml
+    // Send individual emails to handle personalized unsubscribe links
+    const emailPromises = emails.map(async (email) => {
+      // Replace the unsubscribe URL for each recipient
+      const personalizedHtml = emailHtml.replace(
+        generateUnsubscribeUrl(emails[0]), 
+        generateUnsubscribeUrl(email)
+      );
+      
+      return resend.emails.send({
+        from: process.env.FROM_EMAIL,
+        to: email,
+        subject: `Intune Automation: ${newScripts.length} new, ${updates.length} updated scripts`,
+        html: personalizedHtml
+      });
     });
     
-    if (error) {
-      console.error('Error sending email:', error);
+    const results = await Promise.all(emailPromises);
+    const errors = results.filter(r => r.error).map(r => r.error);
+    
+    if (errors.length > 0) {
+      console.error('Errors sending emails:', errors);
     } else {
-      console.log('Notifications sent successfully!');
+      console.log(`Notifications sent successfully to ${emails.length} recipients!`);
       
       // Log notification
       await supabase.from('notification_log').insert({
