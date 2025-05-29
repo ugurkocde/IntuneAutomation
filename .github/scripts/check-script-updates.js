@@ -140,8 +140,35 @@ async function checkAndNotify() {
     // Send notifications if there are updates or new scripts
     if (updates.length > 0 || newScripts.length > 0) {
       await sendNotifications(updates, newScripts);
+      
+      // Print summary for GitHub Actions
+      console.log('\n========== NOTIFICATION SUMMARY ==========');
+      console.log(`📊 Script Check Complete`);
+      console.log(`🆕 New Scripts: ${newScripts.length}`);
+      console.log(`🔄 Updated Scripts: ${updates.length}`);
+      
+      if (newScripts.length > 0) {
+        console.log('\n📝 New Scripts Found:');
+        newScripts.forEach(script => {
+          console.log(`   • ${script.name} (v${script.version}) - ${script.category}`);
+        });
+      }
+      
+      if (updates.length > 0) {
+        console.log('\n📝 Updated Scripts Found:');
+        updates.forEach(script => {
+          console.log(`   • ${script.name} (v${script.oldVersion} → v${script.newVersion}) - ${script.category}`);
+        });
+      }
+      
+      console.log('\n✅ Email notifications sent successfully');
+      console.log('==========================================\n');
     } else {
-      console.log('No updates or new scripts found.');
+      console.log('\n========== NOTIFICATION SUMMARY ==========');
+      console.log('📊 Script Check Complete');
+      console.log('✨ No new or updated scripts found');
+      console.log('📧 No notifications sent');
+      console.log('==========================================\n');
     }
     
   } catch (error) {
