@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 <#
 .TITLE
     Rotate BitLocker Keys
