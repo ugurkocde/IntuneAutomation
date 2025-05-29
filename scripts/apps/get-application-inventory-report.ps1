@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Added support for Azure Automation Runbook
     1.0 - Initial release
 
 .EXAMPLE
