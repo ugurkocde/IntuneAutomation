@@ -25,11 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.0
 
 .CHANGELOG
     1.0 - Initial release
-    1.1 - Added support for Azure Automation Runbook
 
 .EXAMPLE
     .\get-application-inventory-report.ps1
