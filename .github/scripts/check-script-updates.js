@@ -182,7 +182,6 @@ async function sendNotifications(updates, newScripts) {
               <tr>
                 <td style="background-color: #0078d4; padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
                   <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Intune Automation Updates</h1>
-                  <p style="color: #e6f2ff; margin: 10px 0 0 0; font-size: 16px;">Your daily script notification</p>
                 </td>
               </tr>
               
