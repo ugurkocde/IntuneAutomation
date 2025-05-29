@@ -3,6 +3,7 @@ const { Resend } = require('resend');
 const fs = require('fs').promises;
 const path = require('path');
 const { glob } = require('glob');
+const os = require('os');
 
 // Initialize clients
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -14,6 +15,48 @@ function generateUnsubscribeUrl(email) {
   // You'll need to implement the unsubscribe page on your website
   const encodedEmail = encodeURIComponent(email);
   return `https://intuneautomation.com/unsubscribe?email=${encodedEmail}`;
+}
+
+// Write to GitHub Actions summary
+async function writeToGitHubSummary(newScripts, updates) {
+  const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryFile) return; // Not running in GitHub Actions
+  
+  let summary = '# 📊 Script Update Check Summary\n\n';
+  
+  summary += `- **New Scripts:** ${newScripts.length}\n`;
+  summary += `- **Updated Scripts:** ${updates.length}\n\n`;
+  
+  if (newScripts.length > 0) {
+    summary += '## 🆕 New Scripts\n\n';
+    summary += '| Script Name | Version | Category |\n';
+    summary += '|-------------|---------|----------|\n';
+    
+    newScripts.forEach(script => {
+      summary += `| ${script.name} | v${script.version} | ${script.category} |\n`;
+    });
+    summary += '\n';
+  }
+  
+  if (updates.length > 0) {
+    summary += '## 🔄 Updated Scripts\n\n';
+    summary += '| Script Name | Old Version | New Version | Category |\n';
+    summary += '|-------------|-------------|-------------|----------|\n';
+    
+    updates.forEach(script => {
+      summary += `| ${script.name} | v${script.oldVersion} | v${script.newVersion} | ${script.category} |\n`;
+    });
+    summary += '\n';
+  }
+  
+  if (newScripts.length > 0 || updates.length > 0) {
+    summary += '✅ **Email notifications sent successfully**\n';
+  } else {
+    summary += '✨ **No new or updated scripts found**\n';
+    summary += '📧 **No notifications sent**\n';
+  }
+  
+  await fs.appendFile(summaryFile, summary);
 }
 
 // Parse PowerShell script metadata
@@ -137,38 +180,15 @@ async function checkAndNotify() {
       }
     }
     
+    // Write to GitHub Actions summary
+    await writeToGitHubSummary(newScripts, updates);
+    
     // Send notifications if there are updates or new scripts
     if (updates.length > 0 || newScripts.length > 0) {
       await sendNotifications(updates, newScripts);
-      
-      // Print summary for GitHub Actions
-      console.log('\n========== NOTIFICATION SUMMARY ==========');
-      console.log(`📊 Script Check Complete`);
-      console.log(`🆕 New Scripts: ${newScripts.length}`);
-      console.log(`🔄 Updated Scripts: ${updates.length}`);
-      
-      if (newScripts.length > 0) {
-        console.log('\n📝 New Scripts Found:');
-        newScripts.forEach(script => {
-          console.log(`   • ${script.name} (v${script.version}) - ${script.category}`);
-        });
-      }
-      
-      if (updates.length > 0) {
-        console.log('\n📝 Updated Scripts Found:');
-        updates.forEach(script => {
-          console.log(`   • ${script.name} (v${script.oldVersion} → v${script.newVersion}) - ${script.category}`);
-        });
-      }
-      
-      console.log('\n✅ Email notifications sent successfully');
-      console.log('==========================================\n');
+      console.log('Script check completed. Email notifications sent.');
     } else {
-      console.log('\n========== NOTIFICATION SUMMARY ==========');
-      console.log('📊 Script Check Complete');
-      console.log('✨ No new or updated scripts found');
-      console.log('📧 No notifications sent');
-      console.log('==========================================\n');
+      console.log('Script check completed. No updates or new scripts found.');
     }
     
   } catch (error) {
