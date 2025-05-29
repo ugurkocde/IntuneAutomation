@@ -1,33 +1,5 @@
 {
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
-    "logProgress": false,
-    "runbookType": "PowerShell",
-    "logVerbose": false
-  },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      }
-    }
-  ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "outputs": {
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
     "scriptSourceUrl": {
       "type": "string",
       "value": "[variables('scriptUri')]"
@@ -43,23 +15,38 @@
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     }
   },
   "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "description": "[parameters('runbookDescription')]",
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "parameters": {
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    },
     "runbookDescription": {
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,",
       "metadata": {
         "description": "Description of the runbook"
-      }
+      },
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,"
     },
     "automationAccountName": {
       "type": "string",
@@ -68,11 +55,24 @@
       }
     },
     "runbookName": {
-      "type": "string",
-      "defaultValue": "check-bitlocker-keys",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      },
+      "type": "string",
+      "defaultValue": "check-bitlocker-keys"
+    },
+    "location": {
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
     }
+  },
+  "variables": {
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
+    "runbookType": "PowerShell",
+    "logProgress": false
   }
 }
