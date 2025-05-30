@@ -211,7 +211,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -324,6 +324,7 @@ function Get-DeploymentSeverity {
 }
 
 function Send-EmailNotification {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string[]]$Recipients,
         [string]$Subject,
@@ -351,9 +352,11 @@ function Send-EmailNotification {
                 message = $Message
             } | ConvertTo-Json -Depth 10
             
-            $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-            Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
-            Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
+                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            }
         }
     }
     catch {
@@ -662,7 +665,7 @@ try {
     
     try {
         $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
-        $Apps = Get-MgGraphAllPages -Uri $AppsUri
+        $Apps = Get-MgGraphAllPage -Uri $AppsUri
         Write-Information "Found $($Apps.Count) applications" -InformationAction Continue
         
         foreach ($App in $Apps) {
@@ -683,11 +686,11 @@ try {
                 
                 # Get app install status for this application
                 $AppInstallStatusUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps/$($App.id)/deviceStatuses"
-                $InstallStatuses = Get-MgGraphAllPages -Uri $AppInstallStatusUri
+                $InstallStatuses = Get-MgGraphAllPage -Uri $AppInstallStatusUri
                 
                 # Get app assignments to determine install intent
                 $AppAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps/$($App.id)/assignments"
-                $Assignments = Get-MgGraphAllPages -Uri $AppAssignmentsUri
+                $Assignments = Get-MgGraphAllPage -Uri $AppAssignmentsUri
                 
                 # Determine primary install intent (prioritize required)
                 $InstallIntent = "available"

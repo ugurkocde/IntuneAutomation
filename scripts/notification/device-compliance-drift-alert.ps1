@@ -210,7 +210,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -312,6 +312,7 @@ function Format-TimeSpan {
 }
 
 function Send-EmailNotification {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string[]]$Recipients,
         [string]$Subject,
@@ -339,9 +340,11 @@ function Send-EmailNotification {
                 message = $Message
             } | ConvertTo-Json -Depth 10
             
-            $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-            Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
-            Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
+                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            }
         }
     }
     catch {
@@ -357,9 +360,7 @@ function New-EmailBody {
         [array]$ConflictDevices,
         [array]$ErrorDevices,
         [array]$GracePeriodDevices,
-        [array]$CompliancePolicies,
-        [int]$ComplianceThreshold,
-        [hashtable]$ComplianceStats
+        [int]$ComplianceThreshold
     )
     
     $TotalDevices = $AllDevices.Count
@@ -701,7 +702,7 @@ try {
     
     try {
         $PoliciesUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
-        $CompliancePolicies = Get-MgGraphAllPages -Uri $PoliciesUri
+        $CompliancePolicies = Get-MgGraphAllPage -Uri $PoliciesUri
         Write-Information "Found $($CompliancePolicies.Count) compliance policies" -InformationAction Continue
     }
     catch {
@@ -716,7 +717,7 @@ try {
     
     try {
         $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $Devices = Get-MgGraphAllPages -Uri $DevicesUri
+        $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
         
         foreach ($Device in $Devices) {
@@ -834,7 +835,7 @@ try {
             "[Intune Alert] COMPLIANCE MONITORING: Policy Conflicts and Errors Detected"
         }
         
-        $EmailBody = New-EmailBody -AllDevices $AllDevices -NonCompliantDevices $NonCompliantDevices -ConflictDevices $ConflictDevices -ErrorDevices $ErrorDevices -GracePeriodDevices $GracePeriodDevices -CompliancePolicies $CompliancePolicies -ComplianceThreshold $ComplianceThresholdPercent -ComplianceStats $ComplianceStats
+        $EmailBody = New-EmailBody -AllDevices $AllDevices -NonCompliantDevices $NonCompliantDevices -ConflictDevices $ConflictDevices -ErrorDevices $ErrorDevices -GracePeriodDevices $GracePeriodDevices -ComplianceThreshold $ComplianceThresholdPercent
         
         Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
         

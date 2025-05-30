@@ -208,7 +208,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -301,6 +301,7 @@ function Format-TimeSpan {
 }
 
 function Send-EmailNotification {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string[]]$Recipients,
         [string]$Subject,
@@ -328,9 +329,11 @@ function Send-EmailNotification {
                 message = $Message
             } | ConvertTo-Json -Depth 10
             
-            $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-            Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
-            Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
+                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
+            }
         }
     }
     catch {
@@ -576,7 +579,7 @@ try {
     
     try {
         $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $Devices = Get-MgGraphAllPages -Uri $DevicesUri
+        $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
         
         foreach ($Device in $Devices) {
