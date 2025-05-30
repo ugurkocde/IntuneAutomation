@@ -14,14 +14,14 @@
       }
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
+      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration",
       "type": "string",
       "metadata": {
         "description": "Description of the runbook"
       }
     },
     "runbookName": {
-      "defaultValue": "wipe-devices",
+      "defaultValue": "apple-token-expiration-alert",
       "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
@@ -52,7 +52,7 @@
   },
   "variables": {
     "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/apple-token-expiration-alert.ps1",
     "logVerbose": false,
     "logProgress": false
   },
