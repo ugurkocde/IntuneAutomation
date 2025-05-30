@@ -365,6 +365,7 @@ function Send-EmailNotification {
 }
 
 # Function creates email content, does not change system state
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 function New-EmailBody {
     param(
         [array]$AllApps,
