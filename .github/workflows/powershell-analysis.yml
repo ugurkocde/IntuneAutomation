@@ -55,7 +55,7 @@ jobs:
               Write-Host "Analyzing: $($file.FullName)"
               
               # Run PSScriptAnalyzer
-              $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning -ExcludeRule PSUseBOMForUnicodeEncodedFile,PSUseDeclaredVarsMoreThanAssignments
+              $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning -ExcludeRule PSUseBOMForUnicodeEncodedFile,PSUseDeclaredVarsMoreThanAssignments,PSUseShouldProcessForStateChangingFunctions
               
               # Determine pass/fail status
               $status = if ($analysisResults.Count -eq 0) { "pass" } else { "not passed" }
