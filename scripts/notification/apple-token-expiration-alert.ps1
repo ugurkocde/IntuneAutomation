@@ -21,7 +21,7 @@
     - Uses Microsoft Graph Mail API exclusively
 
 .TAGS
-    Notification,Monitoring
+    Notification,Monitoring,RunbookOnly,Email,AppleToken
 
 .MINROLE
     Intune Administrator
@@ -37,6 +37,18 @@
 
 .CHANGELOG
     1.0 - Initial release
+
+.EXECUTION
+    RunbookOnly
+
+.OUTPUT
+    Email
+
+.SCHEDULE
+    Daily
+
+.CATEGORY
+    Notification
 
 .EXAMPLE
     .\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "admin@company.com"
@@ -319,6 +331,7 @@ function Send-EmailNotification {
     }
 }
 
+# Function creates email content, does not change system state
 function New-EmailBody {
     param(
         [array]$Tokens,
@@ -616,7 +629,8 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        # Silently ignore disconnect errors as they're not critical
+        Write-Verbose "Disconnect error (ignored): $($_.Exception.Message)"
     }
 }
 

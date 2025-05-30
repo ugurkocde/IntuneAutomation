@@ -25,7 +25,7 @@
     - Uses Microsoft Graph Mail API exclusively
 
 .TAGS
-    Notification,Applications
+    Notification,Apps,RunbookOnly,Email,Monitoring,AppDeployment
 
 .MINROLE
     Intune Administrator
@@ -41,6 +41,18 @@
 
 .CHANGELOG
     1.0 - Initial release
+
+.EXECUTION
+    RunbookOnly
+
+.OUTPUT
+    Email
+
+.SCHEDULE
+    Daily
+
+.CATEGORY
+    Notification
 
 .EXAMPLE
     .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "admin@company.com"
@@ -349,6 +361,7 @@ function Send-EmailNotification {
     }
 }
 
+# Function creates email content, does not change system state
 function New-EmailBody {
     param(
         [array]$AllApps,
@@ -856,7 +869,8 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        # Silently ignore disconnect errors as they're not critical
+        Write-Verbose "Disconnect error (ignored): $($_.Exception.Message)"
     }
 }
 

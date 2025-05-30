@@ -23,7 +23,7 @@
     - Uses Microsoft Graph Mail API exclusively
 
 .TAGS
-    Notification,Cleanup
+    Notification,Cleanup,RunbookOnly,Email,Monitoring,StaleDevice
 
 .MINROLE
     Intune Administrator
@@ -39,6 +39,18 @@
 
 .CHANGELOG
     1.0 - Initial release
+
+.EXECUTION
+    RunbookOnly
+
+.OUTPUT
+    Email
+
+.SCHEDULE
+    Weekly
+
+.CATEGORY
+    Notification
 
 .EXAMPLE
     .\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "admin@company.com"
@@ -326,6 +338,7 @@ function Send-EmailNotification {
     }
 }
 
+# Function creates email content, does not change system state
 function New-EmailBody {
     param(
         [array]$AllDevices,
@@ -552,6 +565,9 @@ try {
     $StaleThresholdDate = (Get-Date).AddDays(-$StaleAfterDays)
     $WarningThresholdDate = (Get-Date).AddDays(-($StaleAfterDays * 0.8))
     
+    Write-Information "Stale threshold date: $($StaleThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
+    Write-Information "Warning threshold date: $($WarningThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
+    
     # ========================================================================
     # GET ALL MANAGED DEVICES
     # ========================================================================
@@ -693,7 +709,8 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        # Silently ignore disconnect errors as they're not critical
+        Write-Verbose "Disconnect error (ignored): $($_.Exception.Message)"
     }
 }
 

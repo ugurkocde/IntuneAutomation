@@ -24,7 +24,7 @@
     - Uses Microsoft Graph Mail API exclusively
 
 .TAGS
-    Notification,Compliance
+    Notification,Compliance,RunbookOnly,Email,Monitoring,Security
 
 .MINROLE
     Intune Administrator
@@ -40,6 +40,18 @@
 
 .CHANGELOG
     1.0 - Initial release
+
+.EXECUTION
+    RunbookOnly
+
+.OUTPUT
+    Email
+
+.SCHEDULE
+    Daily
+
+.CATEGORY
+    Notification
 
 .EXAMPLE
     .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "admin@company.com"
@@ -309,10 +321,10 @@ function Send-EmailNotification {
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
-                subject = $Subject
-                body = @{
+                subject      = $Subject
+                body         = @{
                     contentType = "HTML"
-                    content = $Body
+                    content     = $Body
                 }
                 toRecipients = @(
                     @{
@@ -337,6 +349,7 @@ function Send-EmailNotification {
     }
 }
 
+# Function creates email content, does not change system state
 function New-EmailBody {
     param(
         [array]$AllDevices,
@@ -454,7 +467,7 @@ function New-EmailBody {
                 $PolicyName = if ($Policy.Name) { $Policy.Name } else { "No Policy Assigned" }
                 $Body += @"
         <div class="platform-summary">
-            <strong>$PolicyName:</strong> $($Policy.Count) devices
+            <strong>${PolicyName}:</strong> $($Policy.Count) devices
         </div>
 "@
             }
@@ -730,25 +743,25 @@ try {
                 }
                 
                 $DeviceInfo = [PSCustomObject]@{
-                    DeviceId                  = $Device.id
-                    DeviceName                = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
-                    Platform                  = $Platform
-                    OperatingSystem           = $Device.operatingSystem
-                    OSVersion                 = $Device.osVersion
-                    UserDisplayName           = if ($Device.userDisplayName) { $Device.userDisplayName } else { "Unassigned" }
-                    UserPrincipalName         = if ($Device.userPrincipalName) { $Device.userPrincipalName } else { "N/A" }
-                    LastSyncDateTime          = $LastSyncDateTime
-                    EnrolledDateTime          = $EnrolledDateTime
-                    ComplianceState           = $Device.complianceState
-                    ComplianceStatus          = $ComplianceStatus
-                    ComplianceSeverity        = $ComplianceSeverity
-                    AssignedCompliancePolicy  = $AssignedPolicy
-                    ManagementState           = if ($Device.managementState) { $Device.managementState } else { "Unknown" }
-                    SerialNumber              = $Device.serialNumber
-                    Model                     = $Device.model
-                    Manufacturer              = $Device.manufacturer
-                    JailBroken                = $Device.jailBroken
-                    ManagementAgent           = $Device.managementAgent
+                    DeviceId                 = $Device.id
+                    DeviceName               = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
+                    Platform                 = $Platform
+                    OperatingSystem          = $Device.operatingSystem
+                    OSVersion                = $Device.osVersion
+                    UserDisplayName          = if ($Device.userDisplayName) { $Device.userDisplayName } else { "Unassigned" }
+                    UserPrincipalName        = if ($Device.userPrincipalName) { $Device.userPrincipalName } else { "N/A" }
+                    LastSyncDateTime         = $LastSyncDateTime
+                    EnrolledDateTime         = $EnrolledDateTime
+                    ComplianceState          = $Device.complianceState
+                    ComplianceStatus         = $ComplianceStatus
+                    ComplianceSeverity       = $ComplianceSeverity
+                    AssignedCompliancePolicy = $AssignedPolicy
+                    ManagementState          = if ($Device.managementState) { $Device.managementState } else { "Unknown" }
+                    SerialNumber             = $Device.serialNumber
+                    Model                    = $Device.model
+                    Manufacturer             = $Device.manufacturer
+                    JailBroken               = $Device.jailBroken
+                    ManagementAgent          = $Device.managementAgent
                 }
                 
                 $AllDevices += $DeviceInfo
@@ -783,14 +796,14 @@ try {
     $CompliancePercentage = if ($TotalDevices -gt 0) { [math]::Round(($CompliantDevices.Count / $TotalDevices) * 100, 1) } else { 0 }
     
     $ComplianceStats = @{
-        TotalDevices = $TotalDevices
-        CompliantDevices = $CompliantDevices.Count
-        NonCompliantDevices = $NonCompliantDevices.Count
-        ConflictDevices = $ConflictDevices.Count
-        ErrorDevices = $ErrorDevices.Count
-        GracePeriodDevices = $GracePeriodDevices.Count
+        TotalDevices         = $TotalDevices
+        CompliantDevices     = $CompliantDevices.Count
+        NonCompliantDevices  = $NonCompliantDevices.Count
+        ConflictDevices      = $ConflictDevices.Count
+        ErrorDevices         = $ErrorDevices.Count
+        GracePeriodDevices   = $GracePeriodDevices.Count
         CompliancePercentage = $CompliancePercentage
-        ThresholdMet = $CompliancePercentage -ge $ComplianceThresholdPercent
+        ThresholdMet         = $CompliancePercentage -ge $ComplianceThresholdPercent
     }
     
     Write-Information "  • Compliant devices: $($CompliantDevices.Count) ($CompliancePercentage%)" -InformationAction Continue
@@ -874,7 +887,8 @@ finally {
         Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
-        # Ignore disconnect errors
+        # Silently ignore disconnect errors as they're not critical
+        Write-Verbose "Disconnect error (ignored): $($_.Exception.Message)"
     }
 }
 
