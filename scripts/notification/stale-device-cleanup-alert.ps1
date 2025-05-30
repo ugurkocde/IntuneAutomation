@@ -12,18 +12,8 @@
     to administrators with cleanup recommendations. The script helps maintain a clean device inventory 
     and optimize licensing costs by identifying devices that may no longer be in use.
 
-    Key Features:
-    - Monitors device last check-in times across all platforms
-    - Configurable staleness threshold (days since last check-in)
-    - Email notifications with detailed stale device inventory
-    - Platform-specific device categorization
-    - Cleanup recommendations and licensing impact analysis
-    - Supports both Azure Automation runbook and local execution
-    - HTML formatted email reports
-    - Uses Microsoft Graph Mail API exclusively
-
 .TAGS
-    Notification,Cleanup,RunbookOnly,Email,Monitoring,StaleDevice
+    Notification
 
 .MINROLE
     Intune Administrator
@@ -311,10 +301,10 @@ function Send-EmailNotification {
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
-                subject = $Subject
-                body = @{
+                subject      = $Subject
+                body         = @{
                     contentType = "HTML"
-                    content = $Body
+                    content     = $Body
                 }
                 toRecipients = @(
                     @{
@@ -566,7 +556,7 @@ try {
     
     # Calculate cutoff date for stale devices
     $StaleThresholdDate = (Get-Date).AddDays(-$StaleAfterDays)
-    $WarningThresholdDate = (Get-Date).AddDays(-($StaleAfterDays * 0.8))
+    $WarningThresholdDate = (Get-Date).AddDays( - ($StaleAfterDays * 0.8))
     
     Write-Information "Stale threshold date: $($StaleThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
     Write-Information "Warning threshold date: $($WarningThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
@@ -597,23 +587,23 @@ try {
                 $DeviceStatus = Get-DeviceStatus -LastSyncDateTime $LastSyncDateTime -StaleThreshold $StaleAfterDays
                 
                 $DeviceInfo = [PSCustomObject]@{
-                    DeviceId             = $Device.id
-                    DeviceName           = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
-                    Platform             = $Platform
-                    OperatingSystem      = $Device.operatingSystem
-                    OSVersion            = $Device.osVersion
-                    UserDisplayName      = if ($Device.userDisplayName) { $Device.userDisplayName } else { "Unassigned" }
-                    UserPrincipalName    = if ($Device.userPrincipalName) { $Device.userPrincipalName } else { "N/A" }
-                    LastSyncDateTime     = $LastSyncDateTime
-                    EnrolledDateTime     = $EnrolledDateTime
-                    DaysSinceLastSync    = $DaysSinceLastSync
-                    LastSyncStatus       = Format-TimeSpan -Date $LastSyncDateTime
-                    ComplianceState      = if ($Device.complianceState) { $Device.complianceState } else { "Unknown" }
-                    ManagementState      = if ($Device.managementState) { $Device.managementState } else { "Unknown" }
-                    DeviceStatus         = $DeviceStatus
-                    SerialNumber         = $Device.serialNumber
-                    Model                = $Device.model
-                    Manufacturer         = $Device.manufacturer
+                    DeviceId          = $Device.id
+                    DeviceName        = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
+                    Platform          = $Platform
+                    OperatingSystem   = $Device.operatingSystem
+                    OSVersion         = $Device.osVersion
+                    UserDisplayName   = if ($Device.userDisplayName) { $Device.userDisplayName } else { "Unassigned" }
+                    UserPrincipalName = if ($Device.userPrincipalName) { $Device.userPrincipalName } else { "N/A" }
+                    LastSyncDateTime  = $LastSyncDateTime
+                    EnrolledDateTime  = $EnrolledDateTime
+                    DaysSinceLastSync = $DaysSinceLastSync
+                    LastSyncStatus    = Format-TimeSpan -Date $LastSyncDateTime
+                    ComplianceState   = if ($Device.complianceState) { $Device.complianceState } else { "Unknown" }
+                    ManagementState   = if ($Device.managementState) { $Device.managementState } else { "Unknown" }
+                    DeviceStatus      = $DeviceStatus
+                    SerialNumber      = $Device.serialNumber
+                    Model             = $Device.model
+                    Manufacturer      = $Device.manufacturer
                 }
                 
                 $AllDevices += $DeviceInfo

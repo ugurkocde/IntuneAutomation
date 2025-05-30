@@ -13,19 +13,8 @@
     The script helps maintain application availability and user productivity by proactively alerting 
     on deployment failures and providing actionable insights for remediation.
 
-    Key Features:
-    - Monitors application deployment status across all platforms
-    - Tracks deployment failure rates and success percentages
-    - Identifies required applications with deployment failures
-    - Platform-specific application deployment analysis
-    - Application type breakdown (Win32, Store, Web, etc.)
-    - Email notifications with detailed deployment reports
-    - Supports both Azure Automation runbook and local execution
-    - HTML formatted email reports with actionable insights
-    - Uses Microsoft Graph Mail API exclusively
-
 .TAGS
-    Notification,Apps,RunbookOnly,Email,Monitoring,AppDeployment
+    Notification
 
 .MINROLE
     Intune Administrator
@@ -334,10 +323,10 @@ function Send-EmailNotification {
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
-                subject = $Subject
-                body = @{
+                subject      = $Subject
+                body         = @{
                     contentType = "HTML"
-                    content = $Body
+                    content     = $Body
                 }
                 toRecipients = @(
                     @{
@@ -364,8 +353,6 @@ function Send-EmailNotification {
     }
 }
 
-# Function creates email content, does not change system state
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
 function New-EmailBody {
     param(
         [array]$AllApps,
@@ -379,7 +366,8 @@ function New-EmailBody {
     $AppsWithFailures = ($AllApps | Where-Object { $_.FailureCount -gt 0 }).Count
     $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) { 
         [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1) 
-    } else { 0 }
+    }
+    else { 0 }
     
     $AppTypeSummary = $FailedApps | Group-Object AppType | Sort-Object Count -Descending
     $PlatformSummary = $FailedApps | Group-Object TargetPlatform | Sort-Object Count -Descending
@@ -653,9 +641,9 @@ try {
     # Initialize statistics
     $AppStats = @{
         TotalDeployments = 0
-        TotalSuccesses = 0
-        TotalFailures = 0
-        TotalPending = 0
+        TotalSuccesses   = 0
+        TotalFailures    = 0
+        TotalPending     = 0
     }
     
     # ========================================================================
@@ -727,7 +715,8 @@ try {
                 
                 $FailureRate = if ($TotalDeployments -gt 0) { 
                     [math]::Round(($FailedInstalls / $TotalDeployments) * 100, 1) 
-                } else { 0 }
+                }
+                else { 0 }
                 
                 $AppType = Get-AppType -ODataType $App.'@odata.type'
                 $InstallIntentDisplay = Get-InstallIntentDisplay -Intent $InstallIntent
@@ -788,7 +777,8 @@ try {
     
     $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) { 
         [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1) 
-    } else { 0 }
+    }
+    else { 0 }
     
     Write-Information "  • Total deployments: $($AppStats.TotalDeployments)" -InformationAction Continue
     Write-Information "  • Successful installs: $($AppStats.TotalSuccesses)" -InformationAction Continue

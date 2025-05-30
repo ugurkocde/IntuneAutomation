@@ -12,19 +12,8 @@
     with detailed compliance reports. The script helps maintain security posture by proactively alerting on 
     compliance drift and providing actionable insights for remediation.
 
-    Key Features:
-    - Monitors device compliance status across all platforms
-    - Tracks compliance trends and deterioration patterns
-    - Identifies devices newly fallen out of compliance
-    - Platform-specific compliance analysis
-    - Compliance policy violation breakdown
-    - Email notifications with detailed compliance reports
-    - Supports both Azure Automation runbook and local execution
-    - HTML formatted email reports with actionable insights
-    - Uses Microsoft Graph Mail API exclusively
-
 .TAGS
-    Notification,Compliance,RunbookOnly,Email,Monitoring,Security
+    Notification
 
 .MINROLE
     Intune Administrator

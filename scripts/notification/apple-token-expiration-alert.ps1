@@ -11,17 +11,8 @@
     certificates in Microsoft Intune. When tokens or certificates are approaching expiration or have 
     expired, the script sends email notifications to specified recipients using Microsoft Graph Mail API.
 
-    Key Features:
-    - Monitors Apple DEP tokens and APNS certificates
-    - Configurable warning period (days before expiration)
-    - Email notifications with detailed expiration information
-    - Supports both Azure Automation runbook and local execution
-    - Comprehensive logging and error handling
-    - HTML formatted email reports
-    - Uses Microsoft Graph Mail API exclusively
-
 .TAGS
-    Notification,Monitoring,RunbookOnly,Email,AppleToken
+    Notification
 
 .MINROLE
     Intune Administrator
@@ -304,10 +295,10 @@ function Send-EmailNotification {
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
-                subject = $Subject
-                body = @{
+                subject      = $Subject
+                body         = @{
                     contentType = "HTML"
-                    content = $Body
+                    content     = $Body
                 }
                 toRecipients = @(
                     @{
@@ -479,17 +470,17 @@ try {
                 $HealthStatus = Get-TokenHealthStatus -State $State -ExpirationDate $ExpirationDate -LastSyncStatus $LastSyncStatus -WarningDays $NotificationDays
                 
                 $TokenInfo = [PSCustomObject]@{
-                    TokenType            = "DEP"
-                    TokenName            = if ($Token.tokenName) { $Token.tokenName } else { "DEP Token" }
-                    AppleId              = if ($Token.appleIdentifier) { $Token.appleIdentifier } else { "Unknown" }
-                    State                = $State
-                    ExpirationDateTime   = $ExpirationDate
-                    DaysUntilExpiration  = ($ExpirationDate - (Get-Date)).Days
-                    ExpirationStatus     = Format-TimeSpan -Date $ExpirationDate
-                    LastSyncDateTime     = $LastSyncDate
-                    LastSyncStatus       = $LastSyncStatus
-                    HealthStatus         = $HealthStatus
-                    TokenId              = $Token.id
+                    TokenType           = "DEP"
+                    TokenName           = if ($Token.tokenName) { $Token.tokenName } else { "DEP Token" }
+                    AppleId             = if ($Token.appleIdentifier) { $Token.appleIdentifier } else { "Unknown" }
+                    State               = $State
+                    ExpirationDateTime  = $ExpirationDate
+                    DaysUntilExpiration = ($ExpirationDate - (Get-Date)).Days
+                    ExpirationStatus    = Format-TimeSpan -Date $ExpirationDate
+                    LastSyncDateTime    = $LastSyncDate
+                    LastSyncStatus      = $LastSyncStatus
+                    HealthStatus        = $HealthStatus
+                    TokenId             = $Token.id
                 }
                 
                 $AllTokens += $TokenInfo
@@ -537,17 +528,17 @@ try {
             $HealthStatus = Get-TokenHealthStatus -State $State -ExpirationDate $ExpirationDate -LastSyncStatus $LastSyncStatus -WarningDays $NotificationDays
             
             $TokenInfo = [PSCustomObject]@{
-                TokenType            = "APNS"
-                TokenName            = "Apple Push Notification Certificate"
-                AppleId              = $ApnsCert.appleIdentifier
-                State                = $State
-                ExpirationDateTime   = $ExpirationDate
-                DaysUntilExpiration  = ($ExpirationDate - (Get-Date)).Days
-                ExpirationStatus     = Format-TimeSpan -Date $ExpirationDate
-                LastSyncDateTime     = $LastModifiedDate
-                LastSyncStatus       = $LastSyncStatus
-                HealthStatus         = $HealthStatus
-                TokenId              = $ApnsCert.id
+                TokenType           = "APNS"
+                TokenName           = "Apple Push Notification Certificate"
+                AppleId             = $ApnsCert.appleIdentifier
+                State               = $State
+                ExpirationDateTime  = $ExpirationDate
+                DaysUntilExpiration = ($ExpirationDate - (Get-Date)).Days
+                ExpirationStatus    = Format-TimeSpan -Date $ExpirationDate
+                LastSyncDateTime    = $LastModifiedDate
+                LastSyncStatus      = $LastSyncStatus
+                HealthStatus        = $HealthStatus
+                TokenId             = $ApnsCert.id
             }
             
             $AllTokens += $TokenInfo
