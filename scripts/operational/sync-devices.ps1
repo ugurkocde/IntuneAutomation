@@ -28,6 +28,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\sync-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
     Synchronizes specific devices by name

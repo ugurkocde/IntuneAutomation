@@ -28,6 +28,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\get-device-compliance-report.ps1
     Generates compliance reports for all managed devices

@@ -30,6 +30,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\check-bitlocker-keys.ps1
     Generates BitLocker key storage report for all Windows devices in Intune

@@ -28,6 +28,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\get-application-inventory-report.ps1
     Generates application inventory reports for all managed devices

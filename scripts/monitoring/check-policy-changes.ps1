@@ -31,6 +31,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\check-policy-changes.ps1
     Generates a report of policy changes from the last 30 days

@@ -30,6 +30,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\get-duplicate-applications.ps1
     Generates duplicate applications report for all Intune applications

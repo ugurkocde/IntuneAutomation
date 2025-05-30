@@ -30,6 +30,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\check-apple-token-validity.ps1
     Generates Apple token validity reports for all DEP tokens and Push Notification Certificates

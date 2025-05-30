@@ -33,6 +33,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\cleanup-autopilot-devices.ps1 -PreviewOnly
     Shows orphaned Autopilot devices without removing them

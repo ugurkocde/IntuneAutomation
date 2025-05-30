@@ -28,6 +28,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\rotate-bitlocker-keys.ps1
     Rotates BitLocker keys for all Windows devices in Intune

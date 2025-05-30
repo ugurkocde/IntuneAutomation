@@ -32,6 +32,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\check-unassigned-policies.ps1
     Generates a report of all unassigned policies

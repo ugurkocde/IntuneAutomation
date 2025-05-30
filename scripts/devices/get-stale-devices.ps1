@@ -32,6 +32,9 @@
 .CHANGELOG
     1.0 - Initial release
 
+.LASTUPDATE
+    2025-05-29
+
 .EXAMPLE
     .\get-stale-devices.ps1 -DaysStale 30
     Gets all devices that haven't checked in for 30 days or more
