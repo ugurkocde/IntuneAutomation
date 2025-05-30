@@ -7,7 +7,28 @@ This directory contains templates to help contributors create consistent, high-q
 ### `script-template.ps1`
 A comprehensive PowerShell script template that includes all the required elements for IntuneAutomation scripts.
 
-## 🚀 How to Use the Template
+### `notification-script-template.ps1` 🆕
+A specialized template for creating notification scripts that monitor Intune environments and send email alerts. These scripts are designed specifically for Azure Automation runbooks with email notification capabilities.
+
+**Key Features:**
+- Azure Automation optimized with Managed Identity support
+- Professional HTML email templates with responsive design
+- Comprehensive error handling and Microsoft Graph integration
+- Rate limiting and pagination for API calls
+- Configurable thresholds and filtering options
+
+**Use Cases:**
+- Monitor certificate expiration dates
+- Track device compliance drift
+- Alert on application deployment failures
+- Monitor token and license expiration
+- Custom threshold-based monitoring
+
+See `NOTIFICATION_TEMPLATE_GUIDE.md` for detailed usage instructions.
+
+## 🚀 How to Use the Templates
+
+### For Standard Scripts (script-template.ps1)
 
 1. **Copy the template** to the appropriate category directory:
    ```bash
@@ -24,6 +45,26 @@ A comprehensive PowerShell script template that includes all the required elemen
 4. **Replace placeholder code** with your implementation
 
 5. **Test thoroughly** before submitting
+
+### For Notification Scripts (notification-script-template.ps1) 🆕
+
+1. **Copy the notification template** to the notification directory:
+   ```bash
+   cp templates/notification-script-template.ps1 scripts/notification/your-notification-alert.ps1
+   ```
+
+2. **Rename the file** to describe your monitoring purpose:
+   - `certificate-expiration-alert.ps1`
+   - `license-usage-alert.ps1`
+   - `policy-drift-alert.ps1`
+
+3. **Follow the detailed guide** in `NOTIFICATION_TEMPLATE_GUIDE.md`
+
+4. **Customize monitoring logic** for your specific use case
+
+5. **Test in Azure Automation** with Managed Identity
+
+6. **Set up automated scheduling** for continuous monitoring
 
 ## 📋 Template Sections Explained
 
