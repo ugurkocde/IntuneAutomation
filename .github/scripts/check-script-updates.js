@@ -418,7 +418,7 @@ async function sendNotifications(updates, newScripts) {
         );
         
         const result = await resend.emails.send({
-          from: process.env.FROM_EMAIL,
+          from: `IntuneAutomation <${process.env.FROM_EMAIL}>`,
           to: email,
           subject: `Intune Automation: ${newScripts.length} new, ${updates.length} updated scripts`,
           html: personalizedHtml
