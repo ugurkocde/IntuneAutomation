@@ -283,7 +283,9 @@ async function sendNotifications(updates, newScripts) {
                   </h2>`;
     
     for (const script of newScripts) {
-      const url = `https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}`;
+      // Generate script ID from path (remove .ps1 extension)
+      const scriptId = script.path.split('/').pop().replace('.ps1', '');
+      const url = `https://intuneautomation.com/script/${scriptId}`;
       emailHtml += `
                   <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #0078d4;">
                     <h3 style="margin: 0 0 10px 0; color: #333;">${script.name}</h3>
@@ -326,7 +328,9 @@ async function sendNotifications(updates, newScripts) {
                   </h2>`;
     
     for (const script of updates) {
-      const url = `https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}`;
+      // Generate script ID from path (remove .ps1 extension)
+      const scriptId = script.path.split('/').pop().replace('.ps1', '');
+      const url = `https://intuneautomation.com/script/${scriptId}`;
       const changelogHtml = script.changelog 
         ? script.changelog.split('\n').map(line => `<div style="margin: 2px 0;">• ${line}</div>`).join('')
         : '<div style="color: #999;">No changelog provided</div>';
