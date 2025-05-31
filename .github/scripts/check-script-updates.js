@@ -199,18 +199,37 @@ async function checkAndNotify() {
 
 // Send email notifications
 async function sendNotifications(updates, newScripts) {
-  // Get active subscribers
+  // Get active subscribers - handle multiple possible boolean representations
   const { data: subscribers, error } = await supabase
     .from('script_subscribers')
-    .select('email')
-    .eq('is_active', true);
+    .select('email, is_active')
+    .or('is_active.eq.true,is_active.eq."true",is_active.is.null');
   
-  if (error || !subscribers || subscribers.length === 0) {
+  if (error) {
+    console.error('Error fetching subscribers:', error);
+    return;
+  }
+  
+  if (!subscribers || subscribers.length === 0) {
+    console.log('No subscribers found in database.');
+    return;
+  }
+  
+  // Filter for active subscribers (handle boolean and string representations)
+  const activeSubscribers = subscribers.filter(sub => 
+    sub.is_active === true || 
+    sub.is_active === 'true' || 
+    sub.is_active === null  // Default to active if not set
+  );
+  
+  console.log(`Total subscribers: ${subscribers.length}, Active subscribers: ${activeSubscribers.length}`);
+  
+  if (activeSubscribers.length === 0) {
     console.log('No active subscribers found.');
     return;
   }
   
-  const emails = subscribers.map(s => s.email);
+  const emails = activeSubscribers.map(s => s.email);
   
   // Build email content with improved design
   let emailHtml = `

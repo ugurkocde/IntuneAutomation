@@ -3,34 +3,34 @@ name: Daily Script Update Notifications
 on:
   schedule:
     # Runs daily at 8 AM UTC
-    - cron: '0 8 * * *'
+    - cron: "0 8 * * *"
   workflow_dispatch: # Allow manual trigger for testing
 
 jobs:
   check-and-notify:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # Get full history for proper version comparison
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Get full history for proper version comparison
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-    - name: Install dependencies
-      run: |
-        npm init -y
-        npm install @supabase/supabase-js resend glob
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install @supabase/supabase-js resend glob
 
-    - name: Check for script updates and send notifications
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-        FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-      run: |
-        node .github/scripts/check-script-updates.js
+      - name: Check for script updates and send notifications
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        run: |
+          node .github/scripts/check-script-updates.js
