@@ -222,7 +222,7 @@ async function sendNotifications(updates, newScripts) {
     sub.is_active === null  // Default to active if not set
   );
   
-  console.log(`Total subscribers: ${subscribers.length}, Active subscribers: ${activeSubscribers.length}`);
+  console.log('Found active subscribers in database.');
   
   if (activeSubscribers.length === 0) {
     console.log('No active subscribers found.');
@@ -399,38 +399,61 @@ async function sendNotifications(updates, newScripts) {
     </html>
   `;
   
-  // Send email via Resend
+  // Send email via Resend with rate limiting
   try {
-    // Send individual emails to handle personalized unsubscribe links
-    const emailPromises = emails.map(async (email) => {
-      // Replace the unsubscribe URL for each recipient
-      const personalizedHtml = emailHtml.replace(
-        generateUnsubscribeUrl(emails[0]), 
-        generateUnsubscribeUrl(email)
-      );
-      
-      return resend.emails.send({
-        from: process.env.FROM_EMAIL,
-        to: email,
-        subject: `Intune Automation: ${newScripts.length} new, ${updates.length} updated scripts`,
-        html: personalizedHtml
-      });
-    });
+    console.log('Sending notification emails with rate limiting...');
     
-    const results = await Promise.all(emailPromises);
-    const errors = results.filter(r => r.error).map(r => r.error);
+    const results = [];
+    const errors = [];
+    
+    // Send emails with rate limiting (max 2 per second)
+    for (let i = 0; i < emails.length; i++) {
+      const email = emails[i];
+      
+      try {
+        // Replace the unsubscribe URL for each recipient
+        const personalizedHtml = emailHtml.replace(
+          generateUnsubscribeUrl(emails[0]), 
+          generateUnsubscribeUrl(email)
+        );
+        
+        const result = await resend.emails.send({
+          from: process.env.FROM_EMAIL,
+          to: email,
+          subject: `Intune Automation: ${newScripts.length} new, ${updates.length} updated scripts`,
+          html: personalizedHtml
+        });
+        
+        results.push(result);
+        console.log(`Email sent successfully`);
+        
+        // Rate limiting: wait 600ms between emails (allows ~1.67 emails per second)
+        if (i < emails.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 600));
+        }
+        
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        errors.push(emailError);
+      }
+    }
     
     if (errors.length > 0) {
-      console.error('Errors sending emails:', errors);
-    } else {
-      console.log(`Notifications sent successfully to ${emails.length} recipients!`);
-      
-      // Log notification
+      console.error('Some emails failed to send:', errors);
+    }
+    
+    const successCount = results.length;
+    console.log('Email notifications sent successfully!');
+    
+    // Log notification
+    if (successCount > 0) {
       await supabase.from('notification_log').insert({
         notification_type: 'daily_update',
-        recipient_count: emails.length
+        recipient_count: successCount,
+        failed_count: errors.length
       });
     }
+    
   } catch (error) {
     console.error('Error with Resend:', error);
   }
