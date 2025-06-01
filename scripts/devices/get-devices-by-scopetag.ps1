@@ -17,7 +17,7 @@
     status across different organizational units.
 
 .TAGS
-    Devices,Reporting
+    Devices,Compliance
 
 .MINROLE
     Intune Service Administrator
