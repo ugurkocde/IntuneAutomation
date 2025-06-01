@@ -1,53 +1,32 @@
 {
-  "parameters": {
-    "automationAccountName": {
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      },
-      "type": "string"
-    },
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "get-device-compliance-report"
-    },
-    "runbookDescription": {
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph, retrieves managed devices and their compliance status,"
-    }
-  },
+  "contentVersion": "1.0.0.0",
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "resources": [
     {
-      "location": "[parameters('location')]",
       "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "properties": {
-        "logProgress": "[variables('logProgress')]",
         "description": "[parameters('runbookDescription')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
-        }
-      },
-      "apiVersion": "2023-11-01"
+        },
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]"
+      }
     }
   ],
-  "contentVersion": "1.0.0.0",
   "outputs": {
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
+    },
     "automationAccountName": {
       "value": "[parameters('automationAccountName')]",
       "type": "string"
@@ -56,23 +35,44 @@
       "value": "[variables('scriptUri')]",
       "type": "string"
     },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
     "deploymentInstructions": {
       "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
       "type": "string"
     }
   },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "get-device-compliance-report",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      }
+    },
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph, retrieves managed devices and their compliance status,",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
+    }
+  },
   "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/compliance/get-device-compliance-report.ps1",
     "logProgress": false,
-    "runbookType": "PowerShell",
     "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/compliance/get-device-compliance-report.ps1"
+    "runbookType": "PowerShell"
   }
 }
