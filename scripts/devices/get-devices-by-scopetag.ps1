@@ -228,7 +228,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -273,7 +273,7 @@ function Get-MgGraphAllPages {
 }
 
 # Function to fetch all scope tag details once
-function Get-AllScopeTagDetails {
+function Get-AllScopeTagDetail {
     Write-Verbose "Fetching all scope tag details..."
     $Uri = "https://graph.microsoft.com/beta/deviceManagement/roleScopeTags"
     $scopeTagsResponse = Invoke-MgGraphRequest -Uri $Uri -Method GET
@@ -297,7 +297,7 @@ function Get-AllScopeTagDetails {
 }
 
 # Function to get scope tag names from IDs using cached data
-function Get-ScopeTagNames {
+function Get-ScopeTagName {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$ScopeTagIds,
@@ -333,7 +333,7 @@ function Format-DeviceInfo {
     
     # Get scope tag names
     $ScopeTagNames = if ($Device.roleScopeTagIds -and $Device.roleScopeTagIds.Count -gt 0) {
-        Get-ScopeTagNames -ScopeTagIds $Device.roleScopeTagIds -ScopeTagCache $ScopeTagCache
+        Get-ScopeTagName -ScopeTagIds $Device.roleScopeTagIds -ScopeTagCache $ScopeTagCache
     }
     else {
         "None"
@@ -869,7 +869,7 @@ try {
     
     # Fetch all scope tag details upfront
     Write-Information "Fetching scope tag details..." -InformationAction Continue
-    $ScopeTagCache = Get-AllScopeTagDetails
+    $ScopeTagCache = Get-AllScopeTagDetail
     Write-Information "✓ Retrieved $($ScopeTagCache.Count) scope tags" -InformationAction Continue
     
     # Build the API URI with platform filter using beta endpoint for full device details
@@ -893,7 +893,7 @@ try {
     
     # Retrieve all managed devices
     Write-Information "Retrieving managed devices from Intune..." -InformationAction Continue
-    $AllDevices = Get-MgGraphAllPages -Uri $Uri
+    $AllDevices = Get-MgGraphAllPage -Uri $Uri
     Write-Information "✓ Retrieved $($AllDevices.Count) devices" -InformationAction Continue
     
     # Process devices
