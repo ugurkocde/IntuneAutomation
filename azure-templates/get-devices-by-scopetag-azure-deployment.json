@@ -18,14 +18,14 @@
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
       "type": "string",
-      "defaultValue": "stale-device-cleanup-alert"
+      "defaultValue": "get-devices-by-scopetag"
     },
     "runbookDescription": {
       "metadata": {
         "description": "Description of the runbook"
       },
       "type": "string",
-      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in"
+      "defaultValue": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,"
     }
   },
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -73,6 +73,6 @@
     "logProgress": false,
     "runbookType": "PowerShell",
     "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/stale-device-cleanup-alert.ps1"
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/get-devices-by-scopetag.ps1"
   }
 }
