@@ -39,7 +39,7 @@
 
 .EXAMPLE
     .\get-devices-by-scopetag.ps1 -IncludeScopeTag "School_A"
-    Gets all devices with the "School_A" scope tag and displays results in console
+    Gets all devices with the "School_A" scope tag and exports CSV and HTML reports to current directory
 
 .EXAMPLE
     .\get-devices-by-scopetag.ps1 -IncludeScopeTag "School_A,School_B" -ExportPath "C:\Reports"
@@ -74,8 +74,8 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Comma-separated list of Scope Tags to exclude")]
     [string]$ExcludeScopeTag,
     
-    [Parameter(Mandatory = $false, HelpMessage = "Directory path for CSV and HTML exports")]
-    [string]$ExportPath,
+    [Parameter(Mandatory = $false, HelpMessage = "Directory path for CSV and HTML exports (defaults to current directory)")]
+    [string]$ExportPath = (Get-Location).Path,
     
     [Parameter(Mandatory = $false, HelpMessage = "Filter by specific platform (Windows, iOS, Android, macOS)")]
     [ValidateSet("Windows", "iOS", "Android", "macOS", "All")]
@@ -959,33 +959,31 @@ try {
             Write-Information "... and $($FilteredDevices.Count - 10) more devices" -InformationAction Continue
         }
         
-        # Export if path specified
-        if ($ExportPath) {
-            # Ensure export directory exists
-            if (-not (Test-Path $ExportPath)) {
-                New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
-            }
-            
-            # Generate filenames with timestamp
-            $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $CSVFileName = "DeviceReport_ByScopeTag_$Timestamp.csv"
-            $HTMLFileName = "DeviceReport_ByScopeTag_$Timestamp.html"
-            
-            $CSVPath = Join-Path $ExportPath $CSVFileName
-            $HTMLPath = Join-Path $ExportPath $HTMLFileName
-            
-            # Export to CSV
-            try {
-                $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation
-                Write-Information "✓ CSV report saved to: $CSVPath" -InformationAction Continue
-            }
-            catch {
-                Write-Warning "Failed to export CSV: $($_.Exception.Message)"
-            }
-            
-            # Generate HTML report
-            New-HTMLReport -Devices $FilteredDevices -ReportPath $HTMLPath -IncludeTags $IncludeTags -ExcludeTags $ExcludeTags
+        # Export reports
+        # Ensure export directory exists
+        if (-not (Test-Path $ExportPath)) {
+            New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
         }
+        
+        # Generate filenames with timestamp
+        $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $CSVFileName = "DeviceReport_ByScopeTag_$Timestamp.csv"
+        $HTMLFileName = "DeviceReport_ByScopeTag_$Timestamp.html"
+        
+        $CSVPath = Join-Path $ExportPath $CSVFileName
+        $HTMLPath = Join-Path $ExportPath $HTMLFileName
+        
+        # Export to CSV
+        try {
+            $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation
+            Write-Information "✓ CSV report saved to: $CSVPath" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "Failed to export CSV: $($_.Exception.Message)"
+        }
+        
+        # Generate HTML report
+        New-HTMLReport -Devices $FilteredDevices -ReportPath $HTMLPath -IncludeTags $IncludeTags -ExcludeTags $ExcludeTags
     }
     else {
         Write-Information "No devices found matching the specified criteria." -InformationAction Continue
