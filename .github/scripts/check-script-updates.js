@@ -458,10 +458,6 @@ async function sendNotifications(updates, newScripts) {
                         </p>
                         <div style="margin-bottom: 24px;">
                           <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">GitHub</a>
-                          <span style="color: #a19f9d;">•</span>
-                          <a href="https://intuneautomation.com" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">Documentation</a>
-                          <span style="color: #a19f9d;">•</span>
-                          <a href="https://intuneautomation.com/support" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">Support</a>
                         </div>
                         <div style="border-top: 1px solid #e1dfdd; padding-top: 24px; margin-top: 24px;">
                           <p style="color: #a19f9d; font-size: 12px; margin: 0 0 8px 0;">
@@ -469,8 +465,6 @@ async function sendNotifications(updates, newScripts) {
                           </p>
                           <p style="margin: 0;">
                             <a href="${generateUnsubscribeUrl(emails[0])}" style="color: #605e5c; font-size: 12px; text-decoration: underline;">Unsubscribe</a>
-                            <span style="color: #a19f9d; margin: 0 8px;">|</span>
-                            <a href="https://intuneautomation.com/preferences" style="color: #605e5c; font-size: 12px; text-decoration: underline;">Update Preferences</a>
                           </p>
                         </div>
                       </td>
