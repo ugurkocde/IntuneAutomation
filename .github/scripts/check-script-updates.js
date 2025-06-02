@@ -59,13 +59,21 @@ async function writeToGitHubSummary(newScripts, updates) {
   await fs.appendFile(summaryFile, summary);
 }
 
-// Parse PowerShell script metadata
+// Parse script metadata (PowerShell or Shell)
 async function parseScriptMetadata(filePath) {
   const content = await fs.readFile(filePath, 'utf8');
   const metadata = {};
+  const isShellScript = filePath.endsWith('.sh');
   
   // Extract metadata using regex
-  const patterns = {
+  const patterns = isShellScript ? {
+    // Shell script patterns (# FIELD: value)
+    title: /#\s*TITLE:\s*(.+)/i,
+    version: /#\s*VERSION:\s*(.+)/i,
+    description: /#\s*SYNOPSIS:\s*(.+)/i,
+    changelog: /#\s*CHANGELOG:\s*([\s\S]*?)(?=\n#\s*[A-Z]+:|\n[^#]|$)/i
+  } : {
+    // PowerShell patterns (.FIELD value)
     title: /\.TITLE\s+(.+)/i,
     version: /\.VERSION\s+(.+)/i,
     description: /\.SYNOPSIS\s+(.+)/i,
@@ -75,6 +83,15 @@ async function parseScriptMetadata(filePath) {
   for (const [key, pattern] of Object.entries(patterns)) {
     const match = content.match(pattern);
     metadata[key] = match ? match[1].trim() : '';
+  }
+  
+  // Clean up changelog for shell scripts (remove # prefixes)
+  if (isShellScript && metadata.changelog) {
+    metadata.changelog = metadata.changelog
+      .split('\n')
+      .map(line => line.replace(/^#\s*/, '').trim())
+      .filter(line => line.length > 0)
+      .join('\n');
   }
   
   // Extract category from path
@@ -87,10 +104,10 @@ async function parseScriptMetadata(filePath) {
   return metadata;
 }
 
-// Get all PowerShell scripts
+// Get all PowerShell and shell scripts
 async function getAllScripts() {
   try {
-    const files = await glob('scripts/**/*.ps1');
+    const files = await glob('scripts/**/*.{ps1,sh}');
     return files;
   } catch (error) {
     console.error('Error finding scripts:', error);
@@ -111,7 +128,8 @@ async function checkAndNotify() {
     // Check each script
     for (const scriptPath of scriptFiles) {
       const metadata = await parseScriptMetadata(scriptPath);
-      const scriptName = path.basename(scriptPath, '.ps1');
+      const ext = path.extname(scriptPath);
+      const scriptName = path.basename(scriptPath, ext);
       
       // Check if script exists in database
       const { data: existingScript, error } = await supabase
@@ -283,8 +301,8 @@ async function sendNotifications(updates, newScripts) {
                   </h2>`;
     
     for (const script of newScripts) {
-      // Generate script ID from path (remove .ps1 extension)
-      const scriptId = script.path.split('/').pop().replace('.ps1', '');
+      // Generate script ID from path (remove file extension)
+      const scriptId = path.basename(script.path, path.extname(script.path));
       const url = `https://intuneautomation.com/script/${scriptId}`;
       emailHtml += `
                   <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #0078d4;">
@@ -328,8 +346,8 @@ async function sendNotifications(updates, newScripts) {
                   </h2>`;
     
     for (const script of updates) {
-      // Generate script ID from path (remove .ps1 extension)
-      const scriptId = script.path.split('/').pop().replace('.ps1', '');
+      // Generate script ID from path (remove file extension)
+      const scriptId = path.basename(script.path, path.extname(script.path));
       const url = `https://intuneautomation.com/script/${scriptId}`;
       const changelogHtml = script.changelog 
         ? script.changelog.split('\n').map(line => `<div style="margin: 2px 0;">• ${line}</div>`).join('')
