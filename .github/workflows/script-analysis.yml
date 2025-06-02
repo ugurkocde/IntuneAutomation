@@ -1,11 +1,12 @@
-name: PowerShell Script Analysis and Azure Template Generation
-run-name: PowerShell Script Analysis and Azure Template Generation
+name: Script Analysis and Azure Template Generation
+run-name: Script Analysis and Azure Template Generation
 
 on:
   push:
     branches: [main, master]
     paths:
       - "scripts/**/*.ps1"
+      - "scripts/**/*.sh"
   schedule:
     # Run daily at 2 AM UTC
     - cron: "0 2 * * *"
@@ -18,7 +19,7 @@ permissions:
 jobs:
   analyze-and-generate:
     runs-on: ubuntu-latest
-    name: Analyze PowerShell Scripts and Generate Azure Templates
+    name: Analyze Scripts and Generate Azure Templates
 
     steps:
       - name: Checkout repository
@@ -31,18 +32,27 @@ jobs:
         run: |
           Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
 
-      - name: Install PSScriptAnalyzer
+      - name: Install Analysis Tools
         shell: pwsh
         run: |
+          # Install PSScriptAnalyzer for PowerShell scripts
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
           Write-Host "PSScriptAnalyzer installed successfully"
+          
+          # ShellCheck is pre-installed on GitHub runners
+          Write-Host "ShellCheck version: $(shellcheck --version)"
 
-      - name: Run PSScriptAnalyzer
+      - name: Run Script Analysis
         shell: pwsh
         run: |
-          # Get all PowerShell script files in the scripts directory
-          $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
-          Write-Host "Found $($scriptFiles.Count) PowerShell script(s) to analyze"
+          # Get all script files in the scripts directory
+          $psScriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
+          $shScriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.sh"
+          $allScriptFiles = @($psScriptFiles) + @($shScriptFiles)
+          
+          Write-Host "Found $($psScriptFiles.Count) PowerShell script(s) to analyze"
+          Write-Host "Found $($shScriptFiles.Count) Shell script(s) to analyze"
+          Write-Host "Total scripts to analyze: $($allScriptFiles.Count)"
 
           # Initialize results array
           $results = @()
@@ -51,8 +61,9 @@ jobs:
           # Get current timestamp in mm-dd-yyyy format
           $timestamp = Get-Date -Format "MM-dd-yyyy"
 
-          foreach ($file in $scriptFiles) {
-              Write-Host "Analyzing: $($file.FullName)"
+          # Analyze PowerShell scripts
+          foreach ($file in $psScriptFiles) {
+              Write-Host "Analyzing PowerShell: $($file.FullName)"
               
               # Run PSScriptAnalyzer
               $analysisResults = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error,Warning -ExcludeRule PSUseBOMForUnicodeEncodedFile,PSUseDeclaredVarsMoreThanAssignments,PSUseShouldProcessForStateChangingFunctions
@@ -65,6 +76,7 @@ jobs:
                   filename = $file.Name
                   result = $status
                   timestamp = $timestamp
+                  type = "PowerShell"
               }
               
               # Add to summary results with details
@@ -73,6 +85,62 @@ jobs:
                   Status = $status
                   Issues = $analysisResults.Count
                   Details = $analysisResults
+                  Type = "PowerShell"
+              }
+          }
+
+          # Analyze Shell scripts
+          foreach ($file in $shScriptFiles) {
+              Write-Host "Analyzing Shell: $($file.FullName)"
+              
+              # Run ShellCheck and capture output
+              $shellCheckOutput = shellcheck -f json $file.FullName 2>&1 | Out-String
+              
+              try {
+                  $shellCheckResults = $shellCheckOutput | ConvertFrom-Json
+                  $issueCount = @($shellCheckResults).Count
+              } catch {
+                  # If JSON parsing fails, assume no issues
+                  $shellCheckResults = @()
+                  $issueCount = 0
+              }
+              
+              # Determine pass/fail status
+              $status = if ($issueCount -eq 0) { "pass" } else { "not passed" }
+              
+              # Add to results for JSON output
+              $results += [PSCustomObject]@{
+                  filename = $file.Name
+                  result = $status
+                  timestamp = $timestamp
+                  type = "Shell"
+              }
+              
+              # Convert ShellCheck results to similar format as PSScriptAnalyzer
+              $formattedDetails = @()
+              foreach ($issue in $shellCheckResults) {
+                  $formattedDetails += [PSCustomObject]@{
+                      RuleName = "SC$($issue.code)"
+                      Line = $issue.line
+                      Column = $issue.column
+                      Message = $issue.message
+                      Severity = switch ($issue.level) {
+                          "error" { "Error" }
+                          "warning" { "Warning" }
+                          "info" { "Information" }
+                          "style" { "Information" }
+                          default { "Warning" }
+                      }
+                  }
+              }
+              
+              # Add to summary results with details
+              $summaryResults += [PSCustomObject]@{
+                  File = $file.FullName.Replace('\', '/').Replace((Get-Location).Path.Replace('\', '/') + '/', '')
+                  Status = $status
+                  Issues = $issueCount
+                  Details = $formattedDetails
+                  Type = "Shell"
               }
           }
 
@@ -100,33 +168,45 @@ jobs:
           $passCount = ($summaryResults | Where-Object { $_.Status -eq "pass" }).Count
           $failCount = ($summaryResults | Where-Object { $_.Status -eq "not passed" }).Count
           $totalIssues = ($summaryResults | Measure-Object -Property Issues -Sum).Sum
+          
+          # Count by type
+          $psCount = ($summaryResults | Where-Object { $_.Type -eq "PowerShell" }).Count
+          $shCount = ($summaryResults | Where-Object { $_.Type -eq "Shell" }).Count
 
           $summary = @"
-          # 🔍 PowerShell Script Analysis Results
+          # 🔍 Script Analysis Results
 
           ## 📊 Summary
           - **Total Scripts Analyzed**: $($summaryResults.Count)
+            - **PowerShell Scripts**: $psCount
+            - **Shell Scripts**: $shCount
           - **✅ Passed**: $passCount
           - **❌ Failed**: $failCount
           - **🚨 Total Issues**: $totalIssues
 
           ## 📋 Detailed Results
 
-          | Script | Status | Issues |
-          |--------|--------|--------|
+          | Script | Type | Status | Issues |
+          |--------|------|--------|--------|
           "@
 
           foreach ($result in $summaryResults) {
               $statusIcon = if ($result.Status -eq "pass") { "✅" } else { "❌" }
-              $summary += "`n| $($result.File) | $statusIcon $($result.Status) | $($result.Issues) |"
+              $typeIcon = if ($result.Type -eq "PowerShell") { "📄" } else { "🐚" }
+              $summary += "`n| $($result.File) | $typeIcon $($result.Type) | $statusIcon $($result.Status) | $($result.Issues) |"
           }
 
           if ($failCount -gt 0) {
               $summary += "`n`n## 🚨 Issues Found`n"
               foreach ($result in $summaryResults | Where-Object { $_.Status -eq "not passed" }) {
-                  $summary += "`n### $($result.File)`n"
+                  $typeIcon = if ($result.Type -eq "PowerShell") { "📄" } else { "🐚" }
+                  $summary += "`n### $typeIcon $($result.File)`n"
                   foreach ($issue in $result.Details) {
-                      $summary += "- **$($issue.RuleName)** (Line $($issue.Line))`n"
+                      if ($result.Type -eq "Shell") {
+                          $summary += "- **$($issue.RuleName)** (Line $($issue.Line), Column $($issue.Column)): $($issue.Message)`n"
+                      } else {
+                          $summary += "- **$($issue.RuleName)** (Line $($issue.Line))`n"
+                      }
                   }
               }
           }
@@ -279,7 +359,7 @@ jobs:
               return $template
           }
 
-          # Process all PowerShell scripts
+          # Process all PowerShell scripts (Azure templates only generated for PowerShell scripts)
           $scriptFiles = Get-ChildItem -Path "scripts" -Recurse -Filter "*.ps1"
 
           foreach ($scriptFile in $scriptFiles) {
@@ -332,7 +412,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: powershell-analysis-results
+          name: script-analysis-results
           path: testresults.json
 
       - name: Commit all results (if on main/master)
@@ -344,6 +424,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update PowerShell analysis results and Azure deployment templates [skip ci]"
+            git commit -m "Update script analysis results and Azure deployment templates [skip ci]"
             git push
           fi
