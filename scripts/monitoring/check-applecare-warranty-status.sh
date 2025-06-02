@@ -11,6 +11,7 @@
 # MIN_OS_VERSION: 10.15
 # AUTHOR: IntuneAutomation Contributors
 # VERSION: 1.0
+# LASTUPDATE: 2025-06-02
 # CHANGELOG:
 #   1.0 - Initial release
 #
