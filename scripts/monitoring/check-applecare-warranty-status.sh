@@ -47,8 +47,8 @@ if [ ! -d "$warrantyDir" ]; then
 fi
 
 # Check if any Warranty files exist
-# Use find instead of ls | grep to handle filenames properly
-mapfile -t warrantyFiles < <(find "$warrantyDir" -maxdepth 1 -name "*_Warranty*" -type f 2>/dev/null | xargs -I {} basename {} 2>/dev/null || true)
+# Use find with -print0 for safe filename handling
+mapfile -t warrantyFiles < <(find "$warrantyDir" -maxdepth 1 -name "*_Warranty*" -type f -print0 2>/dev/null | xargs -0 -I {} basename {} 2>/dev/null || true)
 
 if [ ${#warrantyFiles[@]} -eq 0 ]; then
     echo "No warranty information found for this device."
