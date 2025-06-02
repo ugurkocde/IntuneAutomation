@@ -8,6 +8,7 @@
 # MIN_OS_VERSION: [Minimum macOS version required - e.g., 10.15]
 # AUTHOR: [Your Name]
 # VERSION: [Version number - start with 1.0]
+# LASTUPDATE: [Date of last update]
 # CHANGELOG:
 #   [Version] - [Description of changes]
 #   1.0 - Initial release
