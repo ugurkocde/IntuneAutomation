@@ -13,6 +13,9 @@
 .TAGS
     [Category],[Subcategory] (e.g., Operational,Devices or Security,Compliance)
 
+.PLATFORM
+    Windows
+
 .MINROLE
     [Minimum Intune/Azure AD role required - e.g., Intune Administrator, Global Administrator]
 
