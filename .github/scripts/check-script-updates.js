@@ -441,7 +441,7 @@ async function sendNotifications(updates, newScripts) {
                     <p style="color: #605e5c; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">
                       All scripts are production-ready and thoroughly tested. Deploy with confidence using Azure Automation or run locally.
                     </p>
-                    <a href="https://intuneautomation.com" style="background-color: #323130; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 2px; display: inline-block; font-size: 14px; font-weight: 600;">Browse All Scripts</a>
+                    <a href="https://www.intuneautomation.com/scripts" style="background-color: #323130; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 2px; display: inline-block; font-size: 14px; font-weight: 600;">Browse All Scripts</a>
                   </div>
                 </td>
               </tr>
@@ -452,10 +452,6 @@ async function sendNotifications(updates, newScripts) {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="text-align: center;">
-                        <h4 style="color: #323130; margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">Intune Automation Team</h4>
-                        <p style="color: #605e5c; margin: 0 0 24px 0; font-size: 14px; line-height: 1.5;">
-                          Empowering IT professionals with enterprise-grade Intune automation scripts.
-                        </p>
                         <div style="margin-bottom: 24px;">
                           <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">GitHub</a>
                         </div>
