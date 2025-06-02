@@ -452,10 +452,7 @@ async function sendNotifications(updates, newScripts) {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="text-align: center;">
-                        <div style="margin-bottom: 24px;">
-                          <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">GitHub</a>
-                        </div>
-                        <div style="border-top: 1px solid #e1dfdd; padding-top: 24px; margin-top: 24px;">
+                        <div style="border-top: 1px solid #e1dfdd; padding-top: 24px;">
                           <p style="color: #a19f9d; font-size: 12px; margin: 0 0 8px 0;">
                             You're receiving this because you subscribed to Intune Automation updates.
                           </p>
