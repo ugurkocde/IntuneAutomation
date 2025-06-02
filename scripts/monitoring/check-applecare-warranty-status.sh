@@ -47,7 +47,8 @@ if [ ! -d "$warrantyDir" ]; then
 fi
 
 # Check if any Warranty files exist
-warrantyFiles=($(ls "$warrantyDir" 2>/dev/null | grep "_Warranty" || true))
+# Use find instead of ls | grep to handle filenames properly
+mapfile -t warrantyFiles < <(find "$warrantyDir" -maxdepth 1 -name "*_Warranty*" -type f 2>/dev/null | xargs -I {} basename {} 2>/dev/null || true)
 
 if [ ${#warrantyFiles[@]} -eq 0 ]; then
     echo "No warranty information found for this device."
@@ -64,7 +65,7 @@ for file in "${warrantyFiles[@]}"; do
 
     if [ -n "$expires" ]; then
         # Convert epoch to a US date format (MM/DD/YYYY)
-        ACexpires=$(date -r $expires '+%m/%d/%Y' 2>/dev/null || echo "Unknown")
+        ACexpires=$(date -r "$expires" '+%m/%d/%Y' 2>/dev/null || echo "Unknown")
         
         # Check if the warranty has expired
         currentDate=$(date +%s)
