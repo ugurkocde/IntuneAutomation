@@ -249,41 +249,69 @@ async function sendNotifications(updates, newScripts) {
   
   const emails = activeSubscribers.map(s => s.email);
   
-  // Build email content with improved design
+  // Build email content with professional design
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
   let emailHtml = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        @media only screen and (max-width: 600px) {
+          .container { width: 100% !important; }
+          .content-padding { padding: 20px !important; }
+        }
+      </style>
     </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f4f4;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #323130;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f2f5; padding: 40px 20px;">
         <tr>
           <td align="center">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <table class="container" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);">
               <!-- Header -->
               <tr>
-                <td style="background-color: #0078d4; padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
-                  <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Intune Automation Updates</h1>
+                <td style="background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%); padding: 48px 40px; border-radius: 2px 2px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td>
+                        <h1 style="color: #ffffff; margin: 0 0 8px 0; font-size: 32px; font-weight: 600; letter-spacing: -0.5px;">Intune Automation</h1>
+                        <p style="color: #e3f2fd; margin: 0; font-size: 16px; font-weight: 300;">Script Repository Update Notification</p>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
               
-              <!-- Summary -->
+              <!-- Date and Greeting -->
               <tr>
-                <td style="padding: 30px 40px;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
+                <td class="content-padding" style="padding: 40px 40px 24px;">
+                  <p style="color: #605e5c; margin: 0 0 24px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">${currentDate}</p>
+                  <h2 style="color: #323130; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">Weekly Script Update Summary</h2>
+                  <p style="color: #605e5c; margin: 0 0 32px 0; font-size: 16px; line-height: 1.5;">
+                    The following scripts have been added or updated in the Intune Automation repository. 
+                    These updates include bug fixes, performance improvements, and new functionality to enhance your Intune management capabilities.
+                  </p>
+                  
+                  <!-- Statistics -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
                     <tr>
-                      <td width="50%" style="text-align: center; padding: 20px;">
-                        <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px;">
-                          <div style="font-size: 36px; font-weight: bold; color: #0078d4;">${newScripts.length}</div>
-                          <div style="color: #666; margin-top: 5px;">New Scripts</div>
+                      <td width="50%" style="padding-right: 12px;">
+                        <div style="background-color: #f3f2f1; padding: 24px; border-radius: 2px; border-left: 4px solid #0078d4; text-align: center;">
+                          <div style="font-size: 48px; font-weight: 300; color: #0078d4; line-height: 1;">${newScripts.length}</div>
+                          <div style="color: #605e5c; margin-top: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">New Scripts</div>
                         </div>
                       </td>
-                      <td width="50%" style="text-align: center; padding: 20px;">
-                        <div style="background-color: #f3e5f5; padding: 20px; border-radius: 8px;">
-                          <div style="font-size: 36px; font-weight: bold; color: #7b1fa2;">${updates.length}</div>
-                          <div style="color: #666; margin-top: 5px;">Updated Scripts</div>
+                      <td width="50%" style="padding-left: 12px;">
+                        <div style="background-color: #f3f2f1; padding: 24px; border-radius: 2px; border-left: 4px solid #5c2d91; text-align: center;">
+                          <div style="font-size: 48px; font-weight: 300; color: #5c2d91; line-height: 1;">${updates.length}</div>
+                          <div style="color: #605e5c; margin-top: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Updated Scripts</div>
                         </div>
                       </td>
                     </tr>
@@ -295,39 +323,46 @@ async function sendNotifications(updates, newScripts) {
   if (newScripts.length > 0) {
     emailHtml += `
               <tr>
-                <td style="padding: 0 40px 30px;">
-                  <h2 style="color: #0078d4; margin: 0 0 20px 0; font-size: 24px;">
-                    <span style="margin-right: 10px;">🆕</span>New Scripts
-                  </h2>`;
+                <td class="content-padding" style="padding: 0 40px 40px;">
+                  <h3 style="color: #323130; margin: 0 0 24px 0; font-size: 20px; font-weight: 600;">
+                    New Scripts Available
+                  </h3>`;
     
     for (const script of newScripts) {
       // Generate script ID from path (remove file extension)
       const scriptId = path.basename(script.path, path.extname(script.path));
       const url = `https://intuneautomation.com/script/${scriptId}`;
       emailHtml += `
-                  <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #0078d4;">
-                    <h3 style="margin: 0 0 10px 0; color: #333;">${script.name}</h3>
+                  <div style="background-color: #fafafa; padding: 24px; margin-bottom: 16px; border-radius: 2px; border: 1px solid #edebe9;">
+                    <h4 style="margin: 0 0 12px 0; color: #323130; font-size: 18px; font-weight: 600;">${script.name}</h4>
+                    ${script.description ? `
+                    <p style="color: #605e5c; margin: 0 0 16px 0; font-size: 14px; line-height: 1.5;">
+                      ${script.description}
+                    </p>` : ''}
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="color: #605e5c; font-size: 14px;">Category:</span>
+                          <span style="background-color: #e1dfdd; padding: 4px 12px; border-radius: 12px; color: #323130; font-size: 12px; margin-left: 8px; font-weight: 600; text-transform: capitalize;">${script.category}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0;">
+                          <span style="color: #605e5c; font-size: 14px;">Version:</span>
+                          <span style="color: #323130; font-size: 14px; margin-left: 8px; font-weight: 600;">${script.version}</span>
+                        </td>
+                      </tr>
+                    </table>
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td style="color: #666; padding: 5px 0;">
-                          <strong>Category:</strong> <span style="background-color: #e3f2fd; padding: 2px 8px; border-radius: 4px; color: #0078d4;">${script.category}</span>
+                        <td>
+                          <a href="${url}" style="background-color: #0078d4; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 2px; display: inline-block; font-size: 14px; font-weight: 600;">View Documentation</a>
+                        </td>
+                        <td style="text-align: right;">
+                          <a href="https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}" style="color: #0078d4; text-decoration: none; font-size: 14px;">View on GitHub →</a>
                         </td>
                       </tr>
-                      <tr>
-                        <td style="color: #666; padding: 5px 0;">
-                          <strong>Version:</strong> ${script.version}
-                        </td>
-                      </tr>
-                      ${script.description ? `
-                      <tr>
-                        <td style="color: #666; padding: 5px 0;">
-                          <strong>Description:</strong> ${script.description}
-                        </td>
-                      </tr>` : ''}
                     </table>
-                    <div style="margin-top: 15px;">
-                      <a href="${url}" style="background-color: #0078d4; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">View Script →</a>
-                    </div>
                   </div>`;
     }
     
@@ -340,48 +375,54 @@ async function sendNotifications(updates, newScripts) {
   if (updates.length > 0) {
     emailHtml += `
               <tr>
-                <td style="padding: 0 40px 30px;">
-                  <h2 style="color: #7b1fa2; margin: 0 0 20px 0; font-size: 24px;">
-                    <span style="margin-right: 10px;">🔄</span>Updated Scripts
-                  </h2>`;
+                <td class="content-padding" style="padding: 0 40px 40px;">
+                  <h3 style="color: #323130; margin: 0 0 24px 0; font-size: 20px; font-weight: 600;">
+                    Updated Scripts
+                  </h3>`;
     
     for (const script of updates) {
       // Generate script ID from path (remove file extension)
       const scriptId = path.basename(script.path, path.extname(script.path));
       const url = `https://intuneautomation.com/script/${scriptId}`;
       const changelogHtml = script.changelog 
-        ? script.changelog.split('\n').map(line => `<div style="margin: 2px 0;">• ${line}</div>`).join('')
-        : '<div style="color: #999;">No changelog provided</div>';
+        ? script.changelog.split('\n').map(line => `<li style="margin: 4px 0; color: #605e5c; font-size: 14px;">${line}</li>`).join('')
+        : '<li style="color: #a19f9d; font-size: 14px;">No changelog provided</li>';
         
       emailHtml += `
-                  <div style="background-color: #f8f9fa; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #7b1fa2;">
-                    <h3 style="margin: 0 0 10px 0; color: #333;">${script.name}</h3>
-                    <table width="100%" cellpadding="0" cellspacing="0">
+                  <div style="background-color: #fafafa; padding: 24px; margin-bottom: 16px; border-radius: 2px; border: 1px solid #edebe9;">
+                    <h4 style="margin: 0 0 12px 0; color: #323130; font-size: 18px; font-weight: 600;">${script.name}</h4>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
                       <tr>
-                        <td style="color: #666; padding: 5px 0;">
-                          <strong>Category:</strong> <span style="background-color: #f3e5f5; padding: 2px 8px; border-radius: 4px; color: #7b1fa2;">${script.category}</span>
+                        <td style="padding: 8px 0;">
+                          <span style="color: #605e5c; font-size: 14px;">Category:</span>
+                          <span style="background-color: #e1dfdd; padding: 4px 12px; border-radius: 12px; color: #323130; font-size: 12px; margin-left: 8px; font-weight: 600; text-transform: capitalize;">${script.category}</span>
                         </td>
                       </tr>
                       <tr>
-                        <td style="color: #666; padding: 5px 0;">
-                          <strong>Version:</strong> 
-                          <span style="background-color: #ffebee; padding: 2px 6px; border-radius: 4px; text-decoration: line-through;">${script.oldVersion}</span>
-                          <span style="margin: 0 5px;">→</span>
-                          <span style="background-color: #e8f5e9; padding: 2px 6px; border-radius: 4px;">${script.newVersion}</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="color: #666; padding: 10px 0 5px 0;">
-                          <strong>Changes:</strong>
-                          <div style="margin-top: 5px; padding-left: 10px; color: #555;">
-                            ${changelogHtml}
-                          </div>
+                        <td style="padding: 8px 0;">
+                          <span style="color: #605e5c; font-size: 14px;">Version Update:</span>
+                          <span style="background-color: #fce4ec; padding: 4px 8px; border-radius: 2px; color: #c5221f; font-size: 13px; font-weight: 600; margin-left: 8px; text-decoration: line-through;">${script.oldVersion}</span>
+                          <span style="color: #605e5c; margin: 0 8px;">→</span>
+                          <span style="background-color: #e6f4ea; padding: 4px 8px; border-radius: 2px; color: #188038; font-size: 13px; font-weight: 600;">${script.newVersion}</span>
                         </td>
                       </tr>
                     </table>
-                    <div style="margin-top: 15px;">
-                      <a href="${url}" style="background-color: #7b1fa2; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">View Changes →</a>
+                    <div style="background-color: #f3f2f1; padding: 16px; border-radius: 2px; margin-bottom: 16px;">
+                      <p style="color: #323130; margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">What's Changed:</p>
+                      <ul style="margin: 0; padding-left: 20px;">
+                        ${changelogHtml}
+                      </ul>
                     </div>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <a href="${url}" style="background-color: #5c2d91; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 2px; display: inline-block; font-size: 14px; font-weight: 600;">Review Changes</a>
+                        </td>
+                        <td style="text-align: right;">
+                          <a href="https://github.com/ugurkocde/intuneautomation/blob/main/${script.path}" style="color: #5c2d91; text-decoration: none; font-size: 14px;">View on GitHub →</a>
+                        </td>
+                      </tr>
+                    </table>
                   </div>`;
     }
     
@@ -390,27 +431,51 @@ async function sendNotifications(updates, newScripts) {
               </tr>`;
   }
   
-  // Footer with unsubscribe
+  // Footer with professional signature
   emailHtml += `
+              <!-- Call to Action -->
+              <tr>
+                <td class="content-padding" style="padding: 0 40px 40px;">
+                  <div style="background-color: #f3f2f1; padding: 24px; border-radius: 2px; text-align: center;">
+                    <h4 style="color: #323130; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">Ready to Deploy?</h4>
+                    <p style="color: #605e5c; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">
+                      All scripts are production-ready and thoroughly tested. Deploy with confidence using Azure Automation or run locally.
+                    </p>
+                    <a href="https://intuneautomation.com" style="background-color: #323130; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 2px; display: inline-block; font-size: 14px; font-weight: 600;">Browse All Scripts</a>
+                  </div>
+                </td>
+              </tr>
+              
               <!-- Footer -->
               <tr>
-                <td style="background-color: #f8f9fa; padding: 30px 40px; text-align: center; border-radius: 0 0 8px 8px;">
-                  <p style="color: #666; margin: 0 0 15px 0; font-size: 14px;">
-                    Stay updated with the latest Intune automation scripts!
-                  </p>
-                  <div style="margin: 20px 0;">
-                    <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 10px;">GitHub Repository</a>
-                    <span style="color: #ccc;">|</span>
-                    <a href="https://intuneautomation.com" style="color: #0078d4; text-decoration: none; margin: 0 10px;">Website</a>
-                  </div>
-                  <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                    <p style="color: #999; font-size: 12px; margin: 0;">
-                      You received this email because you subscribed to Intune Automation script updates.
-                    </p>
-                    <p style="margin: 10px 0 0 0;">
-                      <a href="${generateUnsubscribeUrl(emails[0])}" style="color: #666; font-size: 12px;">Unsubscribe from these notifications</a>
-                    </p>
-                  </div>
+                <td style="background-color: #f3f2f1; padding: 40px; border-radius: 0 0 2px 2px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center;">
+                        <h4 style="color: #323130; margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">Intune Automation Team</h4>
+                        <p style="color: #605e5c; margin: 0 0 24px 0; font-size: 14px; line-height: 1.5;">
+                          Empowering IT professionals with enterprise-grade Intune automation scripts.
+                        </p>
+                        <div style="margin-bottom: 24px;">
+                          <a href="https://github.com/ugurkocde/intuneautomation" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">GitHub</a>
+                          <span style="color: #a19f9d;">•</span>
+                          <a href="https://intuneautomation.com" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">Documentation</a>
+                          <span style="color: #a19f9d;">•</span>
+                          <a href="https://intuneautomation.com/support" style="color: #0078d4; text-decoration: none; margin: 0 12px; font-size: 14px; font-weight: 600;">Support</a>
+                        </div>
+                        <div style="border-top: 1px solid #e1dfdd; padding-top: 24px; margin-top: 24px;">
+                          <p style="color: #a19f9d; font-size: 12px; margin: 0 0 8px 0;">
+                            You're receiving this because you subscribed to Intune Automation updates.
+                          </p>
+                          <p style="margin: 0;">
+                            <a href="${generateUnsubscribeUrl(emails[0])}" style="color: #605e5c; font-size: 12px; text-decoration: underline;">Unsubscribe</a>
+                            <span style="color: #a19f9d; margin: 0 8px;">|</span>
+                            <a href="https://intuneautomation.com/preferences" style="color: #605e5c; font-size: 12px; text-decoration: underline;">Update Preferences</a>
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
