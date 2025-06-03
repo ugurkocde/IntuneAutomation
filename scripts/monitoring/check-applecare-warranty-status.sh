@@ -42,29 +42,34 @@ check_user_warranty() {
     fi
     
     # Find warranty files
-    local warrantyFiles=$(find "$warrantyDir" -maxdepth 1 -name "*_Warranty*" -type f 2>/dev/null)
+    local warrantyFiles
+    warrantyFiles=$(find "$warrantyDir" -maxdepth 1 -name "*_Warranty*" -type f 2>/dev/null)
     
     if [ -z "$warrantyFiles" ]; then
         return 1
     fi
     
     # Get the most recent warranty file
-    local latestFile=$(echo "$warrantyFiles" | xargs ls -t 2>/dev/null | head -n1)
+    local latestFile
+    latestFile=$(echo "$warrantyFiles" | xargs ls -t 2>/dev/null | head -n1)
     
     if [ -z "$latestFile" ]; then
         return 1
     fi
     
     # Read the coverage end date
-    local expires=$(defaults read "$latestFile" coverageEndDate 2>/dev/null || echo "")
+    local expires
+    expires=$(defaults read "$latestFile" coverageEndDate 2>/dev/null || echo "")
     
     if [ -n "$expires" ]; then
         # Convert epoch to ISO-8601 format for better compatibility
-        local ACexpires=$(date -r "$expires" '+%Y-%m-%d' 2>/dev/null || echo "")
+        local ACexpires
+        ACexpires=$(date -r "$expires" '+%Y-%m-%d' 2>/dev/null || echo "")
         
         if [ -n "$ACexpires" ]; then
             # Check if warranty has expired
-            local currentDate=$(date +%s)
+            local currentDate
+            currentDate=$(date +%s)
             if [ "$expires" -lt "$currentDate" ]; then
                 echo "Expired: $ACexpires"
             else
