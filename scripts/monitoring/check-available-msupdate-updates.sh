@@ -31,9 +31,6 @@
 # VARIABLES AND INITIALIZATION
 # ============================================================================
 
-# Script version
-SCRIPT_VERSION="1.0"
-
 # Path to msupdate CLI
 MSUPDATE="/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate"
 
@@ -96,10 +93,7 @@ main() {
 
     # Run msupdate using the user's launchctl session
     local raw_output
-    raw_output=$(launchctl asuser "$user_id" sudo -u "$loggedInUser" "$MSUPDATE" --list 2>&1)
-
-    # Check if command executed successfully
-    if [[ $? -ne 0 ]]; then
+    if ! raw_output=$(launchctl asuser "$user_id" sudo -u "$loggedInUser" "$MSUPDATE" --list 2>&1); then
         # Check for specific error messages
         if echo "$raw_output" | grep -q "Failed to connect"; then
             output_result "Error: Failed to connect to MAU service"
