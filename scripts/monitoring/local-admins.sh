@@ -30,9 +30,6 @@
 # VARIABLES AND INITIALIZATION
 # ============================================================================
 
-# Script version
-SCRIPT_VERSION="1.0"
-
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
@@ -55,10 +52,7 @@ check_prerequisites() {
 get_admin_users() {
     # Query the admin group membership
     local admin_output
-    admin_output=$(dscl . -read /Groups/admin GroupMembership 2>&1)
-    
-    # Check if command succeeded
-    if [[ $? -ne 0 ]]; then
+    if ! admin_output=$(dscl . -read /Groups/admin GroupMembership 2>&1); then
         # Check if it's a permission issue
         if echo "$admin_output" | grep -q "eDSPermissionError"; then
             output_result "Error: Permission denied"
@@ -66,16 +60,16 @@ get_admin_users() {
             output_result "Error: Unable to query admin group"
         fi
     fi
-    
+
     # Extract just the user list (remove "GroupMembership:" prefix)
     local admin_list
-    admin_list=$(echo "$admin_output" | sed 's/^GroupMembership: //')
-    
+    admin_list=${admin_output#GroupMembership: }
+
     # Check if we got valid output
     if [[ -z "$admin_list" ]] || [[ "$admin_list" == "$admin_output" ]]; then
         output_result "Error: No admin users found or invalid format"
     fi
-    
+
     echo "$admin_list"
 }
 
@@ -86,15 +80,15 @@ get_admin_users() {
 main() {
     # Check prerequisites
     check_prerequisites
-    
+
     # Get the list of admin users
     local admin_users
     admin_users=$(get_admin_users)
-    
+
     # Count the number of admin users
     local admin_count
     admin_count=$(echo "$admin_users" | wc -w | tr -d ' ')
-    
+
     # Format output for Intune custom attributes
     if [[ $admin_count -eq 0 ]]; then
         output_result "Admin Users: None found"

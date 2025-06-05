@@ -79,25 +79,25 @@ validate_user_context() {
 main() {
     # Check if MAU is installed
     check_mau_installed
-    
+
     # Check if msupdate is executable
     check_msupdate_executable
-    
+
     # Validate user context
     validate_user_context
-    
+
     # Get user ID for the logged-in user
     local user_id
     user_id=$(id -u "$loggedInUser" 2>/dev/null)
-    
+
     if [[ -z "$user_id" ]]; then
         output_result "Error: Unable to get user ID"
     fi
-    
+
     # Run msupdate using the user's launchctl session
     local raw_output
     raw_output=$(launchctl asuser "$user_id" sudo -u "$loggedInUser" "$MSUPDATE" --list 2>&1)
-    
+
     # Check if command executed successfully
     if [[ $? -ne 0 ]]; then
         # Check for specific error messages
@@ -107,7 +107,7 @@ main() {
             output_result "Error: Unable to check for updates"
         fi
     fi
-    
+
     # Check if "No updates available" is in the output
     if echo "$raw_output" | grep -q "No updates available"; then
         output_result "No updates available"
@@ -115,8 +115,8 @@ main() {
         # Process available updates for single-line output
         # Extract update information and format for Intune
         local updates
-        updates=$(echo "$raw_output" | grep -E "^\s*[A-Za-z]" | grep -v "Updates available:" | tr '\n' ' | sed 's/  */ /g' | xargs)
-        
+        updates=$(echo "$raw_output" | grep -E "^\s*[A-Za-z]" | grep -v "Updates available:" | tr '\n' ' ' | sed 's/  */ /g' | xargs)
+
         if [[ -n "$updates" ]]; then
             output_result "Updates available: $updates"
         else

@@ -30,9 +30,6 @@
 # VARIABLES AND INITIALIZATION
 # ============================================================================
 
-# Script version
-SCRIPT_VERSION="1.0"
-
 # Path to msupdate CLI
 MSUPDATE="/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate"
 
@@ -68,40 +65,37 @@ check_msupdate_executable() {
 main() {
     # Check if MAU is installed
     check_mau_installed
-    
+
     # Check if msupdate is executable
     check_msupdate_executable
-    
+
     # Get the configuration output
     local config_output
-    config_output=$("$MSUPDATE" --config 2>/dev/null)
-    
-    # Check if command executed successfully
-    if [[ $? -ne 0 ]] || [[ -z "$config_output" ]]; then
+    if ! config_output=$("$MSUPDATE" --config 2>/dev/null) || [[ -z "$config_output" ]]; then
         output_result "Error: Unable to retrieve MAU configuration"
     fi
-    
+
     # Extract MAU version
     local mau_version
     mau_version=$(echo "$config_output" | grep "AutoUpdateVersion =" | awk -F'"' '{print $2}')
     if [[ -z "$mau_version" ]]; then
         mau_version="Unknown"
     fi
-    
+
     # Extract channel name
     local channel_name
     channel_name=$(echo "$config_output" | grep "ChannelName = " | head -n 1 | awk -F'=' '{print $2}' | sed 's/;//' | xargs)
     if [[ -z "$channel_name" ]]; then
         channel_name="Unknown"
     fi
-    
+
     # Extract last update check time
     local last_check
     last_check=$(echo "$config_output" | grep "LastCheckForUpdates =" | awk -F'"' '{print $2}')
     if [[ -z "$last_check" ]]; then
         last_check="Never"
     fi
-    
+
     # Format and output the result
     output_result "MAU Version: $mau_version | Channel: $channel_name | Last Update Check: $last_check"
 }

@@ -31,9 +31,6 @@
 # VARIABLES AND INITIALIZATION
 # ============================================================================
 
-# Script version
-SCRIPT_VERSION="1.0"
-
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
@@ -57,20 +54,20 @@ get_boot_time() {
     # Get the boot time from sysctl
     local boot_info
     boot_info=$(sysctl -n kern.boottime 2>/dev/null)
-    
+
     if [[ -z "$boot_info" ]]; then
         output_result "Error: Unable to retrieve boot time"
     fi
-    
+
     # Extract the timestamp (sec value)
     local timestamp
     timestamp=$(echo "$boot_info" | awk '{print $4}' | tr -d ',')
-    
+
     # Validate timestamp
     if [[ ! "$timestamp" =~ ^[0-9]+$ ]]; then
         output_result "Error: Invalid boot time format"
     fi
-    
+
     echo "$timestamp"
 }
 
@@ -81,26 +78,26 @@ get_boot_time() {
 main() {
     # Check prerequisites
     check_prerequisites
-    
+
     # Get the boot timestamp
     local timestamp
     timestamp=$(get_boot_time)
-    
+
     # Convert timestamp to formatted date
     local formatted_date
     formatted_date=$(date -r "$timestamp" "+%Y-%m-%d %H:%M:%S" 2>/dev/null)
-    
+
     if [[ -z "$formatted_date" ]]; then
         output_result "Error: Unable to format boot time"
     fi
-    
+
     # Calculate uptime for additional context
     local current_time
     current_time=$(date +%s)
     local uptime_seconds=$((current_time - timestamp))
     local uptime_days=$((uptime_seconds / 86400))
     local uptime_hours=$(((uptime_seconds % 86400) / 3600))
-    
+
     # Format output with uptime information
     if [[ $uptime_days -gt 0 ]]; then
         output_result "Last Reboot: $formatted_date (${uptime_days}d ${uptime_hours}h ago)"

@@ -31,12 +31,8 @@
 # VARIABLES AND INITIALIZATION
 # ============================================================================
 
-# Script version
-SCRIPT_VERSION="1.0"
-
 # Get macOS version
 os_version=$(sw_vers -productVersion)
-build_version=$(sw_vers -buildVersion)
 
 # ============================================================================
 # FUNCTIONS
@@ -60,14 +56,13 @@ check_root() {
 get_plist_value() {
     local plist="$1"
     local key="$2"
-    
+
     if [ ! -f "$plist" ]; then
         return 1
     fi
-    
+
     local value
-    value=$(/usr/libexec/PlistBuddy -c "Print :$key" "$plist" 2>/dev/null)
-    if [ $? -ne 0 ]; then
+    if ! value=$(/usr/libexec/PlistBuddy -c "Print :$key" "$plist" 2>/dev/null); then
         return 1
     fi
     echo "$value"
@@ -77,11 +72,11 @@ get_plist_value() {
 check_xprotect() {
     local xprotect_meta="/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist"
     local xprotect_version=""
-    
+
     if [ -f "$xprotect_meta" ]; then
         xprotect_version=$(get_plist_value "$xprotect_meta" "CFBundleShortVersionString")
     fi
-    
+
     echo -n "XProtect: v${xprotect_version:-Unknown}"
 }
 
@@ -89,11 +84,11 @@ check_xprotect() {
 check_xprotect_remediator() {
     local remediator_meta="/Library/Apple/System/Library/CoreServices/XProtect.app/Contents/Info.plist"
     local remediator_version=""
-    
+
     if [ -f "$remediator_meta" ]; then
         remediator_version=$(get_plist_value "$remediator_meta" "CFBundleShortVersionString")
     fi
-    
+
     echo -n " | XProtect Remediator: v${remediator_version:-Unknown}"
 }
 
@@ -101,40 +96,41 @@ check_xprotect_remediator() {
 check_mrt() {
     local mrt_meta="/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist"
     local mrt_version=""
-    
+
     if [ -f "$mrt_meta" ]; then
         mrt_version=$(get_plist_value "$mrt_meta" "CFBundleShortVersionString")
     fi
-    
+
     echo -n " | MRT: v${mrt_version:-Unknown}"
 }
 
 # Function to check system security settings
 check_system_security() {
     local security_status=""
-    
+
     # Check SIP status
-    local sip_output=$(csrutil status 2>&1)
+    local sip_output
+    sip_output=$(csrutil status 2>&1)
     if echo "$sip_output" | grep -q "System Integrity Protection status: enabled"; then
         security_status="SIP:Enabled"
     else
         security_status="SIP:Disabled"
     fi
-    
+
     # Check Gatekeeper status
     if spctl --status 2>&1 | grep -q "enabled"; then
         security_status="$security_status,GK:Enabled"
     else
         security_status="$security_status,GK:Disabled"
     fi
-    
+
     # Check FileVault status
     if fdesetup status | grep -q "On"; then
         security_status="$security_status,FV:Enabled"
     else
         security_status="$security_status,FV:Disabled"
     fi
-    
+
     echo -n " | Security: $security_status"
 }
 
@@ -145,19 +141,19 @@ check_system_security() {
 main() {
     # Check root access
     check_root
-    
+
     # Build output string
     local result=""
-    
+
     # Add macOS version
     result="macOS: $os_version | "
-    
+
     # Add XProtect information
     result="${result}$(check_xprotect)"
     result="${result}$(check_xprotect_remediator)"
     result="${result}$(check_mrt)"
     result="${result}$(check_system_security)"
-    
+
     # Output the result
     output_result "$result"
 }
