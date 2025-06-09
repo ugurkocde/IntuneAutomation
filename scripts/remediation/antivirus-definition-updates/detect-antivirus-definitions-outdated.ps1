@@ -36,6 +36,9 @@
 .CHANGELOG
     1.0 - Initial version
 
+.LASTUPDATE
+    2025-06-09
+
 .EXAMPLE
     .\detect-antivirus-definitions-outdated.ps1
 
