@@ -78,7 +78,9 @@ try {
             $totalSize += $_.ExtendedProperty("Size")
         }
     }
-    catch { }
+    catch { 
+        # Silently continue if unable to access recycle bin
+    }
     
     Write-Output "Cleanable space: $([math]::Round($totalSize / 1GB, 2)) GB"
     

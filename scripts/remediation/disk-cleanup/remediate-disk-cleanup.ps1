@@ -45,7 +45,7 @@
 
 $ErrorActionPreference = "Stop"
 
-function Remove-FolderContents {
+function Remove-FolderContent {
     param([string]$Path)
     
     if (Test-Path $Path) {
@@ -56,11 +56,11 @@ function Remove-FolderContents {
 
 try {
     # Clean Windows Temp
-    Remove-FolderContents "$env:WINDIR\Temp"
+    Remove-FolderContent "$env:WINDIR\Temp"
     
     # Clean User Temp folders
     Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-        Remove-FolderContents "$($_.FullName)\AppData\Local\Temp"
+        Remove-FolderContent "$($_.FullName)\AppData\Local\Temp"
     }
     
     # Empty Recycle Bin
@@ -77,7 +77,9 @@ try {
         # Run cleanup
         Start-Process "cleanmgr.exe" -ArgumentList "/sagerun:100" -Wait -NoNewWindow
     }
-    catch { }
+    catch { 
+        # Continue if Windows cleanup fails
+    }
     
     Write-Output "Disk cleanup completed"
     exit 0
