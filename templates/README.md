@@ -26,6 +26,25 @@ A specialized template for creating notification scripts that monitor Intune env
 
 See `NOTIFICATION_TEMPLATE_GUIDE.md` for detailed usage instructions.
 
+### `remediation-detection-template.ps1` & `remediation-action-template.ps1` 🆕
+Specialized templates for creating Intune Proactive Remediation script pairs. These templates provide a structured approach to detecting and fixing compliance issues automatically.
+
+**Key Features:**
+- Detection and remediation script pair structure
+- Standard exit codes for Intune compatibility
+- Pre and post-remediation validation
+- Comprehensive error handling and logging
+- Rollback support for safe remediation
+
+**Use Cases:**
+- Enforce security configurations
+- Fix compliance drift
+- Automate common IT support tasks
+- Maintain device health
+- Implement self-healing systems
+
+See `REMEDIATION_TEMPLATE_GUIDE.md` for detailed usage instructions.
+
 ## 🚀 How to Use the Templates
 
 ### For Standard Scripts (script-template.ps1)
@@ -65,6 +84,27 @@ See `NOTIFICATION_TEMPLATE_GUIDE.md` for detailed usage instructions.
 5. **Test in Azure Automation** with Managed Identity
 
 6. **Set up automated scheduling** for continuous monitoring
+
+### For Remediation Scripts (remediation-detection-template.ps1 & remediation-action-template.ps1) 🆕
+
+1. **Create a new directory** for your remediation pair:
+   ```bash
+   mkdir scripts/remediation/your-remediation-name
+   ```
+
+2. **Copy both templates** to your new directory:
+   ```bash
+   cp templates/remediation-detection-template.ps1 scripts/remediation/your-remediation-name/detect-your-issue.ps1
+   cp templates/remediation-action-template.ps1 scripts/remediation/your-remediation-name/remediate-your-issue.ps1
+   ```
+
+3. **Update the metadata** in both scripts to link them together
+
+4. **Follow the detailed guide** in `REMEDIATION_TEMPLATE_GUIDE.md`
+
+5. **Test locally** before deploying to Intune
+
+6. **Deploy as Proactive Remediation** in Intune portal
 
 ## 📋 Template Sections Explained
 
