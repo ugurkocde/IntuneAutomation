@@ -22,7 +22,7 @@
       "metadata": {
         "description": "Description of the runbook"
       },
-      "defaultValue": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
+      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours).",
       "type": "string"
     },
     "automationAccountName": {
@@ -42,7 +42,7 @@
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "defaultValue": "get-duplicate-applications",
+      "defaultValue": "detect-antivirus-definitions-outdated",
       "type": "string"
     }
   },
@@ -69,7 +69,7 @@
     }
   },
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-duplicate-applications.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
     "logProgress": false,
     "runbookType": "PowerShell",
     "logVerbose": false
