@@ -33,4 +33,4 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
         run: |
-          node .github/scripts/check-script-updates.js
+          node .github/scripts/check-script-updates-v2.js
