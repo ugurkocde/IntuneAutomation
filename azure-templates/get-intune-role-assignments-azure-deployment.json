@@ -2,7 +2,7 @@
   "variables": {
     "logProgress": false,
     "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/cleanup-autopilot-devices.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/get-intune-role-assignments.ps1",
     "logVerbose": false
   },
   "contentVersion": "1.0.0.0",
@@ -25,14 +25,14 @@
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "defaultValue": "cleanup-autopilot-devices"
+      "defaultValue": "get-intune-role-assignments"
     },
     "runbookDescription": {
       "type": "string",
       "metadata": {
         "description": "Description of the runbook"
       },
-      "defaultValue": "This script connects to Microsoft Graph and identifies Windows Autopilot devices that are"
+      "defaultValue": "This script connects to Microsoft Graph to retrieve all Intune role definitions"
     }
   },
   "outputs": {
