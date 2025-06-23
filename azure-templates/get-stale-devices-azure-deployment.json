@@ -1,26 +1,44 @@
 {
+  "resources": [
+    {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "parameters": {
     "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
       "metadata": {
         "description": "Location for the runbook deployment"
-      }
-    },
-    "runbookName": {
-      "defaultValue": "get-stale-devices",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      },
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string"
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
-      "type": "string",
       "metadata": {
         "description": "Description of the runbook"
-      }
+      },
+      "defaultValue": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
+      "type": "string"
+    },
+    "runbookName": {
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "defaultValue": "get-stale-devices",
+      "type": "string"
     },
     "automationAccountName": {
       "metadata": {
@@ -30,12 +48,11 @@
     }
   },
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/get-stale-devices.ps1",
     "logProgress": false,
+    "logVerbose": false,
     "runbookType": "PowerShell",
-    "logVerbose": false
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/get-stale-devices.ps1"
   },
-  "contentVersion": "1.0.0.0",
   "outputs": {
     "scriptSourceUrl": {
       "value": "[variables('scriptUri')]",
@@ -57,22 +74,5 @@
       "value": "[parameters('automationAccountName')]",
       "type": "string"
     }
-  },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]"
-      }
-    }
-  ]
+  }
 }
