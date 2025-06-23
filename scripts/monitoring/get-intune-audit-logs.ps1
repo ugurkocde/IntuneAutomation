@@ -190,7 +190,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri,
         [int]$Top = 0,
@@ -443,8 +443,8 @@ try {
     
     # Format entries
     $formattedEntries = @()
-    foreach ($event in $auditEvents) {
-        $formattedEntries += Format-AuditEntry -Entry $event
+    foreach ($auditEvent in $auditEvents) {
+        $formattedEntries += Format-AuditEntry -Entry $auditEvent
     }
     
     # Display results
@@ -456,22 +456,16 @@ try {
         Write-Information ("=" * 80) -InformationAction Continue
         
         foreach ($entry in $formattedEntries) {
-            Write-Host "`n[$($entry.Timestamp)] " -NoNewline -ForegroundColor Cyan
-            Write-Host "$($entry.ResultSymbol) " -NoNewline -ForegroundColor $entry.ResultColor
-            Write-Host $entry.Activity -ForegroundColor White
+            Write-Information "`n[$($entry.Timestamp)] $($entry.ResultSymbol) $($entry.Activity)" -InformationAction Continue
             
-            Write-Host "   Actor: " -NoNewline -ForegroundColor Gray
-            Write-Host $entry.Actor
+            Write-Information "   Actor: $($entry.Actor)" -InformationAction Continue
             
-            Write-Host "   Category: " -NoNewline -ForegroundColor Gray
-            Write-Host $entry.Category
+            Write-Information "   Category: $($entry.Category)" -InformationAction Continue
             
-            Write-Host "   Resources: " -NoNewline -ForegroundColor Gray
-            Write-Host $entry.Resources
+            Write-Information "   Resources: $($entry.Resources)" -InformationAction Continue
             
             if ($DetailedView -and $entry.OperationType) {
-                Write-Host "   Operation: " -NoNewline -ForegroundColor Gray
-                Write-Host $entry.OperationType
+                Write-Information "   Operation: $($entry.OperationType)" -InformationAction Continue
             }
         }
         

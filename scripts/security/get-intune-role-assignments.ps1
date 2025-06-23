@@ -157,7 +157,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri,
         [int]$DelayMs = 100
@@ -347,36 +347,37 @@ try {
     foreach ($roleGroup in $groupedAssignments | Sort-Object Name) {
         $firstAssignment = $roleGroup.Group[0]
         
-        Write-Host "`n[$($firstAssignment.RoleType)] " -NoNewline -ForegroundColor $(if ($firstAssignment.RoleType -eq "Built-in") { "Cyan" } else { "Yellow" })
-        Write-Host $roleGroup.Name -ForegroundColor White
+        $roleColor = if ($firstAssignment.RoleType -eq "Built-in") { "Cyan" } else { "Yellow" }
+        Write-Information "`n[$($firstAssignment.RoleType)] $($roleGroup.Name)" -InformationAction Continue
         
         if ($firstAssignment.Description) {
-            Write-Host "  Description: $($firstAssignment.Description)" -ForegroundColor Gray
+            Write-Information "  Description: $($firstAssignment.Description)" -InformationAction Continue
         }
         
         foreach ($assignment in $roleGroup.Group) {
             if ($assignment.AssignmentName -ne "No assignments") {
-                Write-Host "  Assignment: $($assignment.AssignmentName)" -ForegroundColor Green
+                Write-Information "  Assignment: $($assignment.AssignmentName)" -InformationAction Continue
                 
                 if ($assignment.Members.Count -gt 0) {
                     foreach ($member in $assignment.Members) {
-                        Write-Host "    • $($member.DisplayName) " -NoNewline
+                        $memberInfo = "    • $($member.DisplayName) "
                         if ($member.Email) {
-                            Write-Host "($($member.Email)) " -NoNewline -ForegroundColor DarkGray
+                            $memberInfo += "($($member.Email)) "
                         }
-                        Write-Host "- $($member.Type)" -ForegroundColor DarkGray
+                        $memberInfo += "- $($member.Type)"
+                        Write-Information $memberInfo -InformationAction Continue
                     }
                 }
                 else {
-                    Write-Host "    • Direct assignment (check portal for members)" -ForegroundColor DarkYellow
+                    Write-Information "    • Direct assignment (check portal for members)" -InformationAction Continue
                 }
                 
                 if ($assignment.Scope) {
-                    Write-Host "    Scope: $($assignment.Scope)" -ForegroundColor DarkGray
+                    Write-Information "    Scope: $($assignment.Scope)" -InformationAction Continue
                 }
             }
             else {
-                Write-Host "  • No current assignments" -ForegroundColor DarkGray
+                Write-Information "  • No current assignments" -InformationAction Continue
             }
         }
     }
