@@ -1,78 +1,78 @@
 {
-  "parameters": {
-    "runbookDescription": {
-      "metadata": {
-        "description": "Description of the runbook"
-      },
+  "outputs": {
+    "scriptSourceUrl": {
       "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph to retrieve all Intune role definitions"
+      "value": "[variables('scriptUri')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
     "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
       "type": "string",
-      "defaultValue": "get-intune-role-assignments"
-    },
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
+      "value": "[parameters('runbookName')]"
     },
     "automationAccountName": {
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      },
-      "type": "string"
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     }
   },
-  "contentVersion": "1.0.0.0",
   "variables": {
     "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/get-intune-role-assignments.ps1",
-    "logProgress": false,
     "runbookType": "PowerShell",
+    "logProgress": false,
     "logVerbose": false
   },
   "resources": [
     {
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01",
       "properties": {
         "description": "[parameters('runbookDescription')]",
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
         "logVerbose": "[variables('logVerbose')]"
       },
+      "location": "[parameters('location')]",
       "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "location": "[parameters('location')]"
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
     }
   ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "outputs": {
-    "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
-      "type": "string"
-    },
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph to retrieve all Intune role definitions",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
     },
     "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
+      "type": "string",
+      "defaultValue": "get-intune-role-assignments",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      }
     },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
     },
     "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
+      "type": "string",
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      }
     }
-  }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
