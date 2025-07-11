@@ -1,52 +1,17 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "outputs": {
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/app-deployment-failure-alert.ps1",
+    "runbookType": "PowerShell",
+    "logProgress": false
+  },
+  "parameters": {
     "automationAccountName": {
       "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    }
-  },
-  "contentVersion": "1.0.0.0",
-  "resources": [
-    {
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      }
-    }
-  ],
-  "parameters": {
-    "runbookName": {
       "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "app-deployment-failure-alert"
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      }
     },
     "runbookDescription": {
       "metadata": {
@@ -62,17 +27,52 @@
       "type": "string",
       "defaultValue": "[resourceGroup().location]"
     },
-    "automationAccountName": {
-      "type": "string",
+    "runbookName": {
       "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string",
+      "defaultValue": "app-deployment-failure-alert"
     }
   },
-  "variables": {
-    "runbookType": "PowerShell",
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/app-deployment-failure-alert.ps1",
-    "logProgress": false
-  }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "outputs": {
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    }
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "description": "[parameters('runbookDescription')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]"
+      },
+      "location": "[parameters('location')]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "2023-11-01"
+    }
+  ]
 }
