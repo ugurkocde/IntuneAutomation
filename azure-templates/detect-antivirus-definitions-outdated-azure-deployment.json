@@ -1,78 +1,78 @@
 {
-  "contentVersion": "1.0.0.0",
   "parameters": {
     "location": {
       "defaultValue": "[resourceGroup().location]",
-      "type": "string",
       "metadata": {
         "description": "Location for the runbook deployment"
-      }
-    },
-    "automationAccountName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    },
-    "runbookName": {
-      "defaultValue": "detect-antivirus-definitions-outdated",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      },
+      "type": "string"
     },
     "runbookDescription": {
       "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours).",
-      "type": "string",
       "metadata": {
         "description": "Description of the runbook"
-      }
+      },
+      "type": "string"
+    },
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "runbookName": {
+      "defaultValue": "detect-antivirus-definitions-outdated",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "runbookType": "PowerShell",
+    "logProgress": false,
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1"
+  },
+  "contentVersion": "1.0.0.0",
+  "outputs": {
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    },
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
+      "type": "string"
+    },
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
     }
   },
   "resources": [
     {
-      "location": "[parameters('location')]",
       "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "properties": {
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logVerbose": "[variables('logVerbose')]",
+        "description": "[parameters('runbookDescription')]",
         "runbookType": "[variables('runbookType')]",
         "logProgress": "[variables('logProgress')]",
-        "description": "[parameters('runbookDescription')]"
+        "logVerbose": "[variables('logVerbose')]"
       },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+      "location": "[parameters('location')]",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
     }
-  ],
-  "outputs": {
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    }
-  },
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
-    "logProgress": false
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+  ]
 }
