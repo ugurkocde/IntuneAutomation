@@ -264,17 +264,25 @@ function Get-CategoryFromActivity {
 
 function Format-AuditEntry {
     param($Entry)
-    
-    $timestamp = [DateTime]::Parse($Entry.activityDateTime).ToLocalTime()
+
+    # fix issue with timestamp parsing
+    if ($Entry.activityDateTime -is [DateTime]) {
+        $timestamp = $Entry.activityDateTime.ToLocalTime()
+    }
+    else {
+        $timestamp = [DateTime]::ParseExact($Entry.activityDateTime, @("MM/dd/yyyy HH:mm:ss", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm:ssZ", "yyyy-MM-ddTHH:mm:ss.fffffffZ"), [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal).ToLocalTime()
+    }
+
     $actor = if ($Entry.actor.userPrincipalName) { $Entry.actor.userPrincipalName } else { $Entry.actor.applicationDisplayName }
     $result = if ($Entry.activityResult -eq "Success") { "✓" } else { "✗" }
     $resultColor = if ($Entry.activityResult -eq "Success") { "Green" } else { "Red" }
     
     # Extract resource information
-    $resources = @()
+
+    [System.Collections.Generic.List[Object]]$resources = @()
     foreach ($resource in $Entry.resources) {
         if ($resource.displayName) {
-            $resources += $resource.displayName
+            $resources.Add($resource.displayName)
         }
     }
     $resourceText = if ($resources.Count -gt 0) { $resources -join ", " } else { "N/A" }
@@ -421,7 +429,7 @@ try {
     Write-Verbose "Query URI: $uri"
     
     # Get audit events
-    $auditEvents = Get-MgGraphAllPages -Uri $uri -Top $NumberOfEntries
+    $auditEvents = Get-MgGraphAllPage -Uri $uri -Top $NumberOfEntries
     
     Write-Information "✓ Retrieved $($auditEvents.Count) audit entries" -InformationAction Continue
     
