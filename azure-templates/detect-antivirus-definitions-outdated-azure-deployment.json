@@ -1,59 +1,62 @@
 {
-  "contentVersion": "1.0.0.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "variables": {
-    "runbookType": "PowerShell",
-    "logVerbose": false,
     "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
-    "logProgress": false
+    "runbookType": "PowerShell",
+    "logProgress": false,
+    "logVerbose": false
+  },
+  "parameters": {
+    "runbookDescription": {
+      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours).",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    },
+    "runbookName": {
+      "defaultValue": "detect-antivirus-definitions-outdated",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    },
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    }
   },
   "resources": [
     {
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]"
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "description": "[parameters('runbookDescription')]"
       },
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "location": "[parameters('location')]"
     }
   ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "parameters": {
-    "runbookName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "defaultValue": "detect-antivirus-definitions-outdated"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    },
-    "location": {
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "runbookDescription": {
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours)."
-    }
-  },
   "outputs": {
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    },
     "runbookName": {
       "value": "[parameters('runbookName')]",
       "type": "string"
@@ -69,10 +72,7 @@
     "deploymentInstructions": {
       "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
       "type": "string"
-    },
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
     }
-  }
+  },
+  "contentVersion": "1.0.0.0"
 }
