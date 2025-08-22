@@ -204,7 +204,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -248,12 +248,12 @@ function Get-MgGraphAllPages {
 }
 
 # Function to get MAA policies
-function Get-MAAPolicies {
+function Get-MAAPolicy {
     try {
         Write-Information "Retrieving MAA policies..." -InformationAction Continue
         
         $Uri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalPolicies"
-        $Policies = Get-MgGraphAllPages -Uri $Uri
+        $Policies = Get-MgGraphAllPage -Uri $Uri
         
         Write-Information "✓ Found $($Policies.Count) MAA policies" -InformationAction Continue
         return $Policies
@@ -265,7 +265,7 @@ function Get-MAAPolicies {
 }
 
 # Function to get all MAA requests
-function Get-MAARequests {
+function Get-MAARequest {
     param(
         [int]$DaysBack
     )
@@ -274,7 +274,7 @@ function Get-MAARequests {
         Write-Information "Retrieving MAA requests from last $DaysBack days..." -InformationAction Continue
         
         $Uri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalRequests"
-        $AllRequests = Get-MgGraphAllPages -Uri $Uri
+        $AllRequests = Get-MgGraphAllPage -Uri $Uri
         
         # Filter by date range
         $StartDate = (Get-Date).AddDays(-$DaysBack)
@@ -295,7 +295,7 @@ function Get-MAARequests {
 }
 
 # Function to get protected resources
-function Get-ProtectedResources {
+function Get-ProtectedResource {
     try {
         Write-Information "Identifying MAA-protectable resources..." -InformationAction Continue
         
@@ -310,7 +310,7 @@ function Get-ProtectedResources {
         # Get Apps
         try {
             $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
-            $Apps = Get-MgGraphAllPages -Uri $AppsUri
+            $Apps = Get-MgGraphAllPage -Uri $AppsUri
             $Resources.Apps = $Apps | Select-Object id, displayName, '@odata.type'
             Write-Information "  Found $($Resources.Apps.Count) applications" -InformationAction Continue
         }
@@ -321,7 +321,7 @@ function Get-ProtectedResources {
         # Get Scripts
         try {
             $ScriptsUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceManagementScripts"
-            $Scripts = Get-MgGraphAllPages -Uri $ScriptsUri
+            $Scripts = Get-MgGraphAllPage -Uri $ScriptsUri
             $Resources.Scripts = $Scripts | Select-Object id, displayName, fileName
             Write-Information "  Found $($Resources.Scripts.Count) scripts" -InformationAction Continue
         }
@@ -332,7 +332,7 @@ function Get-ProtectedResources {
         # Get Configuration Policies
         try {
             $PoliciesUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations"
-            $Policies = Get-MgGraphAllPages -Uri $PoliciesUri
+            $Policies = Get-MgGraphAllPage -Uri $PoliciesUri
             $Resources.Policies = $Policies | Select-Object id, displayName, '@odata.type'
             Write-Information "  Found $($Resources.Policies.Count) configuration policies" -InformationAction Continue
         }
@@ -343,7 +343,7 @@ function Get-ProtectedResources {
         # Get RBAC roles
         try {
             $RBACUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions"
-            $RBAC = Get-MgGraphAllPages -Uri $RBACUri
+            $RBAC = Get-MgGraphAllPage -Uri $RBACUri
             $Resources.RBAC = $RBAC | Select-Object id, displayName, isBuiltIn
             Write-Information "  Found $($Resources.RBAC.Count) RBAC roles" -InformationAction Continue
         }
@@ -360,7 +360,7 @@ function Get-ProtectedResources {
 }
 
 # Function to get approvers and admins
-function Get-ApproversAndAdmins {
+function Get-ApproverAndAdmin {
     try {
         Write-Information "Retrieving administrators and approvers..." -InformationAction Continue
         
@@ -369,7 +369,7 @@ function Get-ApproversAndAdmins {
         # Get Intune role assignments
         try {
             $RoleAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleAssignments"
-            $RoleAssignments = Get-MgGraphAllPages -Uri $RoleAssignmentsUri
+            $RoleAssignments = Get-MgGraphAllPage -Uri $RoleAssignmentsUri
             
             foreach ($Assignment in $RoleAssignments) {
                 # Get role definition
@@ -413,7 +413,7 @@ function Get-ApproversAndAdmins {
 }
 
 # Function to analyze MAA compliance
-function Get-MAAComplianceMetrics {
+function Get-MAAComplianceMetric {
     param(
         [array]$Policies,
         [array]$Requests,
@@ -1044,13 +1044,13 @@ try {
     }
     
     # Step 1: Gather MAA data
-    $MAAPolicies = Get-MAAPolicies
-    $MAARequests = Get-MAARequests -DaysBack $DaysToAnalyze
-    $ProtectedResources = Get-ProtectedResources
-    $Administrators = Get-ApproversAndAdmins
+    $MAAPolicies = Get-MAAPolicy
+    $MAARequests = Get-MAARequest -DaysBack $DaysToAnalyze
+    $ProtectedResources = Get-ProtectedResource
+    $Administrators = Get-ApproverAndAdmin
     
     # Step 2: Analyze compliance metrics
-    $ComplianceMetrics = Get-MAAComplianceMetrics -Policies $MAAPolicies -Requests $MAARequests -Resources $ProtectedResources -Admins $Administrators
+    $ComplianceMetrics = Get-MAAComplianceMetric -Policies $MAAPolicies -Requests $MAARequests -Resources $ProtectedResources -Admins $Administrators
     
     Write-Information "Analysis complete:" -InformationAction Continue
     Write-Information "  - Policies: $($MAAPolicies.Count)" -InformationAction Continue

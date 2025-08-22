@@ -261,7 +261,7 @@ $MAARequestsUrl = "$IntunePortalBaseUrl/#view/Microsoft_Intune_DeviceSettings/Mu
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -305,7 +305,7 @@ function Get-MgGraphAllPages {
 }
 
 # Function to get MAA pending requests
-function Get-MAAPendingRequests {
+function Get-MAAPendingRequest {
     try {
         Write-Information "Retrieving MAA pending requests..." -InformationAction Continue
         
@@ -316,7 +316,7 @@ function Get-MAAPendingRequests {
             $Uri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalRequests"
             Write-Information "Querying MAA requests from: $Uri" -InformationAction Continue
             
-            $AllRequests = Get-MgGraphAllPages -Uri $Uri -DelayMs 200
+            $AllRequests = Get-MgGraphAllPage -Uri $Uri -DelayMs 200
             
             foreach ($Request in $AllRequests) {
                 # Check if request is pending (status = 0 or status field indicates pending)
@@ -383,7 +383,7 @@ function Get-MAAPendingRequests {
                 $StartDate = (Get-Date).AddDays(-30).ToString("yyyy-MM-dd")
                 $Filter = "activityDateTime ge $StartDate"
                 
-                $AuditLogs = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$top=100"
+                $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$top=100"
                 
                 foreach ($Log in $AuditLogs) {
                     # Look for multi-admin approval related activities
@@ -418,7 +418,7 @@ function Get-MAAPendingRequests {
         try {
             $PoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalPolicies"
             Write-Information "Retrieving MAA policies from: $PoliciesUri" -InformationAction Continue
-            $Policies = Get-MgGraphAllPages -Uri $PoliciesUri -DelayMs 200
+            $Policies = Get-MgGraphAllPage -Uri $PoliciesUri -DelayMs 200
             
             # Add policy information to requests if available
             foreach ($Request in $PendingRequests) {
@@ -443,7 +443,7 @@ function Get-MAAPendingRequests {
 }
 
 # Function to get recently processed requests
-function Get-ProcessedRequests {
+function Get-ProcessedRequest {
     param(
         [int]$HoursBack = 24
     )
@@ -455,7 +455,7 @@ function Get-ProcessedRequests {
         $StartDate = (Get-Date).AddHours(-$HoursBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
         $Filter = "activityDateTime ge $StartDate and category eq 'Policy' and (result eq 'success' or result eq 'failure')"
         
-        $AuditLogs = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$orderby=activityDateTime desc"
+        $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$orderby=activityDateTime desc"
         
         foreach ($Log in $AuditLogs) {
             if ($Log.activityDisplayName -like "*approval*") {
@@ -803,12 +803,12 @@ try {
     $NotificationState = Get-NotificationState
     
     # Step 1: Get pending MAA requests
-    $PendingRequests = Get-MAAPendingRequests
+    $PendingRequests = Get-MAAPendingRequest
     
     # Step 2: Get recently processed requests if requested
     $ProcessedRequests = @()
     if ($IncludeProcessedRequests) {
-        $ProcessedRequests = Get-ProcessedRequests -HoursBack 24
+        $ProcessedRequests = Get-ProcessedRequest -HoursBack 24
     }
     
     # Step 3: Analyze requests
