@@ -1,16 +1,62 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "resources": [
+    {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
   "variables": {
+    "logVerbose": false,
     "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/stale-device-cleanup-alert.ps1",
-    "runbookType": "PowerShell",
     "logProgress": false,
-    "logVerbose": false
+    "runbookType": "PowerShell"
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "outputs": {
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    }
   },
   "parameters": {
-    "runbookDescription": {
-      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in",
+    "automationAccountName": {
+      "type": "string",
       "metadata": {
-        "description": "Description of the runbook"
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
       },
       "type": "string"
     },
@@ -21,58 +67,12 @@
       },
       "type": "string"
     },
-    "automationAccountName": {
+    "runbookDescription": {
+      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in",
       "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      },
-      "type": "string"
-    },
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for the runbook deployment"
+        "description": "Description of the runbook"
       },
       "type": "string"
     }
-  },
-  "resources": [
-    {
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "runbookType": "[variables('runbookType')]",
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]"
-      },
-      "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "location": "[parameters('location')]"
-    }
-  ],
-  "outputs": {
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
-    },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
-    "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
-    },
-    "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
-      "type": "string"
-    }
-  },
-  "contentVersion": "1.0.0.0"
+  }
 }
