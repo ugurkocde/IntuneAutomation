@@ -1,78 +1,78 @@
 {
-  "parameters": {
-    "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
+  "outputs": {
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
       "type": "string"
     },
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
+    },
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    }
+  },
+  "parameters": {
+    "automationAccountName": {
       "metadata": {
-        "description": "Location for the runbook deployment"
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       },
       "type": "string"
     },
     "runbookName": {
       "defaultValue": "get-duplicate-applications",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string"
-    },
-    "automationAccountName": {
       "type": "string",
       "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookDescription": {
+      "defaultValue": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
+      "type": "string",
+      "metadata": {
+        "description": "Description of the runbook"
       }
     }
   },
-  "contentVersion": "1.0.0.0",
   "resources": [
     {
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "location": "[parameters('location')]",
       "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "runbookType": "[variables('runbookType')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
+        "logVerbose": "[variables('logVerbose')]",
         "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]"
-      },
-      "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks"
+        "description": "[parameters('runbookDescription')]",
+        "runbookType": "[variables('runbookType')]"
+      }
     }
   ],
+  "contentVersion": "1.0.0.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "variables": {
     "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-duplicate-applications.ps1",
-    "runbookType": "PowerShell",
+    "logVerbose": false,
     "logProgress": false,
-    "logVerbose": false
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "outputs": {
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    }
+    "runbookType": "PowerShell"
   }
 }
