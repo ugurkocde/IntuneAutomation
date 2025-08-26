@@ -1,78 +1,78 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "parameters": {
-    "runbookDescription": {
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "type": "string",
-      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration"
-    },
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    },
-    "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "apple-token-expiration-alert"
-    }
-  },
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/apple-token-expiration-alert.ps1",
-    "logProgress": false,
-    "logVerbose": false,
-    "runbookType": "PowerShell"
-  },
-  "contentVersion": "1.0.0.0",
-  "outputs": {
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    }
-  },
   "resources": [
     {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "location": "[parameters('location')]",
       "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]",
         "logProgress": "[variables('logProgress')]",
         "description": "[parameters('runbookDescription')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
-        },
-        "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]"
+        }
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "logVerbose": false,
+    "runbookType": "PowerShell",
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/apple-token-expiration-alert.ps1"
+  },
+  "outputs": {
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
+      "type": "string"
+    },
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
+    },
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    }
+  },
+  "parameters": {
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "apple-token-expiration-alert",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
       }
     }
-  ]
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
