@@ -1,0 +1,514 @@
+<#
+.TITLE
+    BitLocker Keys Backup to Azure Key Vault
+
+.SYNOPSIS
+    Backs up BitLocker recovery keys from Entra ID to Azure Key Vault using REST API.
+
+.DESCRIPTION
+    This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,
+    then stores them securely in Azure Key Vault using REST API. Each key is stored as a secret with
+    device information (name and serial number) included in tags. The script ensures secure storage
+    The script uses Microsoft Graph authentication for both Graph API and Key Vault API calls,
+    eliminating the need for the large Az.Accounts module. Simply provide your Key Vault URI
+    and the script handles the rest. On first run, you will be prompted to consent to the required
+    permissions including Key Vault access.
+
+.TAGS
+    Security,Compliance
+
+.PLATFORM
+    Windows
+
+.MINROLE
+    Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator
+
+.PERMISSIONS
+    DeviceManagementManagedDevices.Read.All,BitlockerKey.Read.All,https://vault.azure.net/user_impersonation
+
+.AUTHOR
+    Ugur Koc
+
+.VERSION
+    1.0
+
+.CHANGELOG
+    1.0 - Initial release
+
+.EXAMPLE
+    .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://bitlockerfilevaultkeys.vault.azure.net"
+    Backs up all BitLocker keys to the specified Azure Key Vault
+
+.EXAMPLE
+    .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://myvault.vault.azure.net" -OverwriteExisting -ShowProgress
+    Backs up keys with overwrite option and progress display
+
+.EXAMPLE
+    .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://myvault.vault.azure.net" -OutputPath "C:\Reports"
+    Backs up keys and saves report to specified directory
+
+.NOTES
+    - Requires only Microsoft.Graph.Authentication module (no Az modules needed)
+    - Uses REST API directly for Key Vault operations
+    - Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}
+    - Each secret includes tags for easy identification and management
+    - Consider implementing retention policies in Key Vault
+    - Regular backups ensure recovery key availability
+    - Vault URI format: https://yourvault.vault.azure.net
+    
+    PERMISSION CONSENT:
+    On first run, you'll be prompted to consent to the following permissions:
+    - Azure Key Vault access (https://vault.azure.net/user_impersonation)
+    - Read Intune devices (DeviceManagementManagedDevices.Read.All)
+    - Read BitLocker keys (BitlockerKey.Read.All)
+    
+    To avoid the consent prompt:
+    - Accept once and check "Consent on behalf of your organization" (admin only)
+    - Pre-consent in Azure AD portal under Enterprise Applications
+    - For automation, use a service principal with pre-configured permissions
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true, HelpMessage = "Name of the Azure Key Vault")]
+    [ValidateNotNullOrEmpty()]
+    [string]$KeyVaultName,
+    
+    [Parameter(Mandatory = $true, HelpMessage = "Resource Group containing the Key Vault")]
+    [ValidateNotNullOrEmpty()]
+    [string]$ResourceGroupName,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Azure Tenant ID")]
+    [string]$TenantId,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Azure Subscription ID")]
+    [string]$SubscriptionId,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Use Service Principal authentication")]
+    [switch]$UseServicePrincipal,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Service Principal Client ID")]
+    [string]$ClientId,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Service Principal Client Secret")]
+    [SecureString]$ClientSecret,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Overwrite existing secrets in Key Vault")]
+    [switch]$OverwriteExisting,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
+    [switch]$ShowProgress,
+    
+    [Parameter(Mandatory = $false, HelpMessage = "Directory path to save backup report")]
+    [string]$OutputPath = "."
+)
+
+# ============================================================================
+# MODULES AND AUTHENTICATION
+# ============================================================================
+
+# Check if required modules are installed
+$RequiredModules = @(
+    "Microsoft.Graph.Authentication",
+    "Az.Accounts"
+)
+
+foreach ($Module in $RequiredModules) {
+    if (-not (Get-Module -ListAvailable -Name $Module)) {
+        Write-Error "$Module module is required. Install it using: Install-Module $Module -Scope CurrentUser"
+        exit 1
+    }
+}
+
+# Import required modules
+foreach ($Module in $RequiredModules) {
+    Import-Module $Module
+}
+
+# ============================================================================
+# AZURE AUTHENTICATION
+# ============================================================================
+
+try {
+    Write-Information "Connecting to Azure..." -InformationAction Continue
+    
+    if ($UseServicePrincipal) {
+        if (-not $ClientId -or -not $ClientSecret) {
+            throw "ClientId and ClientSecret are required when using Service Principal authentication"
+        }
+        
+        $credential = New-Object System.Management.Automation.PSCredential($ClientId, $ClientSecret)
+        
+        $connectParams = @{
+            ServicePrincipal = $true
+            Credential = $credential
+        }
+        
+        if ($TenantId) { $connectParams.TenantId = $TenantId }
+        if ($SubscriptionId) { $connectParams.SubscriptionId = $SubscriptionId }
+        
+        Connect-AzAccount @connectParams | Out-Null
+    }
+    else {
+        $connectParams = @{}
+        if ($TenantId) { $connectParams.TenantId = $TenantId }
+        if ($SubscriptionId) { $connectParams.SubscriptionId = $SubscriptionId }
+        
+        Connect-AzAccount @connectParams | Out-Null
+    }
+    
+    # Get access token for Key Vault
+    $azContext = Get-AzContext
+    $azProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+    $profileClient = New-Object -TypeName Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient -ArgumentList ($azProfile)
+    $token = $profileClient.AcquireAccessToken($azContext.Subscription.TenantId)
+    $accessToken = $token.AccessToken
+    
+    Write-Information "✓ Successfully connected to Azure" -InformationAction Continue
+}
+catch {
+    Write-Error "Failed to connect to Azure: $($_.Exception.Message)"
+    exit 1
+}
+
+# Connect to Microsoft Graph
+try {
+    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+    $Scopes = @(
+        "DeviceManagementManagedDevices.Read.All",
+        "BitlockerKey.Read.All"
+    )
+    Connect-MgGraph -Scopes $Scopes -NoWelcome
+    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+}
+catch {
+    Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
+    exit 1
+}
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+# Function to get all pages of results from Graph API
+function Get-MgGraphAllPages {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Uri,
+        [int]$DelayMs = 100
+    )
+    
+    $AllResults = @()
+    $NextLink = $Uri
+    $RequestCount = 0
+    
+    do {
+        try {
+            # Add delay to respect rate limits
+            if ($RequestCount -gt 0) {
+                Start-Sleep -Milliseconds $DelayMs
+            }
+            
+            $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
+            $RequestCount++
+            
+            if ($Response.value) {
+                $AllResults += $Response.value
+            }
+            else {
+                $AllResults += $Response
+            }
+            
+            $NextLink = $Response.'@odata.nextLink'
+        }
+        catch {
+            if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
+                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                continue
+            }
+            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
+            break
+        }
+    } while ($NextLink)
+    
+    return $AllResults
+}
+
+# Function to get BitLocker recovery key for a device
+function Get-BitLockerRecoveryKey {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$AzureADDeviceId,
+        [Parameter(Mandatory = $false)]
+        [string]$DeviceName = "Unknown"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($AzureADDeviceId)) {
+        Write-Verbose "Device $DeviceName has no Azure AD Device ID"
+        return $null
+    }
+
+    try {
+        # First get the key IDs
+        $keyIdUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$filter=deviceId eq '$AzureADDeviceId'"
+        $keyIdResponse = Invoke-MgGraphRequest -Uri $keyIdUri -Method GET
+        
+        if ($keyIdResponse.value.Count -eq 0) {
+            Write-Verbose "No BitLocker keys found for device $DeviceName"
+            return $null
+        }
+        
+        $keys = @()
+        foreach ($keyInfo in $keyIdResponse.value) {
+            # Get the actual recovery key
+            $keyUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys/$($keyInfo.id)?`$select=key"
+            $keyResponse = Invoke-MgGraphRequest -Uri $keyUri -Method GET
+            
+            $keys += @{
+                Id = $keyInfo.id
+                Key = $keyResponse.key
+                VolumeType = $keyInfo.volumeType
+                CreatedDateTime = $keyInfo.createdDateTime
+            }
+        }
+        
+        return $keys
+    }
+    catch {
+        Write-Warning "Error retrieving BitLocker key for device $DeviceName : $($_.Exception.Message)"
+    )
+        return $null
+    }
+}
+
+# Function to create or update secret in Key Vault using REST API
+function Set-KeyVaultSecret {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SecretName,
+        [Parameter(Mandatory = $true)]
+        [string]$SecretValue,
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Tags,
+        [Parameter(Mandatory = $true)]
+        [string]$KeyVaultName,
+        [Parameter(Mandatory = $true)]
+        [string]$AccessToken
+    )
+    
+    try {
+        # Sanitize secret name (remove invalid characters)
+        $SecretName = $SecretName -replace '[^a-zA-Z0-9-]', '-'
+        
+        # Construct the URI for the Key Vault secret
+        $uri = "https://$KeyVaultName.vault.azure.net/secrets/$SecretName/?api-version=7.4"
+        
+        # Prepare the request body
+        $body = @{
+            value = $SecretValue
+            tags = $Tags
+            attributes = @{
+                enabled = $true
+            }
+        } | ConvertTo-Json
+        
+        # Set headers
+        $headers = @{
+            'Authorization' = "Bearer $AccessToken"
+            'Content-Type' = 'application/json'
+        }
+        
+        # Make the REST API call
+        $response = Invoke-RestMethod -Uri $uri -Method PUT -Headers $headers -Body $body
+        
+        return @{
+            Success = $true
+            SecretId = $response.id
+            Version = $response.attributes.version
+        }
+    }
+    catch {
+        if ($_.Exception.Response.StatusCode -eq 'Conflict' -and -not $OverwriteExisting) {
+            return @{
+                Success = $false
+                Error = "Secret already exists. Use -OverwriteExisting to update."
+            }
+        }
+        else {
+            return @{
+                Success = $false
+                Error = $_.Exception.Message
+            }
+        }
+    }
+}
+    # Use URL encoding for the filter parameter
+    $selectFields = "id,deviceName,serialNumber,azureADDeviceId,operatingSystem,osVersion,model,manufacturer,complianceState,encryptionState"
+    $filterQuery = [System.Web.HttpUtility]::UrlEncode("operatingSystem eq 'Windows'")
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=$selectFields&`$filter=$filterQuery"
+# ============================================================================
+# MAIN SCRIPT LOGIC
+# ============================================================================
+
+try {
+    Write-Information "Starting BitLocker keys backup to Azure Key Vault..." -InformationAction Continue
+    
+    # Validate output path
+    if (-not (Test-Path $OutputPath)) {
+        New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+    }
+    
+    # Get all Windows devices from Intune
+    Write-Information "Retrieving Windows devices from Intune..." -InformationAction Continue
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,serialNumber,azureADDeviceId,operatingSystem,osVersion,model,manufacturer,complianceState,encryptionState&`$filter=operatingSystem eq 'Windows'"
+    $devices = Get-MgGraphAllPages -Uri $devicesUri
+    
+    if ($devices.Count -eq 0) {
+        Write-Warning "No Windows devices found in Intune"
+        return
+    }
+    
+    Write-Information "Found $($devices.Count) Windows devices. Processing BitLocker keys..." -InformationAction Continue
+    
+    $results = @()
+    $processedCount = 0
+    $successCount = 0
+    $failedCount = 0
+    $skippedCount = 0
+    
+    foreach ($device in $devices) {
+        $processedCount++
+        
+        if ($ShowProgress) {
+            $percentComplete = [math]::Round(($processedCount / $devices.Count) * 100, 1)
+            Write-Progress -Activity "Backing up BitLocker Keys" -Status "Processing device: $($device.deviceName)" -PercentComplete $percentComplete
+        }
+        
+        # Skip devices without Azure AD Device ID
+        if ([string]::IsNullOrWhiteSpace($device.azureADDeviceId)) {
+            Write-Verbose "Device $($device.deviceName) has no Azure AD Device ID - skipping"
+            $results += [PSCustomObject]@{
+                DeviceName = $device.deviceName
+                SerialNumber = $device.serialNumber
+                Status = "No Azure AD Device ID"
+                KeyVaultSecret = "N/A"
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            }
+            $skippedCount++
+            continue
+        }
+        
+        # Get BitLocker recovery keys
+        $recoveryKeys = Get-BitLockerRecoveryKey -AzureADDeviceId $device.azureADDeviceId -DeviceName $device.deviceName
+        
+        if (-not $recoveryKeys) {
+            Write-Verbose "No BitLocker keys found for device: $($device.deviceName)"
+            $results += [PSCustomObject]@{
+                DeviceName = $device.deviceName
+                SerialNumber = $device.serialNumber
+                Status = "No Keys Found"
+                KeyVaultSecret = "N/A"
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            }
+            $skippedCount++
+            continue
+        }
+        
+        foreach ($recoveryKey in $recoveryKeys) {
+            $secretName = "BitLocker-$($device.deviceName)-$($device.serialNumber)"
+            if ($recoveryKeys.Count -gt 1) {
+                $secretName += "-$($recoveryKey.VolumeType)"
+            }
+            
+            $tags = @{
+                DeviceName = $device.deviceName
+                SerialNumber = $device.serialNumber
+                AzureADDeviceId = $device.azureADDeviceId
+                VolumeType = $recoveryKey.VolumeType
+                DeviceName = if ($device.deviceName) { $device.deviceName } else { "Unknown" }
+                SerialNumber = if ($device.serialNumber) { $device.serialNumber } else { "NoSerial" }
+                AzureADDeviceId = $device.azureADDeviceId
+                VolumeType = $recoveryKey.VolumeType
+                Model = if ($device.model) { $device.model } else { "Unknown" }
+                Manufacturer = if ($device.manufacturer) { $device.manufacturer } else { "Unknown" }
+                OSVersion = if ($device.osVersion) { $device.osVersion } else { "Unknown" }
+            # Store in Key Vault
+            $kvResult = Set-KeyVaultSecret -SecretName $secretName -SecretValue $recoveryKey.Key -Tags $tags -KeyVaultName $KeyVaultName -AccessToken $accessToken
+            
+            if ($kvResult.Success) {
+                Write-Information "✓ Successfully backed up key for: $($device.deviceName)" -InformationAction Continue
+                $successCount++
+                $status = "Success"
+            }
+            else {
+                Write-Warning "✗ Failed to backup key for $($device.deviceName): $($kvResult.Error)"
+                $failedCount++
+                $status = "Failed: $($kvResult.Error)"
+            }
+            
+            $results += [PSCustomObject]@{
+                DeviceName = $device.deviceName
+                SerialNumber = $device.serialNumber
+                Status = $status
+                KeyVaultSecret = $secretName
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            }
+        }
+    }
+    
+    if ($ShowProgress) {
+        Write-Progress -Activity "Backing up BitLocker Keys" -Completed
+    }
+    
+    # Display results
+    Write-Information "`nBitLocker Keys Backup Results:" -InformationAction Continue
+    $results | Format-Table -AutoSize
+    
+    # Export results to CSV
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $csvPath = Join-Path $OutputPath "BitLocker-KeyVault-Backup-$timestamp.csv"
+    $results | Export-Csv -Path $csvPath -NoTypeInformation
+    Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
+    
+    Write-Information "✓ BitLocker keys backup completed successfully" -InformationAction Continue
+}
+catch {
+    Write-Error "Script failed: $($_.Exception.Message)"
+    exit 1
+}
+finally {
+    # Cleanup operations
+    try {
+        Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+    }
+    catch {
+        # Ignore disconnect errors
+    }
+    
+    try {
+        Disconnect-AzAccount -ErrorAction SilentlyContinue | Out-Null
+        WritKKyeeye-NafeNameation "Disconnected from Azure" -InformationAction Continue
+    }
+    catch {
+        # Ignore disconnect errors
+    }
+}
+
+# ============================================================================
+# SCRIPT SUMMARY
+# ============================================================================
+
+Write-Information "
+========================================
+Script Execution Summary
+========================================
+Script: BitLocker Keys Backup to Key Vault
+Total Devices Processed: $processedCount
+Successfully Backed Up: $successCount
+Failed: $failedCount
+Skipped (No Keys): $skippedCount
+Key Vault: $KeyVaultName
+Report Location: $OutputPath
+Status: Completed
+========================================
+" -InformationAction Continue
