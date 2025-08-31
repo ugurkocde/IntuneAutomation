@@ -128,7 +128,7 @@ catch {
 # ============================================================================
 
 # Function to get all pages of results from Graph API
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Uri,
@@ -372,7 +372,7 @@ try {
     # Get all Windows devices from Intune
     Write-Information "Retrieving Windows devices from Intune..." -InformationAction Continue
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'"
-    $devices = Get-MgGraphAllPages -Uri $devicesUri
+    $devices = Get-MgGraphAllPage -Uri $devicesUri
     
     if ($devices.Count -eq 0) {
         Write-Warning "No Windows devices found in Intune"
