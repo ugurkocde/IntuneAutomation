@@ -188,7 +188,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPage {
+function Get-MgGraphAllPages {
     param(
         [string]$Uri,
         [int]$DelayMs = 100
