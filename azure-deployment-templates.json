@@ -1,401 +1,453 @@
 {
-  "generated": "2025-09-16T02:29:43Z",
+  "generated": "2025-09-17T02:29:11Z",
   "templates": {
-    "get-maa-compliance-report": {
+    "apple-token-expiration-alert": {
+      "author": "Ugur Koc",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration",
       "permissions": [
+        "DeviceManagementServiceConfig.Read.All",
         "DeviceManagementConfiguration.Read.All",
-        "DeviceManagementApps.Read.All",
-        "DeviceManagementManagedDevices.Read.All",
-        "DeviceManagementRBAC.Read.All",
-        "AuditLog.Read.All",
-        "Directory.Read.All"
+        "Mail.Send"
       ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-maa-compliance-report-azure-deployment.json",
-      "scriptPath": "scripts/compliance/get-maa-compliance-report.ps1",
       "version": "1.0",
-      "description": "This script connects to Microsoft Graph and analyzes Multi-Admin Approval configurations, usage patterns,",
-      "author": "Ugur Koc",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/apple-token-expiration-alert-azure-deployment.json",
+      "scriptPath": "scripts/notification/apple-token-expiration-alert.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapple-token-expiration-alert-azure-deployment.json",
+      "title": "Apple Token Expiration Alert Notification",
       "tags": [
-        "Compliance",
-        "Reporting",
-        "Security",
-        "MAA",
-        "Governance"
-      ],
-      "title": "Multi-Admin Approval Compliance Dashboard Report",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-maa-compliance-report-azure-deployment.json"
-    },
-    "check-unassigned-policies": {
-      "permissions": [
-        "DeviceManagementConfiguration.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-unassigned-policies-azure-deployment.json",
-      "scriptPath": "scripts/monitoring/check-unassigned-policies.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and retrieves all device configuration policies",
-      "author": "Ugur Koc",
-      "tags": [
-        "Monitoring"
-      ],
-      "title": "Unassigned Policies Monitor",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-unassigned-policies-azure-deployment.json"
-    },
-    "get-intune-role-assignments": {
-      "permissions": [
-        "DeviceManagementRBAC.Read.All",
-        "User.Read.All",
-        "Group.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-role-assignments-azure-deployment.json",
-      "scriptPath": "scripts/security/get-intune-role-assignments.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph to retrieve all Intune role definitions",
-      "author": "Ugur Koc",
-      "tags": [
-        "Security"
-      ],
-      "title": "Get Intune Role Assignments",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-role-assignments-azure-deployment.json"
-    },
-    "backup-bitlocker-keys-to-keyvault": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "BitlockerKey.Read.All",
-        "https://vault.azure.net/user_impersonation"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/backup-bitlocker-keys-to-keyvault-azure-deployment.json",
-      "scriptPath": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Security",
-        "Compliance"
-      ],
-      "title": "BitLocker Keys Backup to Azure Key Vault",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fbackup-bitlocker-keys-to-keyvault-azure-deployment.json"
-    },
-    "check-bitlocker-keys": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "BitlockerKey.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-bitlocker-keys-azure-deployment.json",
-      "scriptPath": "scripts/monitoring/check-bitlocker-keys.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Monitoring",
-        "Security"
-      ],
-      "title": "BitLocker Key Storage Checker",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-bitlocker-keys-azure-deployment.json"
-    },
-    "get-stale-devices": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-stale-devices-azure-deployment.json",
-      "scriptPath": "scripts/devices/get-stale-devices.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Operational",
-        "Devices"
-      ],
-      "title": "Get Stale Intune Devices",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-stale-devices-azure-deployment.json"
+        "Notification"
+      ]
     },
     "create-app-based-groups": {
+      "author": "Ugur Koc",
+      "description": "This script queries Intune-managed devices to identify which applications are installed,",
       "permissions": [
         "DeviceManagementManagedDevices.Read.All",
         "DeviceManagementApps.Read.All",
         "Group.ReadWrite.All",
         "Directory.Read.All"
       ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/create-app-based-groups-azure-deployment.json",
       "scriptPath": "scripts/devices/create-app-based-groups.ps1",
-      "version": "1.0",
-      "description": "This script queries Intune-managed devices to identify which applications are installed,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Devices"
-      ],
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcreate-app-based-groups-azure-deployment.json",
       "title": "Create App-Based Entra ID Groups",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcreate-app-based-groups-azure-deployment.json"
-    },
-    "sync-devices": {
-      "permissions": [
-        "DeviceManagementManagedDevices.ReadWrite.All",
-        "DeviceManagementManagedDevices.Read.All",
-        "Group.Read.All",
-        "GroupMember.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/sync-devices-azure-deployment.json",
-      "scriptPath": "scripts/operational/sync-devices.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and triggers synchronization operations on targeted devices.",
-      "author": "Ugur Koc",
       "tags": [
-        "Operational",
         "Devices"
-      ],
-      "title": "Sync Devices",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fsync-devices-azure-deployment.json"
+      ]
     },
-    "get-devices-by-scopetag": {
+    "backup-bitlocker-keys-to-keyvault": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,",
       "permissions": [
         "DeviceManagementManagedDevices.Read.All",
-        "DeviceManagementRBAC.Read.All"
+        "BitlockerKey.Read.All",
+        "https://vault.azure.net/user_impersonation"
       ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-devices-by-scopetag-azure-deployment.json",
-      "scriptPath": "scripts/devices/get-devices-by-scopetag.ps1",
       "version": "1.0",
-      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
-      "author": "Ugur Koc",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/backup-bitlocker-keys-to-keyvault-azure-deployment.json",
+      "scriptPath": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fbackup-bitlocker-keys-to-keyvault-azure-deployment.json",
+      "title": "BitLocker Keys Backup to Azure Key Vault",
       "tags": [
-        "Devices",
+        "Security",
         "Compliance"
+      ]
+    },
+    "stale-device-cleanup-alert": {
+      "author": "Ugur Koc",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "Mail.Send"
       ],
-      "title": "Get Devices by Scope Tag Report",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-devices-by-scopetag-azure-deployment.json"
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/stale-device-cleanup-alert-azure-deployment.json",
+      "scriptPath": "scripts/notification/stale-device-cleanup-alert.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fstale-device-cleanup-alert-azure-deployment.json",
+      "title": "Stale Device Cleanup Alert Notification",
+      "tags": [
+        "Notification"
+      ]
+    },
+    "device-compliance-drift-alert": {
+      "author": "Ugur Koc",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "Mail.Send"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/device-compliance-drift-alert-azure-deployment.json",
+      "scriptPath": "scripts/notification/device-compliance-drift-alert.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdevice-compliance-drift-alert-azure-deployment.json",
+      "title": "Device Compliance Drift Alert Notification",
+      "tags": [
+        "Notification"
+      ]
+    },
+    "get-intune-role-assignments": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph to retrieve all Intune role definitions",
+      "permissions": [
+        "DeviceManagementRBAC.Read.All",
+        "User.Read.All",
+        "Group.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-role-assignments-azure-deployment.json",
+      "scriptPath": "scripts/security/get-intune-role-assignments.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-role-assignments-azure-deployment.json",
+      "title": "Get Intune Role Assignments",
+      "tags": [
+        "Security"
+      ]
+    },
+    "check-bitlocker-keys": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "BitlockerKey.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-bitlocker-keys-azure-deployment.json",
+      "scriptPath": "scripts/monitoring/check-bitlocker-keys.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-bitlocker-keys-azure-deployment.json",
+      "title": "BitLocker Key Storage Checker",
+      "tags": [
+        "Monitoring",
+        "Security"
+      ]
     },
     "cleanup-autopilot-devices": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and identifies Windows Autopilot devices that are",
       "permissions": [
         "DeviceManagementServiceConfig.ReadWrite.All",
         "DeviceManagementManagedDevices.Read.All"
       ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/cleanup-autopilot-devices-azure-deployment.json",
       "scriptPath": "scripts/devices/cleanup-autopilot-devices.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and identifies Windows Autopilot devices that are",
-      "author": "Ugur Koc",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcleanup-autopilot-devices-azure-deployment.json",
+      "title": "Cleanup Orphaned Autopilot Devices",
       "tags": [
         "Operational",
         "Devices"
-      ],
-      "title": "Cleanup Orphaned Autopilot Devices",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcleanup-autopilot-devices-azure-deployment.json"
-    },
-    "check-policy-changes": {
-      "permissions": [
-        "DeviceManagementApps.Read.All",
-        "DeviceManagementConfiguration.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-policy-changes-azure-deployment.json",
-      "scriptPath": "scripts/monitoring/check-policy-changes.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and retrieves recent changes to Policies",
-      "author": "Ugur Koc",
-      "tags": [
-        "Monitoring"
-      ],
-      "title": "Policy Changes Monitor",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-policy-changes-azure-deployment.json"
-    },
-    "check-apple-token-validity": {
-      "permissions": [
-        "DeviceManagementServiceConfig.Read.All",
-        "DeviceManagementConfiguration.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-apple-token-validity-azure-deployment.json",
-      "scriptPath": "scripts/monitoring/check-apple-token-validity.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens",
-      "author": "Ugur Koc",
-      "tags": [
-        "Monitoring"
-      ],
-      "title": "Apple Token Validity Checker",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-apple-token-validity-azure-deployment.json"
-    },
-    "apple-token-expiration-alert": {
-      "permissions": [
-        "DeviceManagementServiceConfig.Read.All",
-        "DeviceManagementConfiguration.Read.All",
-        "Mail.Send"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/apple-token-expiration-alert-azure-deployment.json",
-      "scriptPath": "scripts/notification/apple-token-expiration-alert.ps1",
-      "version": "1.0",
-      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration",
-      "author": "Ugur Koc",
-      "tags": [
-        "Notification"
-      ],
-      "title": "Apple Token Expiration Alert Notification",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapple-token-expiration-alert-azure-deployment.json"
-    },
-    "remediate-antivirus-definitions": {
-      "permissions": [
-        "DeviceManagementManagedDevices.ReadWrite.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/remediate-antivirus-definitions-azure-deployment.json",
-      "scriptPath": "scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
-      "version": "1.0",
-      "description": "Forces Windows Defender signature updates and verifies they were successful.",
-      "author": "Ugur Koc",
-      "tags": [
-        "Remediation",
-        "Action"
-      ],
-      "title": "Windows Defender Definition Update Remediation",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fremediate-antivirus-definitions-azure-deployment.json"
-    },
-    "device-compliance-drift-alert": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "DeviceManagementConfiguration.Read.All",
-        "Mail.Send"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/device-compliance-drift-alert-azure-deployment.json",
-      "scriptPath": "scripts/notification/device-compliance-drift-alert.ps1",
-      "version": "1.0",
-      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance",
-      "author": "Ugur Koc",
-      "tags": [
-        "Notification"
-      ],
-      "title": "Device Compliance Drift Alert Notification",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdevice-compliance-drift-alert-azure-deployment.json"
-    },
-    "detect-antivirus-definitions-outdated": {
-      "permissions": [
-        "DeviceManagementManagedDevices.ReadWrite.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/detect-antivirus-definitions-outdated-azure-deployment.json",
-      "scriptPath": "scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
-      "version": "1.0",
-      "description": "Checks if Windows Defender definitions are current (within 48 hours).",
-      "author": "Ugur Koc",
-      "tags": [
-        "Remediation",
-        "Detection"
-      ],
-      "title": "Windows Defender Definition Update Detection",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdetect-antivirus-definitions-outdated-azure-deployment.json"
-    },
-    "detect-disk-cleanup-needed": {
-      "permissions": [
-        "DeviceManagementManagedDevices.ReadWrite.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/detect-disk-cleanup-needed-azure-deployment.json",
-      "scriptPath": "scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
-      "version": "1.0",
-      "description": "Checks Windows temp folders and recycle bin size.",
-      "author": "Ugur Koc",
-      "tags": [
-        "Remediation",
-        "Detection"
-      ],
-      "title": "Disk Cleanup Detection Script",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdetect-disk-cleanup-needed-azure-deployment.json"
-    },
-    "get-duplicate-applications": {
-      "permissions": [
-        "DeviceManagementApps.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-duplicate-applications-azure-deployment.json",
-      "scriptPath": "scripts/apps/get-duplicate-applications.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Apps",
-        "Reporting"
-      ],
-      "title": "Duplicate Applications Report",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-duplicate-applications-azure-deployment.json"
+      ]
     },
     "app-deployment-failure-alert": {
+      "author": "Ugur Koc",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors application",
       "permissions": [
         "DeviceManagementApps.Read.All",
         "DeviceManagementManagedDevices.Read.All",
         "Mail.Send"
       ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/app-deployment-failure-alert-azure-deployment.json",
       "scriptPath": "scripts/notification/app-deployment-failure-alert.ps1",
-      "version": "1.0",
-      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors application",
-      "author": "Ugur Koc",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapp-deployment-failure-alert-azure-deployment.json",
+      "title": "App Deployment Failure Alert Notification",
       "tags": [
         "Notification"
-      ],
-      "title": "App Deployment Failure Alert Notification",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapp-deployment-failure-alert-azure-deployment.json"
-    },
-    "get-device-compliance-report": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "DeviceManagementConfiguration.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-device-compliance-report-azure-deployment.json",
-      "scriptPath": "scripts/compliance/get-device-compliance-report.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph, retrieves managed devices and their compliance status,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Devices",
-        "Compliance",
-        "Reporting"
-      ],
-      "title": "Device Compliance Report",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-device-compliance-report-azure-deployment.json"
+      ]
     },
     "wipe-devices": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
       "permissions": [
         "DeviceManagementManagedDevices.ReadWrite.All",
         "DeviceManagementManagedDevices.Read.All",
         "Group.Read.All",
         "GroupMember.Read.All"
       ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/wipe-devices-azure-deployment.json",
       "scriptPath": "scripts/operational/wipe-devices.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
-      "author": "Ugur Koc",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fwipe-devices-azure-deployment.json",
+      "title": "Wipe Devices",
       "tags": [
         "Operational",
         "Devices"
-      ],
-      "title": "Wipe Devices",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fwipe-devices-azure-deployment.json"
+      ]
     },
-    "remediate-disk-cleanup": {
+    "remediate-antivirus-definitions": {
+      "author": "Ugur Koc",
+      "description": "Forces Windows Defender signature updates and verifies they were successful.",
       "permissions": [
         "DeviceManagementManagedDevices.ReadWrite.All"
       ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/remediate-disk-cleanup-azure-deployment.json",
-      "scriptPath": "scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
       "version": "1.0",
-      "description": "Removes Windows temp files, user temp files, and empties the recycle bin.",
-      "author": "Ugur Koc",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/remediate-antivirus-definitions-azure-deployment.json",
+      "scriptPath": "scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fremediate-antivirus-definitions-azure-deployment.json",
+      "title": "Windows Defender Definition Update Remediation",
       "tags": [
         "Remediation",
         "Action"
-      ],
-      "title": "Disk Cleanup Remediation Script",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fremediate-disk-cleanup-azure-deployment.json"
+      ]
     },
-    "rotate-bitlocker-keys": {
+    "detect-antivirus-definitions-outdated": {
+      "author": "Ugur Koc",
+      "description": "Checks if Windows Defender definitions are current (within 48 hours).",
       "permissions": [
         "DeviceManagementManagedDevices.ReadWrite.All"
       ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/detect-antivirus-definitions-outdated-azure-deployment.json",
+      "scriptPath": "scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdetect-antivirus-definitions-outdated-azure-deployment.json",
+      "title": "Windows Defender Definition Update Detection",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ]
+    },
+    "get-maa-compliance-report": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and analyzes Multi-Admin Approval configurations, usage patterns,",
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementRBAC.Read.All",
+        "AuditLog.Read.All",
+        "Directory.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-maa-compliance-report-azure-deployment.json",
+      "scriptPath": "scripts/compliance/get-maa-compliance-report.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-maa-compliance-report-azure-deployment.json",
+      "title": "Multi-Admin Approval Compliance Dashboard Report",
+      "tags": [
+        "Compliance",
+        "Reporting",
+        "Security",
+        "MAA",
+        "Governance"
+      ]
+    },
+    "get-duplicate-applications": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,",
+      "permissions": [
+        "DeviceManagementApps.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-duplicate-applications-azure-deployment.json",
+      "scriptPath": "scripts/apps/get-duplicate-applications.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-duplicate-applications-azure-deployment.json",
+      "title": "Duplicate Applications Report",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ]
+    },
+    "check-policy-changes": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and retrieves recent changes to Policies",
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-policy-changes-azure-deployment.json",
+      "scriptPath": "scripts/monitoring/check-policy-changes.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-policy-changes-azure-deployment.json",
+      "title": "Policy Changes Monitor",
+      "tags": [
+        "Monitoring"
+      ]
+    },
+    "check-unassigned-policies": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and retrieves all device configuration policies",
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-unassigned-policies-azure-deployment.json",
+      "scriptPath": "scripts/monitoring/check-unassigned-policies.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-unassigned-policies-azure-deployment.json",
+      "title": "Unassigned Policies Monitor",
+      "tags": [
+        "Monitoring"
+      ]
+    },
+    "sync-devices": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and triggers synchronization operations on targeted devices.",
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/sync-devices-azure-deployment.json",
+      "scriptPath": "scripts/operational/sync-devices.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fsync-devices-azure-deployment.json",
+      "title": "Sync Devices",
+      "tags": [
+        "Operational",
+        "Devices"
+      ]
+    },
+    "detect-disk-cleanup-needed": {
+      "author": "Ugur Koc",
+      "description": "Checks Windows temp folders and recycle bin size.",
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/detect-disk-cleanup-needed-azure-deployment.json",
+      "scriptPath": "scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdetect-disk-cleanup-needed-azure-deployment.json",
+      "title": "Disk Cleanup Detection Script",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ]
+    },
+    "get-application-inventory-report": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementApps.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-application-inventory-report-azure-deployment.json",
+      "scriptPath": "scripts/apps/get-application-inventory-report.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-application-inventory-report-azure-deployment.json",
+      "title": "Application Inventory Report",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ]
+    },
+    "get-intune-audit-logs": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph to retrieve audit log entries from Intune,",
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-audit-logs-azure-deployment.json",
+      "scriptPath": "scripts/monitoring/get-intune-audit-logs.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-audit-logs-azure-deployment.json",
+      "title": "Get Intune Audit Logs",
+      "tags": [
+        "Monitoring"
+      ]
+    },
+    "get-stale-devices": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-stale-devices-azure-deployment.json",
+      "scriptPath": "scripts/devices/get-stale-devices.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-stale-devices-azure-deployment.json",
+      "title": "Get Stale Intune Devices",
+      "tags": [
+        "Operational",
+        "Devices"
+      ]
+    },
+    "remediate-disk-cleanup": {
+      "author": "Ugur Koc",
+      "description": "Removes Windows temp files, user temp files, and empties the recycle bin.",
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/remediate-disk-cleanup-azure-deployment.json",
+      "scriptPath": "scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fremediate-disk-cleanup-azure-deployment.json",
+      "title": "Disk Cleanup Remediation Script",
+      "tags": [
+        "Remediation",
+        "Action"
+      ]
+    },
+    "rotate-bitlocker-keys": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.",
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/rotate-bitlocker-keys-azure-deployment.json",
       "scriptPath": "scripts/security/rotate-bitlocker-keys.ps1",
-      "version": "1.0",
-      "description": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.",
-      "author": "Ugur Koc",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frotate-bitlocker-keys-azure-deployment.json",
+      "title": "Rotate BitLocker Keys",
       "tags": [
         "Security",
         "Operational"
+      ]
+    },
+    "check-apple-token-validity": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens",
+      "permissions": [
+        "DeviceManagementServiceConfig.Read.All",
+        "DeviceManagementConfiguration.Read.All"
       ],
-      "title": "Rotate BitLocker Keys",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frotate-bitlocker-keys-azure-deployment.json"
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-apple-token-validity-azure-deployment.json",
+      "scriptPath": "scripts/monitoring/check-apple-token-validity.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-apple-token-validity-azure-deployment.json",
+      "title": "Apple Token Validity Checker",
+      "tags": [
+        "Monitoring"
+      ]
+    },
+    "get-device-compliance-report": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph, retrieves managed devices and their compliance status,",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-device-compliance-report-azure-deployment.json",
+      "scriptPath": "scripts/compliance/get-device-compliance-report.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-device-compliance-report-azure-deployment.json",
+      "title": "Device Compliance Report",
+      "tags": [
+        "Devices",
+        "Compliance",
+        "Reporting"
+      ]
+    },
+    "get-devices-by-scopetag": {
+      "author": "Ugur Koc",
+      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementRBAC.Read.All"
+      ],
+      "version": "1.0",
+      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-devices-by-scopetag-azure-deployment.json",
+      "scriptPath": "scripts/devices/get-devices-by-scopetag.ps1",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-devices-by-scopetag-azure-deployment.json",
+      "title": "Get Devices by Scope Tag Report",
+      "tags": [
+        "Devices",
+        "Compliance"
+      ]
     },
     "maa-pending-requests-monitor": {
+      "author": "Ugur Koc",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors Multi-Admin Approval",
       "permissions": [
         "DeviceManagementConfiguration.Read.All",
         "DeviceManagementApps.Read.All",
@@ -404,11 +456,11 @@
         "AuditLog.Read.All",
         "Mail.Send"
       ],
+      "version": "1.0",
       "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/maa-pending-requests-monitor-azure-deployment.json",
       "scriptPath": "scripts/notification/maa-pending-requests-monitor.ps1",
-      "version": "1.0",
-      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors Multi-Admin Approval",
-      "author": "Ugur Koc",
+      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fmaa-pending-requests-monitor-azure-deployment.json",
+      "title": "Multi-Admin Approval Pending Requests Monitor",
       "tags": [
         "Notification",
         "Security",
@@ -417,59 +469,7 @@
         "Monitoring",
         "MAA",
         "Compliance"
-      ],
-      "title": "Multi-Admin Approval Pending Requests Monitor",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fmaa-pending-requests-monitor-azure-deployment.json"
-    },
-    "get-intune-audit-logs": {
-      "permissions": [
-        "DeviceManagementApps.Read.All",
-        "DeviceManagementConfiguration.Read.All",
-        "DeviceManagementManagedDevices.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-audit-logs-azure-deployment.json",
-      "scriptPath": "scripts/monitoring/get-intune-audit-logs.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph to retrieve audit log entries from Intune,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Monitoring"
-      ],
-      "title": "Get Intune Audit Logs",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-audit-logs-azure-deployment.json"
-    },
-    "get-application-inventory-report": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "DeviceManagementApps.Read.All"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-application-inventory-report-azure-deployment.json",
-      "scriptPath": "scripts/apps/get-application-inventory-report.ps1",
-      "version": "1.0",
-      "description": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,",
-      "author": "Ugur Koc",
-      "tags": [
-        "Apps",
-        "Reporting"
-      ],
-      "title": "Application Inventory Report",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-application-inventory-report-azure-deployment.json"
-    },
-    "stale-device-cleanup-alert": {
-      "permissions": [
-        "DeviceManagementManagedDevices.Read.All",
-        "Mail.Send"
-      ],
-      "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/stale-device-cleanup-alert-azure-deployment.json",
-      "scriptPath": "scripts/notification/stale-device-cleanup-alert.ps1",
-      "version": "1.0",
-      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in",
-      "author": "Ugur Koc",
-      "tags": [
-        "Notification"
-      ],
-      "title": "Stale Device Cleanup Alert Notification",
-      "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fstale-device-cleanup-alert-azure-deployment.json"
+      ]
     }
   }
 }
