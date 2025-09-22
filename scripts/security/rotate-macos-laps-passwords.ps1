@@ -439,16 +439,16 @@ try {
         }
 
         # Display result
-        $statusColor = switch ($rotationResult.Status) {
-            "Success" { "Green" }
-            "Failed" { "Red" }
-            "Error" { "Red" }
-            "Skipped" { "Yellow" }
-            "Test Mode" { "Cyan" }
-            default { "Gray" }
+        $statusSymbol = switch ($rotationResult.Status) {
+            "Success" { "✓" }
+            "Failed" { "✗" }
+            "Error" { "✗" }
+            "Skipped" { "⊘" }
+            "Test Mode" { "ℹ" }
+            default { "-" }
         }
 
-        Write-Host "  Status: $($rotationResult.Status) - $($rotationResult.Message)" -ForegroundColor $statusColor
+        Write-Information "  $statusSymbol Status: $($rotationResult.Status) - $($rotationResult.Message)" -InformationAction Continue
 
         # Add additional device information to result
         $rotationResult | Add-Member -MemberType NoteProperty -Name "SerialNumber" -Value $device.serialNumber
