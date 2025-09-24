@@ -77,7 +77,7 @@ param(
     [Parameter(Mandatory = $false)]
     [int]$SyncDelaySeconds = 2,
     
-    [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
+    [Parameter(Mandatory = $false, HelpMessage = 'Force module installation without prompting')]
     [switch]$ForceModuleInstall
 )
 
@@ -133,8 +133,8 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 
                 try {
                     # Check if running as administrator for AllUsers scope
-                    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-                    $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
+                    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')
+                    $scope = if ($isAdmin) { 'AllUsers' } else { 'CurrentUser' }
                     
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
@@ -160,22 +160,22 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
 
 # Detect execution environment
 if ($PSPrivateMetadata.JobId.Guid) {
-    Write-Output "Running inside Azure Automation Runbook"
+    Write-Output 'Running inside Azure Automation Runbook'
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Information 'Running locally in IDE or terminal' -InformationAction Continue
     $IsAzureAutomation = $false
 }
 
 # Initialize required modules
 $RequiredModules = @(
-    "Microsoft.Graph.Authentication"
+    'Microsoft.Graph.Authentication'
 )
 
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
-    Write-Verbose "✓ All required modules are available"
+    Write-Verbose '✓ All required modules are available'
 }
 catch {
     Write-Error "Module initialization failed: $_"
@@ -189,19 +189,21 @@ catch {
 try {
     if ($IsAzureAutomation) {
         # Azure Automation - Use Managed Identity
-        Write-Output "Connecting to Microsoft Graph using Managed Identity..."
+        Write-Output 'Connecting to Microsoft Graph using Managed Identity...'
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
-        Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
+        Write-Output '✓ Successfully connected to Microsoft Graph using Managed Identity'
     }
     else {
         # Local execution - Use interactive authentication
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
-        $scopes = @("DeviceManagementManagedDevices.ReadWrite.All", "DeviceManagementManagedDevices.Read.All")
+        Write-Information 'Connecting to Microsoft Graph with interactive authentication...' -InformationAction Continue
+
+        $scopes = @('DeviceManagementManagedDevices.ReadWrite.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementManagedDevices.PrivilegedOperations.All')
+
         if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
-            $scopes += @("Group.Read.All", "GroupMember.Read.All")
+            $scopes += @('Group.Read.All', 'GroupMember.Read.All')
         }
         Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Information '✓ Successfully connected to Microsoft Graph' -InformationAction Continue
     }
 }
 catch {
@@ -216,7 +218,7 @@ function Get-MgGraphAllPage {
         [int]$DelayMs = 100
     )
     
-    $allResults = @()
+    [System.Collections.Generic.List[PSCustomObject]]$allResults = @()
     $nextLink = $Uri
     $requestCount = 0
     
@@ -231,16 +233,18 @@ function Get-MgGraphAllPage {
             $requestCount++
             
             if ($response.value) {
-                $allResults += $response.value
+                $response.value | ForEach-Object {
+                    $allResults.Add($_)
+                }
             }
             else {
-                $allResults += $response
+                $allResults.Add($response)
             }
             
             $nextLink = $response.'@odata.nextLink'
         }
         catch {
-            if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
+            if ($_.Exception.Message -like '*429*' -or $_.Exception.Message -like '*throttled*') {
                 Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
                 Start-Sleep -Seconds 60
                 continue
@@ -281,8 +285,8 @@ function Get-DevicesByEntraGroup {
         
         # Find the group
         $groupUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$GroupName'"
-        $groups = Get-MgGraphAllPage -Uri $groupUri
-        
+        $groups = @(Get-MgGraphAllPage -Uri $groupUri)
+
         if ($groups.Count -eq 0) {
             throw "Group '$GroupName' not found"
         }
@@ -294,24 +298,25 @@ function Get-DevicesByEntraGroup {
         Write-Information "✓ Found group: $($group.displayName) (ID: $($group.id))" -InformationAction Continue
         
         # Get group members
-        Write-Information "Retrieving group members..." -InformationAction Continue
+        Write-Information 'Retrieving group members...' -InformationAction Continue
         $membersUri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/members"
-        $members = Get-MgGraphAllPage -Uri $membersUri
-        
+        $members = @(Get-MgGraphAllPage -Uri $membersUri)
+
         Write-Information "✓ Found $($members.Count) members in group" -InformationAction Continue
-        
+
         # Get all managed devices
-        Write-Information "Retrieving managed devices..." -InformationAction Continue
-        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $allDevices = Get-MgGraphAllPage -Uri $devicesUri
+        Write-Information 'Retrieving managed devices...' -InformationAction Continue
+        $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+        $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
         
         # Filter devices by group members
-        $targetDevices = @()
+        [System.Collections.Generic.List[PSCustomObject]]$targetDevices = @()
         foreach ($device in $allDevices) {
-            if ($device.userPrincipalName) {
-                $userInGroup = $members | Where-Object { $_.userPrincipalName -eq $device.userPrincipalName -or $_.mail -eq $device.userPrincipalName }
-                if ($userInGroup) {
-                    $targetDevices += $device
+            if ($device.id) {
+                # Test if device.id is in members
+                $deviceInGroup = $members.deviceID.contains($device.azureADDeviceId)
+                if ($deviceInGroup) {
+                    $targetDevices.Add($device)
                 }
             }
         }
@@ -335,8 +340,8 @@ try {
 
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
-            Write-Information "Retrieving devices by names..." -InformationAction Continue
-            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+            Write-Information 'Retrieving devices by names...' -InformationAction Continue
+            $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
             
             foreach ($deviceName in $DeviceNames) {
@@ -352,7 +357,7 @@ try {
         }
         
         'DeviceIds' {
-            Write-Information "Retrieving devices by IDs..." -InformationAction Continue
+            Write-Information 'Retrieving devices by IDs...' -InformationAction Continue
             foreach ($deviceId in $DeviceIds) {
                 try {
                     $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
@@ -372,14 +377,14 @@ try {
     }
 
     if ($targetDevices.Count -eq 0) {
-        Write-Warning "No target devices found. Exiting."
-        Disconnect-MgGraph | Out-Null
+        Write-Warning 'No target devices found. Exiting.'
+        $null = Disconnect-MgGraph
         exit 0
     }
 
     # Display target information
     Write-Information "`n📱 TARGET DEVICES SUMMARY" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
+    Write-Information '=========================' -InformationAction Continue
     Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
 
     # Process sync operations
@@ -392,7 +397,7 @@ try {
 
     foreach ($device in $targetDevices) {
         $processedDevices++
-        Write-Progress -Activity "Synchronizing Devices" -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
+        Write-Progress -Activity 'Synchronizing Devices' -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
         
         # Calculate time since last sync
         $hoursSinceSync = if ($device.lastSyncDateTime) {
@@ -426,11 +431,11 @@ try {
         }
     }
 
-    Write-Progress -Activity "Synchronizing Devices" -Completed
+    Write-Progress -Activity 'Synchronizing Devices' -Completed
 
     # Display final summary
     Write-Information "`n🔄 SYNC OPERATION SUMMARY" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
+    Write-Information '=========================' -InformationAction Continue
     Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
     Write-Information "Successful Syncs: $successfulSyncs" -InformationAction Continue
     Write-Information "Failed Syncs: $failedSyncs" -InformationAction Continue
@@ -451,11 +456,11 @@ catch {
 finally {
     # Disconnect from Microsoft Graph
     try {
-        Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        $null = Disconnect-MgGraph
+        Write-Information '✓ Disconnected from Microsoft Graph' -InformationAction Continue
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected
-        Write-Verbose "Graph disconnection completed (may have already been disconnected)"
+        Write-Verbose 'Graph disconnection completed (may have already been disconnected)'
     }
 }
