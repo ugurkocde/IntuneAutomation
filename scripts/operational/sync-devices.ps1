@@ -23,13 +23,21 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
     1.0 - Initial release
+    1.1 - Improved authentication scopes and fixed group device members search
+        - added `DeviceManagementManagedDevices.PrivilegedOperations.All` scope for interactive Graph auth  
+        - fixed `Get-DevicesByEntraGroup` to correctly match devices by `azureADDeviceId`  
+        - replaced `+=` with `[System.Collections.Generic.List[Object]]` for faster result handling  
+        - standardized string quoting to single quotes  
+        - optimized `Get-MgGraphAllPage` with strongly typed list  
+        - replaced `Out-Null` with `$null =` assignment for cleaner output suppression  
+        - improved consistency in logging and error handling
 
 .LASTUPDATE
-    2025-05-29
+    2025-09-24
 
 .EXAMPLE
     .\sync-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
