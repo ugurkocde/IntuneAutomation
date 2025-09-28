@@ -7,14 +7,14 @@
         "description": "Description of the runbook"
       },
       "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens"
+      "defaultValue": "This script connects to Microsoft Graph API (beta) and retrieves Endpoint Analytics data from Intune."
     },
     "runbookName": {
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
       "type": "string",
-      "defaultValue": "check-apple-token-validity"
+      "defaultValue": "get-endpoint-analytics-report"
     },
     "automationAccountName": {
       "metadata": {
@@ -32,7 +32,7 @@
   },
   "variables": {
     "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-apple-token-validity.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
     "runbookType": "PowerShell",
     "logProgress": false
   },
