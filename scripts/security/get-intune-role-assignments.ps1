@@ -267,7 +267,7 @@ try {
     Write-Information "✓ Found $($roleAssignments.Count) role assignments" -InformationAction Continue
     
     # Process assignments
-    $allAssignments = @()
+    [System.Collections.Generic.List[Object]]$allAssignments = @()
     $totalAssignments = 0
     $rolesWithAssignments = 0
     $processedRoles = @{}
@@ -310,7 +310,7 @@ try {
             }
         }
         
-        $allAssignments += $assignmentRecord
+        $allAssignments.Add($assignmentRecord)
         $totalAssignments++
     }
     
@@ -394,11 +394,11 @@ try {
         $csvPath = Join-Path $OutputPath "Intune_Role_Assignments_$timestamp.csv"
         
         # Flatten the data for CSV export
-        $csvData = @()
+        [System.Collections.Generic.List[Object]]$csvData = @()
         foreach ($assignment in $allAssignments) {
             if ($assignment.Members.Count -gt 0) {
                 foreach ($member in $assignment.Members) {
-                    $csvData += [PSCustomObject]@{
+                    $csvData.Add([PSCustomObject]@{
                         RoleName       = $assignment.RoleName
                         RoleType       = $assignment.RoleType
                         AssignmentName = $assignment.AssignmentName
@@ -406,11 +406,11 @@ try {
                         MemberEmail    = $member.Email
                         MemberType     = $member.Type
                         Scope          = $assignment.Scope
-                    }
+                    })
                 }
             }
             else {
-                $csvData += [PSCustomObject]@{
+                $csvData.Add([PSCustomObject]@{
                     RoleName       = $assignment.RoleName
                     RoleType       = $assignment.RoleType
                     AssignmentName = $assignment.AssignmentName
@@ -418,7 +418,7 @@ try {
                     MemberEmail    = ""
                     MemberType     = ""
                     Scope          = $assignment.Scope
-                }
+                })
             }
         }
         
@@ -432,7 +432,7 @@ catch {
 }
 finally {
     try {
-        Disconnect-MgGraph | Out-Null
+        $null = Disconnect-MgGraph
         Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
     }
     catch {
