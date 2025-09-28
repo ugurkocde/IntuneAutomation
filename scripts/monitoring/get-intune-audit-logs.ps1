@@ -421,7 +421,7 @@ try {
     Write-Verbose "Query URI: $uri"
     
     # Get audit events
-    $auditEvents = Get-MgGraphAllPages -Uri $uri -Top $NumberOfEntries
+    $auditEvents = Get-MgGraphAllPage -Uri $uri -Top $NumberOfEntries
     
     Write-Information "✓ Retrieved $($auditEvents.Count) audit entries" -InformationAction Continue
     

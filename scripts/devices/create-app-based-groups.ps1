@@ -302,7 +302,7 @@ try {
         $devicesUri += "?`$top=$MaxDevices"
     }
     
-    $devices = Get-MgGraphAllPages -Uri $devicesUri
+    $devices = Get-MgGraphAllPage -Uri $devicesUri
     
     # Filter by platform if specified
     if ($FilterByPlatform -ne "All") {
@@ -389,7 +389,7 @@ try {
     if ($FilterByType -ne "All" -or $OnlySuccessfulInstalls) {
         Write-Information "Retrieving deployed application data..." -InformationAction Continue
         $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps"
-        $deployedApps = Get-MgGraphAllPages -Uri $appsUri
+        $deployedApps = Get-MgGraphAllPage -Uri $appsUri
         
         foreach ($app in $deployedApps) {
             if ($app.displayName -like $ApplicationName) {
@@ -402,7 +402,7 @@ try {
                 
                 # Get device installation status
                 $statusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses"
-                $deviceStatuses = Get-MgGraphAllPages -Uri $statusUri
+                $deviceStatuses = Get-MgGraphAllPage -Uri $statusUri
                 
                 foreach ($status in $deviceStatuses) {
                     # Filter by installation status if specified
@@ -542,7 +542,7 @@ try {
                 try {
                     # Get current members
                     $currentMembersUri = "https://graph.microsoft.com/v1.0/groups/$($existingGroup.id)/members"
-                    $currentMembers = Get-MgGraphAllPages -Uri $currentMembersUri
+                    $currentMembers = Get-MgGraphAllPage -Uri $currentMembersUri
                     $currentMemberIds = $currentMembers | ForEach-Object { $_.id }
                     
                     # Calculate additions and removals - use Entra device IDs

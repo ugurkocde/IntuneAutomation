@@ -249,7 +249,7 @@ try {
     
     # Get all role definitions first
     $roleDefinitionsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions"
-    $roleDefinitions = Get-MgGraphAllPages -Uri $roleDefinitionsUri
+    $roleDefinitions = Get-MgGraphAllPage -Uri $roleDefinitionsUri
     
     Write-Information "✓ Found $($roleDefinitions.Count) role definitions" -InformationAction Continue
     
@@ -262,7 +262,7 @@ try {
     # Get all role assignments directly
     Write-Information "Retrieving role assignments..." -InformationAction Continue
     $roleAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleAssignments"
-    $roleAssignments = Get-MgGraphAllPages -Uri $roleAssignmentsUri
+    $roleAssignments = Get-MgGraphAllPage -Uri $roleAssignmentsUri
     
     Write-Information "✓ Found $($roleAssignments.Count) role assignments" -InformationAction Continue
     
