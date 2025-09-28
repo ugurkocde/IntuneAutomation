@@ -186,7 +186,7 @@ try {
     
     # Example API call
     # $Results = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/your-endpoint"
-    
+
     # Process results
     # foreach ($Item in $Results) {
     #     $Success = Invoke-CustomFunction -Parameter $Item.property
@@ -197,7 +197,11 @@ try {
     #         Write-Warning "✗ Failed to process: $($Item.displayName)"
     #     }
     # }
-    
+
+    # Export results (if needed)
+    # $Results | Export-Csv -Path "output.csv" -NoTypeInformation -Encoding utf8
+    # $HtmlContent | Out-File -FilePath "output.html" -Encoding utf8
+
     Write-Information "✓ Script completed successfully" -InformationAction Continue
 }
 catch {

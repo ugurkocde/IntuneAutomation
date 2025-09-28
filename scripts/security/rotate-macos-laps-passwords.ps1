@@ -485,13 +485,13 @@ try {
     if ($ExportReport) {
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $csvPath = Join-Path $OutputPath "LAPS-Rotation-Report-$timestamp.csv"
-        $results | Export-Csv -Path $csvPath -NoTypeInformation
+        $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
         Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
 
         # Also export failed devices separately if any
         if ($failedCount -gt 0) {
             $failedPath = Join-Path $OutputPath "LAPS-Rotation-Failed-$timestamp.csv"
-            $results | Where-Object { $_.Status -in @("Failed", "Error") } | Export-Csv -Path $failedPath -NoTypeInformation
+            $results | Where-Object { $_.Status -in @("Failed", "Error") } | Export-Csv -Path $failedPath -NoTypeInformation -Encoding utf8
             Write-Information "✓ Failed devices exported to: $failedPath" -InformationAction Continue
         }
     }

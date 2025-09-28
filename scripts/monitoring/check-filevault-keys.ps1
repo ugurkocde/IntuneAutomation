@@ -488,7 +488,7 @@ try {
     # Export results to CSV
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $csvPath = Join-Path $OutputPath "FileVault-Key-Storage-Report-$timestamp.csv"
-    $results | Export-Csv -Path $csvPath -NoTypeInformation
+    $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
     Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
 
     # Export to JSON if requested

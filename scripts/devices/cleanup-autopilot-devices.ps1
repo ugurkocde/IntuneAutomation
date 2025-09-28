@@ -469,7 +469,7 @@ try {
         # Export to CSV if path specified
         if ($ExportPath) {
             try {
-                $FormattedDevices | Export-Csv -Path $ExportPath -NoTypeInformation
+                $FormattedDevices | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding utf8
                 Write-Information "✓ Results exported to: $ExportPath" -InformationAction Continue
             }
             catch {

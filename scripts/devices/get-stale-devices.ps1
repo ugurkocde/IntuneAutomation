@@ -433,7 +433,7 @@ try {
         # Export to CSV if path specified
         if ($ExportPath) {
             try {
-                $StaleDevices | Export-Csv -Path $ExportPath -NoTypeInformation
+                $StaleDevices | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding utf8
                 Write-Information "✓ Results exported to: $ExportPath" -InformationAction Continue
             }
             catch {

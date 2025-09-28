@@ -1012,18 +1012,18 @@ function Export-MAADataToCSV {
             Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         }
     }
-    $MetricsCSV | Export-Csv -Path "$OutputPath\MAA_Metrics_$Timestamp.csv" -NoTypeInformation
+    $MetricsCSV | Export-Csv -Path "$OutputPath\MAA_Metrics_$Timestamp.csv" -NoTypeInformation -Encoding utf8
     
     # Export policies
     if ($Policies.Count -gt 0) {
         $Policies | Select-Object displayName, isEnabled, resourceType, createdDateTime, lastModifiedDateTime, @{Name = 'ApproverCount'; Expression = { $_.approvers.Count } } |
-        Export-Csv -Path "$OutputPath\MAA_Policies_$Timestamp.csv" -NoTypeInformation
+        Export-Csv -Path "$OutputPath\MAA_Policies_$Timestamp.csv" -NoTypeInformation -Encoding utf8
     }
     
     # Export requests
     if ($Requests.Count -gt 0) {
         $Requests | Select-Object id, status, requestDateTime, approvalDateTime, requestor, approver, requestJustification |
-        Export-Csv -Path "$OutputPath\MAA_Requests_$Timestamp.csv" -NoTypeInformation
+        Export-Csv -Path "$OutputPath\MAA_Requests_$Timestamp.csv" -NoTypeInformation -Encoding utf8
     }
     
     Write-Information "✓ CSV files exported to $OutputPath" -InformationAction Continue
@@ -1088,7 +1088,7 @@ try {
     
     $SummaryFileName = "MAA_Summary_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
     $SummaryFullPath = Join-Path $OutputPath $SummaryFileName
-    $SummaryData | Export-Csv -Path $SummaryFullPath -NoTypeInformation
+    $SummaryData | Export-Csv -Path $SummaryFullPath -NoTypeInformation -Encoding utf8
     
     Write-Information "✓ Summary CSV saved to: $SummaryFullPath" -InformationAction Continue
     
@@ -1132,7 +1132,7 @@ finally {
 <function_calls>
 <invoke name="TodoWrite">
 <parameter name="todos">[ { "content": "Create MAA Compliance Dashboard Report script structure", "status": "completed" }, { "content": "Add authentication and module management", "status": "completed" }, { "content": "Implement MAA policy analysis logic", "status": "completed" }, { "content": "Add compliance metrics calculation", "status": "completed" }, { "content": "Create HTML and CSV report generation", "status": "completed" }, { "content": "Add summary and recommendations", "status": "completed" }]
-        $SummaryData | Export-Csv -Path $SummaryFullPath -NoTypeInformation
+        $SummaryData | Export-Csv -Path $SummaryFullPath -NoTypeInformation -Encoding utf8
         
         Write-Information "✓ Summary CSV saved to: $SummaryFullPath" -InformationAction Continue
     }

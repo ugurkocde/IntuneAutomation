@@ -975,7 +975,7 @@ try {
         
         # Export to CSV
         try {
-            $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation
+            $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation -Encoding utf8
             Write-Information "✓ CSV report saved to: $CSVPath" -InformationAction Continue
         }
         catch {
