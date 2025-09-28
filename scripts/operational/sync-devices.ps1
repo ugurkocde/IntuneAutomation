@@ -29,7 +29,7 @@
     1.0 - Initial release
     1.1 - Improved authentication scopes and fixed group device members search
         - added `DeviceManagementManagedDevices.PrivilegedOperations.All` scope for interactive Graph auth  
-        - fixed `Get-DevicesByEntraGroup` to correctly match devices by `azureADDeviceId`  
+        - fixed `Get-DevicesByEntraGroup` to correctly match devices by `azureADDeviceId`
         - replaced `+=` with `[System.Collections.Generic.List[Object]]` for faster result handling  
         - standardized string quoting to single quotes  
         - optimized `Get-MgGraphAllPage` with strongly typed list  
