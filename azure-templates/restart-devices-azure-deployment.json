@@ -5,14 +5,14 @@
       "metadata": {
         "description": "Description of the runbook"
       },
-      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices."
+      "defaultValue": "This script connects to Microsoft Graph and triggers remote restart operations on targeted devices."
     },
     "runbookName": {
       "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "defaultValue": "wipe-devices"
+      "defaultValue": "restart-devices"
     },
     "automationAccountName": {
       "type": "string",
@@ -30,7 +30,7 @@
   },
   "variables": {
     "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/restart-devices.ps1",
     "logVerbose": false,
     "logProgress": false
   },
