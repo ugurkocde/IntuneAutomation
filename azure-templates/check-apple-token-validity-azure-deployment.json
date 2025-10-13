@@ -1,5 +1,4 @@
 {
-  "contentVersion": "1.0.0.0",
   "outputs": {
     "runbookName": {
       "type": "string",
@@ -9,27 +8,58 @@
       "type": "string",
       "value": "[variables('scriptUri')]"
     },
-    "deploymentInstructions": {
+    "runbookUrl": {
       "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
     "automationAccountName": {
       "type": "string",
       "value": "[parameters('automationAccountName')]"
     },
-    "runbookUrl": {
+    "deploymentInstructions": {
       "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     }
   },
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "resources": [
+    {
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
+      },
+      "apiVersion": "2023-11-01"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-apple-token-validity.ps1",
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "logVerbose": false
+  },
   "parameters": {
-    "location": {
+    "runbookName": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
       "metadata": {
-        "description": "Location for the runbook deployment"
-      }
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "defaultValue": "check-apple-token-validity"
+    },
+    "runbookDescription": {
+      "type": "string",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "defaultValue": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens"
     },
     "automationAccountName": {
       "type": "string",
@@ -37,42 +67,12 @@
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       }
     },
-    "runbookName": {
+    "location": {
       "type": "string",
-      "defaultValue": "check-apple-token-validity",
       "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    },
-    "runbookDescription": {
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    }
-  },
-  "variables": {
-    "logProgress": false,
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-apple-token-validity.ps1",
-    "runbookType": "PowerShell"
-  },
-  "resources": [
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "runbookType": "[variables('runbookType')]"
+        "description": "Location for the runbook deployment"
       },
-      "apiVersion": "2023-11-01"
+      "defaultValue": "[resourceGroup().location]"
     }
-  ]
+  }
 }
