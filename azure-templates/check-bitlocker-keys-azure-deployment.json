@@ -1,78 +1,78 @@
 {
-  "variables": {
-    "logProgress": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
-    "logVerbose": false
-  },
   "parameters": {
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "check-bitlocker-keys"
-    },
     "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,",
       "metadata": {
         "description": "Description of the runbook"
-      },
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,"
+      }
     },
     "automationAccountName": {
-      "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "check-bitlocker-keys",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       }
     }
   },
-  "contentVersion": "1.0.0.0",
   "outputs": {
-    "scriptSourceUrl": {
+    "deploymentInstructions": {
       "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     },
     "runbookUrl": {
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
-    "deploymentInstructions": {
+    "automationAccountName": {
       "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+      "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
     },
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
     }
   },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
+    "logProgress": false,
+    "logVerbose": false,
+    "runbookType": "PowerShell"
+  },
   "resources": [
     {
-      "location": "[parameters('location')]",
       "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
       "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
         "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logVerbose": "[variables('logVerbose')]"
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]"
       },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01"
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
     }
   ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+  "contentVersion": "1.0.0.0"
 }
