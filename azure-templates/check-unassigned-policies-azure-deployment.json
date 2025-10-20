@@ -1,45 +1,50 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
   "outputs": {
     "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
-    },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
     },
     "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
+      "type": "string",
+      "value": "[variables('scriptUri')]"
     },
     "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
     "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
-      "type": "string"
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
     }
   },
-  "contentVersion": "1.0.0.0",
   "resources": [
     {
-      "location": "[parameters('location')]",
       "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
       "apiVersion": "2023-11-01",
       "properties": {
-        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]",
+        "runbookType": "[variables('runbookType')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "description": "[parameters('runbookDescription')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]"
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]"
       },
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
     }
   ],
+  "variables": {
+    "runbookType": "PowerShell",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-unassigned-policies.ps1",
+    "logProgress": false,
+    "logVerbose": false
+  },
   "parameters": {
     "automationAccountName": {
       "type": "string",
@@ -47,32 +52,27 @@
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       }
     },
-    "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "check-unassigned-policies"
-    },
     "runbookDescription": {
+      "type": "string",
       "metadata": {
         "description": "Description of the runbook"
       },
-      "type": "string",
       "defaultValue": "This script connects to Microsoft Graph and retrieves all device configuration policies"
     },
     "location": {
+      "type": "string",
       "metadata": {
         "description": "Location for the runbook deployment"
       },
-      "type": "string",
       "defaultValue": "[resourceGroup().location]"
+    },
+    "runbookName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "defaultValue": "check-unassigned-policies"
     }
   },
-  "variables": {
-    "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-unassigned-policies.ps1",
-    "logVerbose": false,
-    "runbookType": "PowerShell"
-  }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
