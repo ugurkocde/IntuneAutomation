@@ -267,7 +267,7 @@ catch {
 # HELPER FUNCTIONS
 # ============================================================================
 
-function Get-MgGraphAllPages {
+function Get-MgGraphAllPage {
     param(
         [string]$Uri,
         [int]$DelayMs = 100
@@ -465,7 +465,7 @@ function Test-DeviceInGroup {
 
     try {
         $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members"
-        $members = Get-MgGraphAllPages -Uri $uri
+        $members = Get-MgGraphAllPage -Uri $uri
 
         return ($members.id -contains $DeviceId)
     }
@@ -551,7 +551,7 @@ try {
 
     # Get all Intune managed devices
     Write-Information "Retrieving all Intune managed devices..." -InformationAction Continue
-    $allDevices = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    $allDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
     Write-Information "Found $($allDevices.Count) managed devices" -InformationAction Continue
 
     # Track statistics
