@@ -318,7 +318,7 @@ try {
 
         try {
             # Get device statuses for this app using the beta endpoint
-            $deviceStatusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps('$($app.id)')/deviceStatuses"
+            $deviceStatusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses"
             $deviceStatuses = Get-MgGraphAllPage -Uri $deviceStatusUri
 
             foreach ($status in $deviceStatuses) {
