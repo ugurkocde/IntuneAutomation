@@ -1,10 +1,33 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "logVerbose": false,
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1",
+    "runbookType": "PowerShell"
+  },
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
   "outputs": {
-    "automationAccountName": {
+    "runbookName": {
       "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "[parameters('runbookName')]"
     },
     "deploymentInstructions": {
       "type": "string",
@@ -18,60 +41,37 @@
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
-    "runbookName": {
+    "automationAccountName": {
       "type": "string",
-      "value": "[parameters('runbookName')]"
+      "value": "[parameters('automationAccountName')]"
     }
-  },
-  "resources": [
-    {
-      "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      },
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01"
-    }
-  ],
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1",
-    "logProgress": false,
-    "runbookType": "PowerShell",
-    "logVerbose": false
   },
   "parameters": {
+    "runbookName": {
+      "defaultValue": "wipe-devices",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    },
     "automationAccountName": {
       "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    },
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    },
-    "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
-    "runbookName": {
-      "defaultValue": "wipe-devices",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
       }
     }
   }

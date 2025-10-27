@@ -4,7 +4,7 @@
   "variables": {
     "logVerbose": false,
     "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/sync-devices.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/add-devices-to-groups-from-csv.ps1",
     "runbookType": "PowerShell"
   },
   "resources": [
@@ -48,7 +48,7 @@
   },
   "parameters": {
     "runbookName": {
-      "defaultValue": "sync-devices",
+      "defaultValue": "add-devices-to-groups-from-csv",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
@@ -62,7 +62,7 @@
       "type": "string"
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph and triggers synchronization operations on targeted devices.",
+      "defaultValue": "This script reads a CSV file containing device identifiers and group names, then adds",
       "metadata": {
         "description": "Description of the runbook"
       },
