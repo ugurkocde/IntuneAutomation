@@ -1,37 +1,6 @@
 {
-  "variables": {
-    "runbookType": "PowerShell",
-    "logProgress": false,
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-app-installation-status-report.ps1"
-  },
-  "resources": [
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "description": "[parameters('runbookDescription')]"
-      }
-    }
-  ],
   "contentVersion": "1.0.0.0",
   "outputs": {
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
     "automationAccountName": {
       "type": "string",
       "value": "[parameters('automationAccountName')]"
@@ -43,36 +12,67 @@
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     }
   },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-app-installation-status-report.ps1",
+    "runbookType": "PowerShell",
+    "logVerbose": false
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "2023-11-01",
+      "properties": {
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
+      },
+      "location": "[parameters('location')]"
+    }
+  ],
   "parameters": {
     "runbookDescription": {
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph, retrieves all managed applications and their installation status",
       "metadata": {
         "description": "Description of the runbook"
-      }
+      },
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph, retrieves all managed applications and their installation status"
     },
     "automationAccountName": {
-      "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
+      },
+      "type": "string"
     },
     "runbookName": {
-      "type": "string",
-      "defaultValue": "get-app-installation-status-report",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      },
+      "type": "string",
+      "defaultValue": "get-app-installation-status-report"
+    },
+    "location": {
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
     }
-  }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
