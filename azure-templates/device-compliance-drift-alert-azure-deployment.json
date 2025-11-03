@@ -1,6 +1,9 @@
 {
-  "contentVersion": "1.0.0.0",
   "outputs": {
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
@@ -8,10 +11,6 @@
     "runbookUrl": {
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     },
     "automationAccountName": {
       "type": "string",
@@ -22,24 +21,34 @@
       "value": "[variables('scriptUri')]"
     }
   },
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "properties": {
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
   "parameters": {
     "runbookName": {
-      "defaultValue": "device-compliance-drift-alert",
       "type": "string",
+      "defaultValue": "device-compliance-drift-alert",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       }
     },
-    "runbookDescription": {
-      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance",
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
     "location": {
-      "defaultValue": "[resourceGroup().location]",
       "type": "string",
+      "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Location for the runbook deployment"
       }
@@ -49,30 +58,21 @@
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       }
+    },
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
     }
   },
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/device-compliance-drift-alert.ps1",
     "logProgress": false,
+    "logVerbose": false,
     "runbookType": "PowerShell",
-    "logVerbose": false
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/device-compliance-drift-alert.ps1"
   },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01",
-      "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      }
-    }
-  ]
+  "contentVersion": "1.0.0.0"
 }
