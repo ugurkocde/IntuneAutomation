@@ -1,58 +1,12 @@
 {
-  "resources": [
-    {
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "description": "[parameters('runbookDescription')]"
-      },
-      "location": "[parameters('location')]"
-    }
-  ],
-  "outputs": {
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
-    },
-    "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
-      "type": "string"
-    },
-    "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
-    }
-  },
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/rotate-bitlocker-keys.ps1",
     "logProgress": false,
-    "runbookType": "PowerShell",
-    "logVerbose": false
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/rotate-bitlocker-keys.ps1",
+    "runbookType": "PowerShell"
   },
   "parameters": {
-    "runbookName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "defaultValue": "rotate-bitlocker-keys"
-    },
     "runbookDescription": {
       "type": "string",
       "metadata": {
@@ -66,6 +20,13 @@
       },
       "type": "string"
     },
+    "runbookName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "defaultValue": "rotate-bitlocker-keys"
+    },
     "location": {
       "type": "string",
       "metadata": {
@@ -74,5 +35,44 @@
       "defaultValue": "[resourceGroup().location]"
     }
   },
+  "outputs": {
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    },
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
+      "type": "string"
+    },
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "location": "[parameters('location')]"
+    }
+  ],
   "contentVersion": "1.0.0.0"
 }
