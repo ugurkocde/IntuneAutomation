@@ -1,4 +1,11 @@
 {
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "logProgress": false,
+    "logVerbose": false,
+    "runbookType": "PowerShell",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1"
+  },
   "outputs": {
     "runbookUrl": {
       "type": "string",
@@ -8,71 +15,64 @@
       "type": "string",
       "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     },
-    "runbookName": {
+    "scriptSourceUrl": {
       "type": "string",
-      "value": "[parameters('runbookName')]"
+      "value": "[variables('scriptUri')]"
     },
     "automationAccountName": {
       "type": "string",
       "value": "[parameters('automationAccountName')]"
     },
-    "scriptSourceUrl": {
+    "runbookName": {
       "type": "string",
-      "value": "[variables('scriptUri')]"
+      "value": "[parameters('runbookName')]"
     }
   },
-  "parameters": {
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "resources": [
+    {
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "logProgress": "[variables('logProgress')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
       },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
+    }
+  ],
+  "parameters": {
     "runbookDescription": {
+      "defaultValue": "Removes Windows temp files, user temp files, and empties the recycle bin.",
       "metadata": {
         "description": "Description of the runbook"
       },
-      "type": "string",
-      "defaultValue": "Removes Windows temp files, user temp files, and empties the recycle bin."
+      "type": "string"
     },
-    "runbookName": {
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
       "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
+        "description": "Location for the runbook deployment"
       },
-      "type": "string",
-      "defaultValue": "remediate-disk-cleanup"
+      "type": "string"
     },
     "automationAccountName": {
       "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       }
-    }
-  },
-  "variables": {
-    "runbookType": "PowerShell",
-    "logProgress": false,
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1"
-  },
-  "contentVersion": "1.0.0.0",
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "resources": [
-    {
-      "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]"
+    },
+    "runbookName": {
+      "defaultValue": "remediate-disk-cleanup",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01"
+      "type": "string"
     }
-  ]
+  }
 }
