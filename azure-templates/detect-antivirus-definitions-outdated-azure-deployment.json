@@ -21,24 +21,30 @@
       "value": "[parameters('automationAccountName')]"
     }
   },
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
+    "logVerbose": false,
+    "logProgress": false,
+    "runbookType": "PowerShell"
+  },
   "parameters": {
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    },
     "runbookDescription": {
-      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours).",
       "type": "string",
+      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours).",
       "metadata": {
         "description": "Description of the runbook"
       }
     },
-    "runbookName": {
-      "defaultValue": "detect-antivirus-definitions-outdated",
+    "location": {
       "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "detect-antivirus-definitions-outdated",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       }
@@ -50,29 +56,23 @@
       }
     }
   },
-  "contentVersion": "1.0.0.0",
   "resources": [
     {
-      "location": "[parameters('location')]",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
       "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "logVerbose": "[variables('logVerbose')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "runbookType": "[variables('runbookType')]",
-        "logProgress": "[variables('logProgress')]"
+        "description": "[parameters('runbookDescription')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]"
       },
       "apiVersion": "2023-11-01"
     }
   ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1"
-  }
+  "contentVersion": "1.0.0.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
