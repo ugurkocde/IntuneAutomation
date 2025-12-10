@@ -1,43 +1,52 @@
 {
-  "contentVersion": "1.0.0.0",
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
   "outputs": {
-    "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
-      "type": "string"
-    },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
     "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
     },
     "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     }
   },
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "logVerbose": false
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        }
+      },
+      "apiVersion": "2023-11-01"
+    }
+  ],
   "parameters": {
-    "runbookName": {
-      "defaultValue": "detect-disk-cleanup-needed",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    },
-    "runbookDescription": {
-      "defaultValue": "Checks Windows temp folders and recycle bin size.",
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
     "automationAccountName": {
       "type": "string",
       "metadata": {
@@ -45,34 +54,25 @@
       }
     },
     "location": {
-      "defaultValue": "[resourceGroup().location]",
       "type": "string",
       "metadata": {
         "description": "Location for the runbook deployment"
-      }
-    }
-  },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
       },
-      "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "runbookDescription": {
+      "type": "string",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "defaultValue": "Checks Windows temp folders and recycle bin size."
+    },
+    "runbookName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "defaultValue": "detect-disk-cleanup-needed"
     }
-  ],
-  "variables": {
-    "logProgress": false,
-    "runbookType": "PowerShell",
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1"
   }
 }
