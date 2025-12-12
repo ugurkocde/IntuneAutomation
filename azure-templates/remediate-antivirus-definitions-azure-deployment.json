@@ -1,44 +1,4 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "description": "[parameters('runbookDescription')]"
-      },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01"
-    }
-  ],
-  "outputs": {
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    }
-  },
   "parameters": {
     "automationAccountName": {
       "type": "string",
@@ -53,17 +13,17 @@
       },
       "type": "string"
     },
-    "runbookName": {
-      "defaultValue": "remediate-antivirus-definitions",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string"
-    },
     "location": {
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    },
+    "runbookName": {
+      "defaultValue": "remediate-antivirus-definitions",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       },
       "type": "string"
     }
@@ -71,8 +31,48 @@
   "variables": {
     "logProgress": false,
     "runbookType": "PowerShell",
-    "logVerbose": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1"
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
+    "logVerbose": false
   },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "outputs": {
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "properties": {
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "logVerbose": "[variables('logVerbose')]"
+      },
+      "location": "[parameters('location')]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
   "contentVersion": "1.0.0.0"
 }
