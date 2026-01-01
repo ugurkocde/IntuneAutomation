@@ -1,39 +1,36 @@
 {
-  "parameters": {
-    "location": {
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
+  "resources": [
+    {
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]"
       },
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "runbookName": {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-policy-changes.ps1",
+    "logProgress": false,
+    "runbookType": "PowerShell"
+  },
+  "outputs": {
+    "deploymentInstructions": {
       "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "defaultValue": "check-policy-changes"
-    },
-    "runbookDescription": {
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "defaultValue": "This script connects to Microsoft Graph and retrieves recent changes to Policies"
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     },
     "automationAccountName": {
       "type": "string",
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      }
-    }
-  },
-  "contentVersion": "1.0.0.0",
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "outputs": {
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
+      "value": "[parameters('automationAccountName')]"
     },
     "runbookName": {
       "type": "string",
@@ -43,36 +40,39 @@
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
-    "deploymentInstructions": {
+    "scriptSourceUrl": {
       "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "[variables('scriptUri')]"
     }
   },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "logProgress": "[variables('logProgress')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       },
-      "apiVersion": "2023-11-01"
+      "type": "string"
+    },
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph and retrieves recent changes to Policies",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "check-policy-changes",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      }
     }
-  ],
-  "variables": {
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/check-policy-changes.ps1",
-    "logProgress": false,
-    "logVerbose": false
   }
 }
