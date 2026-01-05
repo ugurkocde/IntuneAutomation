@@ -1,11 +1,15 @@
 {
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/restart-devices.ps1"
-  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
   "outputs": {
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
@@ -17,29 +21,38 @@
     "automationAccountName": {
       "type": "string",
       "value": "[parameters('automationAccountName')]"
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
     }
   },
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]"
+    }
+  ],
   "parameters": {
-    "runbookName": {
-      "defaultValue": "restart-devices",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    },
     "runbookDescription": {
       "defaultValue": "This script connects to Microsoft Graph and triggers remote restart operations on targeted devices.",
       "type": "string",
       "metadata": {
         "description": "Description of the runbook"
+      }
+    },
+    "runbookName": {
+      "defaultValue": "restart-devices",
+      "type": "string",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       }
     },
     "automationAccountName": {
@@ -56,23 +69,10 @@
       }
     }
   },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logProgress": "[variables('logProgress')]"
-      },
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01"
-    }
-  ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0"
+  "variables": {
+    "runbookType": "PowerShell",
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/restart-devices.ps1",
+    "logProgress": false
+  }
 }
