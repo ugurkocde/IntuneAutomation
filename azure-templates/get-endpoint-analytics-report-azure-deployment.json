@@ -1,28 +1,35 @@
 {
+  "contentVersion": "1.0.0.0",
   "resources": [
     {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "properties": {
-        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
         "runbookType": "[variables('runbookType')]",
+        "description": "[parameters('runbookDescription')]",
+        "logVerbose": "[variables('logVerbose')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
-        },
-        "logProgress": "[variables('logProgress')]",
-        "description": "[parameters('runbookDescription')]"
+        }
       },
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "location": "[parameters('location')]"
     }
   ],
+  "variables": {
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
+    "logVerbose": false
+  },
   "parameters": {
-    "runbookDescription": {
+    "runbookName": {
+      "defaultValue": "get-endpoint-analytics-report",
       "metadata": {
-        "description": "Description of the runbook"
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       },
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph API (beta) and retrieves Endpoint Analytics data from Intune."
+      "type": "string"
     },
     "automationAccountName": {
       "metadata": {
@@ -30,49 +37,42 @@
       },
       "type": "string"
     },
+    "runbookDescription": {
+      "defaultValue": "This script connects to Microsoft Graph API (beta) and retrieves Endpoint Analytics data from Intune.",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    },
     "location": {
+      "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Location for the runbook deployment"
       },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
-    "runbookName": {
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "get-endpoint-analytics-report"
-    }
-  },
-  "contentVersion": "1.0.0.0",
-  "outputs": {
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
+      "type": "string"
     }
   },
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
-    "logProgress": false
+  "outputs": {
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
+      "type": "string"
+    },
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
+      "type": "string"
+    },
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    }
   }
 }
