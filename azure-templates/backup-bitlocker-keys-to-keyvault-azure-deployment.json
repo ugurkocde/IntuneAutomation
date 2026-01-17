@@ -1,14 +1,41 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
-    "logProgress": false,
-    "logVerbose": false
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "automationAccountName": {
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "defaultValue": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    },
+    "runbookName": {
+      "defaultValue": "backup-bitlocker-keys-to-keyvault",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    }
   },
   "outputs": {
     "automationAccountName": {
       "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
       "type": "string"
     },
     "deploymentInstructions": {
@@ -22,57 +49,30 @@
     "scriptSourceUrl": {
       "value": "[variables('scriptUri')]",
       "type": "string"
-    },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
     }
   },
-  "parameters": {
-    "automationAccountName": {
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      },
-      "type": "string"
-    },
-    "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,",
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    },
-    "runbookName": {
-      "defaultValue": "backup-bitlocker-keys-to-keyvault",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+    "logVerbose": false
   },
-  "contentVersion": "1.0.0.0",
   "resources": [
     {
-      "location": "[parameters('location')]",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "properties": {
+        "logProgress": "[variables('logProgress')]",
         "runbookType": "[variables('runbookType')]",
-        "description": "[parameters('runbookDescription')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]",
         "logVerbose": "[variables('logVerbose')]"
-      }
+      },
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
     }
   ]
 }
