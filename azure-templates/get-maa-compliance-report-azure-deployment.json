@@ -1,43 +1,20 @@
 {
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "properties": {
-        "logVerbose": "[variables('logVerbose')]",
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        }
-      },
-      "apiVersion": "2023-11-01",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
-    }
-  ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/compliance/get-maa-compliance-report.ps1",
-    "logVerbose": false,
-    "logProgress": false,
-    "runbookType": "PowerShell"
-  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "parameters": {
     "runbookName": {
       "defaultValue": "get-maa-compliance-report",
-      "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      },
+      "type": "string"
     },
     "location": {
       "defaultValue": "[resourceGroup().location]",
-      "type": "string",
       "metadata": {
         "description": "Location for the runbook deployment"
-      }
+      },
+      "type": "string"
     },
     "automationAccountName": {
       "type": "string",
@@ -47,16 +24,20 @@
     },
     "runbookDescription": {
       "defaultValue": "This script connects to Microsoft Graph and analyzes Multi-Admin Approval configurations, usage patterns,",
-      "type": "string",
       "metadata": {
         "description": "Description of the runbook"
-      }
+      },
+      "type": "string"
     }
   },
   "outputs": {
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
     },
     "runbookUrl": {
       "type": "string",
@@ -66,13 +47,32 @@
       "type": "string",
       "value": "[parameters('automationAccountName')]"
     },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
     "scriptSourceUrl": {
       "type": "string",
       "value": "[variables('scriptUri')]"
     }
-  }
+  },
+  "variables": {
+    "runbookType": "PowerShell",
+    "logVerbose": false,
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/compliance/get-maa-compliance-report.ps1"
+  },
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "properties": {
+        "runbookType": "[variables('runbookType')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]"
+      }
+    }
+  ]
 }
