@@ -1,7 +1,51 @@
 {
+  "variables": {
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/app-deployment-failure-alert.ps1"
+  },
+  "parameters": {
+    "runbookDescription": {
+      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors application",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+      }
+    },
+    "runbookName": {
+      "defaultValue": "app-deployment-failure-alert",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "outputs": {
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
     "deploymentInstructions": {
       "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook.",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
       "type": "string"
     },
     "automationAccountName": {
@@ -11,68 +55,24 @@
     "runbookName": {
       "value": "[parameters('runbookName')]",
       "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
     }
   },
   "contentVersion": "1.0.0.0",
   "resources": [
     {
       "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "properties": {
-        "runbookType": "[variables('runbookType')]",
-        "description": "[parameters('runbookDescription')]",
         "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logVerbose": "[variables('logVerbose')]"
+        "logVerbose": "[variables('logVerbose')]",
+        "description": "[parameters('runbookDescription')]"
       },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]"
     }
-  ],
-  "parameters": {
-    "runbookDescription": {
-      "defaultValue": "This script is designed to run as a scheduled Azure Automation runbook that monitors application",
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    },
-    "automationAccountName": {
-      "metadata": {
-        "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
-      },
-      "type": "string"
-    },
-    "runbookName": {
-      "defaultValue": "app-deployment-failure-alert",
-      "type": "string",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    }
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "runbookType": "PowerShell",
-    "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/app-deployment-failure-alert.ps1",
-    "logVerbose": false
-  }
+  ]
 }
