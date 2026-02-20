@@ -1,37 +1,5 @@
 {
-  "resources": [
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logVerbose": "[variables('logVerbose')]",
-        "logProgress": "[variables('logProgress')]",
-        "runbookType": "[variables('runbookType')]"
-      },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "location": "[parameters('location')]",
-      "apiVersion": "2023-11-01"
-    }
-  ],
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
-    "logVerbose": false,
-    "logProgress": false,
-    "runbookType": "PowerShell"
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "outputs": {
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
     "runbookName": {
       "type": "string",
       "value": "[parameters('runbookName')]"
@@ -43,36 +11,68 @@
     "runbookUrl": {
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
     }
   },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "resources": [
+    {
+      "properties": {
+        "description": "[parameters('runbookDescription')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]",
+        "logVerbose": "[variables('logVerbose')]"
+      },
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
+    }
+  ],
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
+    "logProgress": false,
+    "runbookType": "PowerShell",
+    "logVerbose": false
+  },
+  "contentVersion": "1.0.0.0",
   "parameters": {
-    "runbookDescription": {
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "defaultValue": "Removes Windows temp files, user temp files, and empties the recycle bin."
-    },
-    "location": {
-      "type": "string",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "defaultValue": "[resourceGroup().location]"
-    },
     "runbookName": {
+      "defaultValue": "remediate-disk-cleanup",
       "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "defaultValue": "remediate-disk-cleanup"
+      }
     },
     "automationAccountName": {
       "type": "string",
       "metadata": {
         "description": "Name of your existing Azure Automation Account (must exist in the selected resource group)"
       }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookDescription": {
+      "defaultValue": "Removes Windows temp files, user temp files, and empties the recycle bin.",
+      "type": "string",
+      "metadata": {
+        "description": "Description of the runbook"
+      }
     }
-  },
-  "contentVersion": "1.0.0.0"
+  }
 }
