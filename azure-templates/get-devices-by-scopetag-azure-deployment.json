@@ -1,35 +1,19 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "outputs": {
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    }
-  },
   "parameters": {
-    "location": {
+    "runbookName": {
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
+      "defaultValue": "get-devices-by-scopetag"
+    },
+    "location": {
       "metadata": {
         "description": "Location for the runbook deployment"
-      }
+      },
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
     },
     "automationAccountName": {
       "type": "string",
@@ -38,41 +22,57 @@
       }
     },
     "runbookDescription": {
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,",
       "metadata": {
         "description": "Description of the runbook"
-      }
-    },
+      },
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,"
+    }
+  },
+  "outputs": {
     "runbookName": {
       "type": "string",
-      "defaultValue": "get-devices-by-scopetag",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
+      "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
     }
+  },
+  "variables": {
+    "runbookType": "PowerShell",
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/get-devices-by-scopetag.ps1",
+    "logVerbose": false
   },
   "resources": [
     {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "apiVersion": "2023-11-01",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "properties": {
         "description": "[parameters('runbookDescription')]",
         "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logProgress": "[variables('logProgress')]"
-      }
+        "logVerbose": "[variables('logVerbose')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]"
     }
   ],
-  "variables": {
-    "runbookType": "PowerShell",
-    "logVerbose": false,
-    "logProgress": false,
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/get-devices-by-scopetag.ps1"
-  }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
