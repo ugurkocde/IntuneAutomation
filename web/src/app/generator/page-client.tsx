@@ -438,7 +438,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
               </span>
               <button
                 type="button"
-                className="hover:text-foreground transition-colors"
+                className="hover:text-foreground cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => setPrompt("")}
                 disabled={!prompt}
               >
@@ -458,7 +458,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                   key={example}
                   type="button"
                   onClick={() => setPrompt(example)}
-                  className="border-border/70 hover:border-accent/40 hover:bg-card text-muted-foreground hover:text-foreground rounded-md border px-2.5 py-1 text-[12px] transition-colors"
+                  className="border-border/70 hover:border-accent/40 hover:bg-card text-muted-foreground hover:text-foreground cursor-pointer rounded-md border px-2.5 py-1 text-[12px] transition-colors"
                 >
                   {example.length > 60
                     ? example.slice(0, 60) + "…"
@@ -509,7 +509,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
             <Button
               type="submit"
               disabled={!canGenerate}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 inline-flex items-center gap-2"
+              className="bg-accent text-accent-foreground hover:bg-accent/90 inline-flex cursor-pointer items-center gap-2"
             >
               {isStreaming ? (
                 <>
@@ -528,7 +528,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className="border-border/70"
+                className="border-border/70 cursor-pointer"
               >
                 Cancel
               </Button>
@@ -601,7 +601,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                     variant="ghost"
                     onClick={onCopy}
                     disabled={isStreaming || !output}
-                    className="h-7 gap-1.5 text-xs"
+                    className="h-7 cursor-pointer gap-1.5 text-xs"
                   >
                     {copied ? (
                       <Check className="h-3 w-3" />
@@ -615,7 +615,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                     variant="ghost"
                     onClick={onDownload}
                     disabled={isStreaming || !output}
-                    className="h-7 gap-1.5 text-xs"
+                    className="h-7 cursor-pointer gap-1.5 text-xs"
                   >
                     <Download className="h-3 w-3" />
                     Download .ps1
@@ -673,7 +673,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                   <Button
                     onClick={() => void onRefine()}
                     disabled={!refinement.trim() || isStreaming}
-                    className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5"
+                    className="bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer gap-1.5"
                   >
                     <SendHorizontal className="h-3.5 w-3.5" />
                     Refine

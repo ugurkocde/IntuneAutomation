@@ -73,7 +73,7 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center gap-2 text-left text-[13px]"
+          className="flex flex-1 cursor-pointer items-center gap-2 text-left text-[13px]"
           aria-expanded={expanded}
         >
           {headerIcon}
@@ -90,7 +90,7 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
               variant="outline"
               onClick={onFix}
               disabled={fixDisabled}
-              className="border-border/70 h-7 gap-1.5 text-xs"
+              className="border-border/70 h-7 cursor-pointer gap-1.5 text-xs"
               title="Send the issues back to the AI for correction"
             >
               <Wand2 className="h-3 w-3" />
@@ -101,7 +101,7 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-label={expanded ? "Collapse" : "Expand"}
-            className="text-muted-foreground rounded-md p-1.5"
+            className="text-muted-foreground cursor-pointer rounded-md p-1.5"
           >
             <ChevronDown
               className={cn(
