@@ -1,6 +1,8 @@
-# Create T3 App
+# IntuneAutomation Website
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+The Next.js website for [intuneautomation.com](https://intuneautomation.com), living alongside the PowerShell scripts in the parent repository.
+
+Built with the [T3 Stack](https://create.t3.gg/) (Next.js 15, TypeScript, tRPC, Tailwind). See [CLAUDE.md](./CLAUDE.md) for development commands and architecture details.
 
 ## What's next? How do I make an app with this?
 
