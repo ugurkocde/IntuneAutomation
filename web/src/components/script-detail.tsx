@@ -48,6 +48,7 @@ import { useToast } from "~/hooks/use-toast";
 import { AnalyticsService } from "~/lib/supabase-analytics";
 import "prismjs/themes/prism-tomorrow.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { QualityChecks } from "~/components/quality-checks";
 
 // GitHub repository constants
 const REPO_OWNER = "ugurkocde";
@@ -529,7 +530,7 @@ export function ScriptDetail({
                   const url = `/script/${script.slug || script.id}`;
                   window.open(url, "_blank");
                 }}
-                className="h-8 w-8 shrink-0 rounded-full hover:bg-muted cursor-pointer"
+                className="hover:bg-muted h-8 w-8 shrink-0 cursor-pointer rounded-full"
                 aria-label="Open in new tab"
                 title="Open in new tab"
               >
@@ -763,43 +764,49 @@ export function ScriptDetail({
                     <div className="p-4 sm:p-6">
                       <div className="space-y-4">
                         {/* Script Test Results */}
-                        {script.testResult && (
-                          <div className="bg-muted/50 rounded-lg p-4">
-                            <div className="mb-3 flex items-center gap-2">
-                              <TestTube className="text-muted-foreground h-4 w-4" />
-                              <h3 className="text-sm font-medium">
-                                Test Results
-                              </h3>
+                        {script.tests ? (
+                          <QualityChecks tests={script.tests} />
+                        ) : (
+                          script.testResult && (
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="mb-3 flex items-center gap-2">
+                                <TestTube className="text-muted-foreground h-4 w-4" />
+                                <h3 className="text-sm font-medium">
+                                  Test Results
+                                </h3>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`mb-3 gap-1.5 border px-2.5 py-1 text-xs font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
+                              >
+                                {React.createElement(
+                                  testResultIcons[script.testResult.result] ||
+                                    testResultIcons.fail,
+                                  { className: "h-3 w-3" },
+                                )}
+                                {script.testResult.result === "pass"
+                                  ? "All Tests Passed"
+                                  : script.testResult.result === "fail"
+                                    ? "Tests Failed"
+                                    : "Warnings Found"}
+                              </Badge>
+                              <p className="text-muted-foreground text-xs leading-relaxed">
+                                {script.testResult.result === "pass"
+                                  ? script.githubPath?.endsWith(".sh")
+                                    ? "This script has passed all ShellCheck quality checks and follows shell scripting best practices."
+                                    : "This script has passed all PSScriptAnalyzer quality checks and follows PowerShell best practices."
+                                  : script.testResult.result === "fail"
+                                    ? "This script has some issues that need to be addressed. Please review the code carefully."
+                                    : "This script has minor warnings but is generally safe to use."}
+                              </p>
+                              <div className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
+                                <Clock className="h-3 w-3" />
+                                <span>
+                                  Tested {script.testResult.timestamp}
+                                </span>
+                              </div>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className={`mb-3 gap-1.5 border px-2.5 py-1 text-xs font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
-                            >
-                              {React.createElement(
-                                testResultIcons[script.testResult.result] ||
-                                  testResultIcons.fail,
-                                { className: "h-3 w-3" },
-                              )}
-                              {script.testResult.result === "pass"
-                                ? "All Tests Passed"
-                                : script.testResult.result === "fail"
-                                  ? "Tests Failed"
-                                  : "Warnings Found"}
-                            </Badge>
-                            <p className="text-muted-foreground text-xs leading-relaxed">
-                              {script.testResult.result === "pass"
-                                ? script.githubPath?.endsWith(".sh")
-                                  ? "This script has passed all ShellCheck quality checks and follows shell scripting best practices."
-                                  : "This script has passed all PSScriptAnalyzer quality checks and follows PowerShell best practices."
-                                : script.testResult.result === "fail"
-                                  ? "This script has some issues that need to be addressed. Please review the code carefully."
-                                  : "This script has minor warnings but is generally safe to use."}
-                            </p>
-                            <div className="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
-                              <Clock className="h-3 w-3" />
-                              <span>Tested {script.testResult.timestamp}</span>
-                            </div>
-                          </div>
+                          )
                         )}
 
                         {/* Changelog */}

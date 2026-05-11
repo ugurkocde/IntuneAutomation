@@ -42,6 +42,34 @@ export interface PSScriptAnalyzerResult {
   timestamp: string;
 }
 
+export type TierStatus = "pass" | "fail" | "skip";
+
+export interface ScriptTestTier {
+  status: TierStatus;
+  issues?: number;
+  details?: Array<{
+    rule?: string;
+    line?: number;
+    severity?: string;
+    message?: string;
+  }>;
+  errors?: Array<{ line?: number; message?: string }>;
+  missing?: string[];
+  findings?: Array<{ line?: number; match?: string; reason?: string }>;
+  modules?: string[];
+  unknown?: string[];
+  guarded?: boolean;
+  note?: string;
+}
+
+export interface ScriptTests {
+  path: string;
+  type: "PowerShell" | "Shell";
+  lastTested: string;
+  tests: Record<string, ScriptTestTier>;
+  overall: TierStatus;
+}
+
 export interface ScriptUsageStats {
   totalViews: number;
   totalDownloads: number;
@@ -68,8 +96,10 @@ export interface Script {
   githubPath?: string;
   githubUrl?: string;
   changelog?: string[];
-  // PSScriptAnalyzer test results
+  // PSScriptAnalyzer test results (legacy flat shape, kept for back-compat)
   testResult?: PSScriptAnalyzerResult;
+  // Structured per-tier test results
+  tests?: ScriptTests;
   // Usage statistics
   usageStats?: ScriptUsageStats;
   // Notification script metadata

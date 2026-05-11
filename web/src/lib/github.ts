@@ -3,6 +3,7 @@ import type {
   Script,
   ScriptTag,
   PSScriptAnalyzerResult,
+  ScriptTests,
   ScriptUsageStats,
   RemediationType,
   ScriptType,
@@ -42,6 +43,8 @@ const REPO_NAME = "IntuneAutomation";
 const SCRIPTS_PATH = "scripts";
 const TEST_RESULTS_URL =
   "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/refs/heads/main/testresults.json";
+const STRUCTURED_TEST_RESULTS_URL =
+  "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/refs/heads/main/script-tests.json";
 const PERMISSIONS_URL =
   "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/refs/heads/main/permissions.json";
 
@@ -340,6 +343,30 @@ class GitHubService {
     }
   }
 
+  async fetchStructuredTestResults(): Promise<Record<string, ScriptTests>> {
+    try {
+      const response = await fetch(STRUCTURED_TEST_RESULTS_URL, {
+        next: { revalidate: 300 },
+      });
+
+      if (!response.ok) {
+        console.warn(
+          "Failed to fetch structured test results:",
+          response.statusText,
+        );
+        return {};
+      }
+
+      const data = (await response.json()) as {
+        scripts?: Record<string, ScriptTests>;
+      };
+      return data.scripts ?? {};
+    } catch (error) {
+      console.warn("Failed to fetch structured test results:", error);
+      return {};
+    }
+  }
+
   async fetchPermissionsData(): Promise<
     Record<string, { displayName: string; description: string }>
   > {
@@ -387,11 +414,13 @@ class GitHubService {
 
   async fetchAllScripts(): Promise<Script[]> {
     try {
-      const [files, testResults, analyticsData] = await Promise.all([
-        this.getAllScriptFiles(),
-        this.fetchTestResults(),
-        AnalyticsService.getAllScriptAnalytics(),
-      ]);
+      const [files, testResults, structuredTests, analyticsData] =
+        await Promise.all([
+          this.getAllScriptFiles(),
+          this.fetchTestResults(),
+          this.fetchStructuredTestResults(),
+          AnalyticsService.getAllScriptAnalytics(),
+        ]);
 
       const scripts: Script[] = [];
       const remediationScripts = new Map<
@@ -414,6 +443,9 @@ class GitHubService {
             (result) =>
               result.filename === file.name || result.filename === id + ".ps1",
           );
+
+          // Structured per-tier tests
+          const tests = structuredTests[file.name];
 
           // Get analytics data for this script, fallback to mock data if not available
           const analytics = analyticsData[id];
@@ -465,6 +497,7 @@ class GitHubService {
             githubPath: file.path,
             githubUrl: file.html_url,
             testResult: testResult,
+            tests: tests,
             usageStats: usageStats,
             scriptType: scriptType,
             pairScript: metadata.pairScript,
@@ -536,6 +569,7 @@ class GitHubService {
             githubPath: `scripts/remediation/${folderName}`,
             githubUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/main/scripts/remediation/${folderName}`,
             testResult: pair.detection.testResult,
+            tests: pair.detection.tests,
             usageStats: pair.detection.usageStats,
             scriptType: "remediation",
             category: "remediation",

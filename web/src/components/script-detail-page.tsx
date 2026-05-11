@@ -40,6 +40,7 @@ import SearchDialog from "~/components/search-dialog";
 import { AnalyticsService } from "~/lib/supabase-analytics";
 import { Breadcrumb, type BreadcrumbItem } from "~/components/breadcrumb";
 import { RelatedScripts } from "~/components/related-scripts";
+import { QualityChecks } from "~/components/quality-checks";
 
 interface ScriptDetailPageProps {
   script: Script;
@@ -399,7 +400,7 @@ export function ScriptDetailPage({
               items={[
                 { name: "Home", href: "/" },
                 { name: "Scripts", href: "/scripts/" },
-                { name: script.title }
+                { name: script.title },
               ]}
               className="mb-6"
             />
@@ -453,30 +454,34 @@ export function ScriptDetailPage({
                 )}
               </div>
 
-              {/* Test Results */}
-              {script.testResult && (
-                <div className="bg-muted/50 mb-6 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`gap-2 border px-3 py-1 text-sm font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
-                    >
-                      {React.createElement(
-                        testResultIcons[script.testResult.result] ||
-                          testResultIcons.fail,
-                        { className: "h-4 w-4" },
-                      )}
-                      {script.testResult.result === "pass"
-                        ? "All Tests Passed"
-                        : script.testResult.result === "fail"
-                          ? "Tests Failed"
-                          : "Warnings Found"}
-                    </Badge>
-                    <span className="text-muted-foreground text-sm">
-                      Tested on {script.testResult.timestamp}
-                    </span>
+              {/* Test Results - per-tier panel when available, fallback to flat badge */}
+              {script.tests ? (
+                <QualityChecks tests={script.tests} />
+              ) : (
+                script.testResult && (
+                  <div className="bg-muted/50 mb-6 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={`gap-2 border px-3 py-1 text-sm font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
+                      >
+                        {React.createElement(
+                          testResultIcons[script.testResult.result] ||
+                            testResultIcons.fail,
+                          { className: "h-4 w-4" },
+                        )}
+                        {script.testResult.result === "pass"
+                          ? "All Tests Passed"
+                          : script.testResult.result === "fail"
+                            ? "Tests Failed"
+                            : "Warnings Found"}
+                      </Badge>
+                      <span className="text-muted-foreground text-sm">
+                        Tested on {script.testResult.timestamp}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* Action buttons */}
