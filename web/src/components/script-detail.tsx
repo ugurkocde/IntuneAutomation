@@ -40,12 +40,13 @@ import {
   TestTube,
   ChevronDown,
   ChevronUp,
-  Info,
   Activity,
   Cloud,
   Bell,
   Monitor,
   Apple,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useToast } from "~/hooks/use-toast";
 import { AnalyticsService } from "~/lib/supabase-analytics";
@@ -133,20 +134,6 @@ function SectionKicker({ children }: { children: React.ReactNode }) {
     >
       {children}
     </p>
-  );
-}
-
-// Hairline rule — used between sections and action items.
-function ActionSeparator() {
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-block h-3 w-px shrink-0"
-      style={{
-        backgroundColor:
-          "color-mix(in oklab, var(--brand-rule) 80%, transparent)",
-      }}
-    />
   );
 }
 
@@ -550,6 +537,25 @@ export function ScriptDetail({
 
             {/* Action buttons */}
             <div className="flex shrink-0 items-center gap-1">
+              {isDesktop && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-accent hidden h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:inline-flex"
+                  aria-label={
+                    isSidebarCollapsed ? "Show details panel" : "Hide details panel"
+                  }
+                  title={
+                    isSidebarCollapsed ? "Show details" : "Hide details"
+                  }
+                >
+                  {isSidebarCollapsed ? (
+                    <PanelLeftOpen className="h-4 w-4" strokeWidth={2} />
+                  ) : (
+                    <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -750,7 +756,9 @@ export function ScriptDetail({
                           </ul>
                         </div>
 
-                        {/* Permissions — hairline-bordered card, mono kicker. */}
+                        {/* Permissions — hairline-bordered card, mono kicker.
+                            Render each scope on its own row so long lists stop
+                            collapsing into a hard-to-scan comma blob. */}
                         <div
                           className="rounded-md border p-3"
                           style={{ borderColor: "var(--brand-rule)" }}
@@ -763,20 +771,33 @@ export function ScriptDetail({
                             />
                             <SectionKicker>// REQUIRED PERMISSIONS</SectionKicker>
                           </div>
-                          <p className="text-muted-foreground font-mono text-[11px] leading-relaxed">
-                            {script.permissions?.join(", ") ||
-                              "DeviceManagement.Read.All"}
-                          </p>
+                          <ul className="space-y-1">
+                            {(script.permissions && script.permissions.length > 0
+                              ? script.permissions
+                              : ["DeviceManagement.Read.All"]
+                            ).map((perm) => (
+                              <li key={perm}>
+                                <code
+                                  className="font-mono text-[11px] leading-relaxed break-all"
+                                  style={{ color: "var(--brand-accent-hi)" }}
+                                >
+                                  {perm}
+                                </code>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
 
                         {/* Action row — mirrors v4 ScriptCard vocabulary.
-                            Deploy gets Azure-blue. Copy + Download + GitHub stay neutral. */}
-                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                            Deploy gets Azure-blue. Copy + Download + GitHub stay neutral.
+                            Stacked vertically — three buttons side-by-side in a ~33% sidebar
+                            forced text to wrap awkwardly at common widths. */}
+                        <div className="flex flex-col gap-2">
                           {/* GitHub */}
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-10 w-full cursor-pointer gap-2 rounded-md text-xs font-medium tracking-wide uppercase sm:h-9 sm:flex-1"
+                            className="h-10 w-full cursor-pointer gap-2 rounded-md text-xs font-medium tracking-wide uppercase sm:h-9"
                             asChild
                           >
                             <a
@@ -806,7 +827,7 @@ export function ScriptDetail({
                                 type="button"
                                 onClick={handleDeployToAzure}
                                 disabled={isDeployingToAzure}
-                                className="focus-visible:ring-accent inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border text-xs font-medium tracking-wide uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:flex-1"
+                                className="focus-visible:ring-accent inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border text-xs font-medium tracking-wide uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-9"
                                 style={{
                                   borderColor:
                                     "color-mix(in oklab, var(--brand-azure) 55%, transparent)",
@@ -842,7 +863,7 @@ export function ScriptDetail({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-10 w-full cursor-pointer gap-2 rounded-md text-xs font-medium tracking-wide uppercase sm:h-9 sm:flex-1"
+                            className="h-10 w-full cursor-pointer gap-2 rounded-md text-xs font-medium tracking-wide uppercase sm:h-9"
                             onClick={handleDownloadScript}
                             disabled={downloaded}
                           >
@@ -1007,7 +1028,7 @@ export function ScriptDetail({
               borderColor: "var(--brand-rule)",
             }}
           >
-            {/* Code header — mono filename + sidebar toggle + Copy button */}
+            {/* Code header — mono filename + Copy button */}
             <div
               className="flex shrink-0 items-center justify-between border-b px-4 py-3"
               style={{
@@ -1026,39 +1047,6 @@ export function ScriptDetail({
                   {script.id}.
                   {script.githubPath?.endsWith(".sh") ? "sh" : "ps1"}
                 </span>
-                {isDesktop && (
-                  <>
-                    <ActionSeparator />
-                    <button
-                      type="button"
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-sm font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-                      aria-label={
-                        isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
-                      }
-                    >
-                      {isSidebarCollapsed ? (
-                        <>
-                          <Info
-                            className="h-3 w-3"
-                            strokeWidth={2}
-                            aria-hidden="true"
-                          />
-                          <span>Show details</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown
-                            className="h-3 w-3"
-                            strokeWidth={2}
-                            aria-hidden="true"
-                          />
-                          <span>Hide details</span>
-                        </>
-                      )}
-                    </button>
-                  </>
-                )}
               </div>
 
               {/* Copy button — neutral by default, cyan-accent on success */}
