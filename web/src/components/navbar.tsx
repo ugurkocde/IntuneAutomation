@@ -81,7 +81,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="group text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="group text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
               aria-label="Search scripts"
             >
               <Search className="h-3.5 w-3.5" strokeWidth={2} />
@@ -106,7 +106,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={scrollToFaq}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent cursor-pointer rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 FAQ
               </button>
@@ -139,7 +139,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md transition-colors"
               aria-label="Search scripts"
             >
               <Search className="h-4 w-4" strokeWidth={2} />
@@ -150,7 +150,7 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen((v) => !v)}
               aria-label="Toggle menu"
               aria-expanded={isMobileMenuOpen}
-              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md transition-colors"
             >
               {isMobileMenuOpen ? (
                 <X className="h-4 w-4" strokeWidth={2} />
@@ -174,7 +174,7 @@ export default function Navbar() {
                   setSearchOpen(true);
                   setIsMobileMenuOpen(false);
                 }}
-                className="text-foreground hover:bg-card flex items-center justify-between rounded-md px-3 py-2.5 transition-colors"
+                className="text-foreground hover:bg-card flex cursor-pointer items-center justify-between rounded-md px-3 py-2.5 transition-colors"
               >
                 <span className="inline-flex items-center gap-2">
                   <Search className="h-4 w-4" /> Search
@@ -203,7 +203,7 @@ export default function Navbar() {
                     scrollToFaq();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="text-foreground hover:bg-card rounded-md px-3 py-2.5 text-left transition-colors"
+                  className="text-foreground hover:bg-card cursor-pointer rounded-md px-3 py-2.5 text-left transition-colors"
                 >
                   FAQ
                 </button>
