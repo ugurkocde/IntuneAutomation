@@ -1,402 +1,532 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo, useCallback } from "react";
-import {
-  motion,
-  useScroll,
-  useTransform,
-  useReducedMotion,
-} from "framer-motion";
-import { ChevronDown, Play, Search, Star, Check, Eye } from "lucide-react";
+// Hero v4 — library-shape forward.
+// Signature visual: a CategoryMap on the right rendered as a filesystem-tree
+// catalog (~/intune-library/ + tag directories with live script counts). Each
+// row is a real link to /scripts/{tag}/. Honest about scale, on-brand with the
+// engineering aesthetic, no single script pretends to be "the" canonical one.
+// Atmosphere: layered cyan radial glow + grain + masked blueprint grid.
+// Typography: three weight-contrasted H1 lines with clip-path reveal on load.
+// Custom scroll cue.
+
+import { useCallback, useMemo } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, ArrowUpRight, Search } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
+import type { ScriptTag } from "~/lib/scripts";
 
-// Move features outside component to prevent recreation on each render
-// Reduced to 7 core features for better UX
-const FEATURES = [
-  "Get compliance reports without the headache",
-  "Sync multiple devices at once",
-  "Identify and fix non-compliant devices quickly",
-  "Generate HTML or CSV reports with one command",
-  "Automate RBAC and permission audits",
-  "Bulk deploy and update apps across platforms",
-  "Detect and remove unused or stale objects",
-] as const;
-
-interface Particle {
-  left: number;
-  top: number;
-  duration: number;
-  delay: number;
-}
-
-// Fast feature rotation hook with smooth transitions
-// Slowed to 4 seconds for better readability
-const useFeatureRotation = (features: readonly string[], duration = 4000) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsVisible(false);
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % features.length);
-        setIsVisible(true);
-      }, 150); // Quick fade out/in
-    }, duration);
-
-    return () => clearInterval(interval);
-  }, [features.length, duration]);
-
-  return { currentFeature: features[currentIndex], isVisible };
-};
 
 export default function HeroSection() {
-  const { setSearchOpen, allScripts, isLoading, error } = useScripts();
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const { setSearchOpen, allScripts } = useScripts();
   const prefersReducedMotion = useReducedMotion();
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end start"],
-  });
-
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
-  const [isHovered, setIsHovered] = useState(false);
-
-  // Use fast feature rotation for immediate engagement
-  const { currentFeature, isVisible } = useFeatureRotation(FEATURES, 4000);
-
-  // State for particles to prevent hydration mismatch
-  const [particles, setParticles] = useState<Particle[]>([]);
-
-  // State for total views count
-  const [totalViews, setTotalViews] = useState<number | null>(null);
-
-  // Fetch total views from stats API
-  useEffect(() => {
-    fetch("/api/stats/totals")
-      .then((res) => res.json())
-      .then((data: { totalViews: number }) => {
-        setTotalViews(data.totalViews);
-      })
-      .catch((error) => {
-        console.warn("Failed to fetch stats:", error);
-      });
-  }, []);
-
-  // Generate particles only on client side to prevent hydration mismatch
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      setParticles([]);
-      return;
-    }
-
-    // Reduce particle count on mobile for better performance
-    const isMobile = window.innerWidth < 768;
-    const particleCount = isMobile ? 15 : 40;
-
-    const newParticles = Array.from({ length: particleCount }, () => ({
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      duration: 3 + Math.random() * 4,
-      delay: Math.random() * 5,
-    }));
-    setParticles(newParticles);
-  }, [prefersReducedMotion]);
-
-  const scrollToScripts = useCallback(() => {
-    const scriptsSection = document.getElementById("popular-scripts-section");
-    if (scriptsSection) {
-      scriptsSection.scrollIntoView({ behavior: "smooth" });
-    }
-  }, []);
-
-  const navigateToScripts = useCallback(() => {
-    window.location.href = "/scripts";
-  }, []);
+  // Real count when scripts have loaded; otherwise an honest floor value
+  // so the trust strip never renders an empty "scripts" attestation.
+  const scriptsCountLabel =
+    allScripts.length > 0 ? `${allScripts.length}+` : "120+";
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
   }, [setSearchOpen]);
 
-  // Enhanced keyboard navigation
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        scrollToScripts();
-      }
-    },
-    [scrollToScripts],
-  );
+  // Motion choreography. Each block declares its own delay so the timeline is
+  // visible at a glance. Total settle under 1.2s.
+  const init = prefersReducedMotion ? false : { opacity: 0, y: 12 };
+  const animate = { opacity: 1, y: 0 };
+  const ease = [0.22, 1, 0.36, 1] as const;
+  const t = (delay: number, duration = 0.55) => ({ delay, duration, ease });
 
   return (
     <section
-      ref={sectionRef}
-      className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center overflow-hidden px-4 py-8 text-center sm:py-12"
-      aria-label="Hero section with IntuneAutomation introduction"
+      className="relative isolate overflow-hidden"
+      aria-label="IntuneAutomation introduction"
     >
-      {/* Enhanced Background with Animated Elements */}
-      <div className="absolute inset-0 z-0" aria-hidden="true">
-        <div className="from-background/20 via-background/60 to-background absolute inset-0 bg-gradient-to-b"></div>
+      {/* -------- Atmosphere layers (back to front) -------- */}
+      <HeroAtmosphere />
 
-        {/* Animated gradient orbs - only animate if user allows motion */}
-        {!prefersReducedMotion && (
-          <>
-            <motion.div
-              className="absolute top-1/4 left-1/4 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl sm:h-72 sm:w-72 md:h-96 md:w-96"
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 8,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              }}
-            />
-            <motion.div
-              className="absolute right-1/4 bottom-1/4 h-48 w-48 rounded-full bg-purple-500/10 blur-3xl sm:h-72 sm:w-72 md:h-96 md:w-96"
-              animate={{
-                scale: [1.2, 1, 1.2],
-                opacity: [0.5, 0.3, 0.5],
-              }}
-              transition={{
-                duration: 8,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-                delay: 4,
-              }}
-            />
-            <motion.div
-              className="absolute top-1/2 left-1/2 h-32 w-32 rounded-full bg-green-500/5 blur-3xl sm:h-48 sm:w-48 md:h-72 md:w-72"
-              animate={{
-                x: [-30, 30, -30],
-                y: [-20, 20, -20],
-              }}
-              transition={{
-                duration: 12,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              }}
-            />
-          </>
-        )}
+      <div className="relative mx-auto max-w-7xl px-4 pt-24 pb-20 sm:px-6 sm:pt-28 sm:pb-28 lg:pt-32 lg:pb-32">
+        <div className="grid grid-cols-1 items-start gap-14 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
+          {/* ============================================== */}
+          {/* LEFT — typography + CTAs                       */}
+          {/* ============================================== */}
+          <div className="min-w-0">
 
-        {/* Floating particles */}
-        {particles.map((particle, index) => (
+            {/* H1 — three-line weight-contrasted lockup with clip-reveal.
+             * Last line uses the muted weight + cyan accent on "production"
+             * so the promise lands as the eye finishes the headline. */}
+            <h1 className="font-display text-foreground text-[clamp(2.4rem,7vw,6.5rem)] leading-[0.95]">
+              <RevealLine
+                delay={prefersReducedMotion ? 0 : 0.15}
+                weight="normal"
+              >
+                Intune scripts
+              </RevealLine>
+              <RevealLine
+                delay={prefersReducedMotion ? 0 : 0.28}
+                weight="display"
+              >
+                that actually work
+              </RevealLine>
+              <RevealLine
+                delay={prefersReducedMotion ? 0 : 0.41}
+                weight="muted"
+              >
+                in{" "}
+                <span className="text-accent-hi font-semibold">
+                  production.
+                </span>
+              </RevealLine>
+            </h1>
+
+            {/* Lead — citation-ready, AI-engines quotable */}
+            <motion.p
+              initial={init}
+              animate={animate}
+              transition={t(0.58)}
+              className="text-muted-foreground mt-8 max-w-xl text-base leading-relaxed sm:text-lg"
+            >
+              120+ open-source Intune scripts you can run locally or deploy as
+              Azure Automation runbooks without writing any infrastructure code.
+            </motion.p>
+
+            {/* CTAs — primary has real depth + custom focus; secondary is the
+             * GitHub anchor with live star count; tertiary is the search
+             * affordance with the `/` shortcut surfaced. */}
+            <motion.div
+              initial={init}
+              animate={animate}
+              transition={t(0.7)}
+              className="mt-10 flex flex-row flex-wrap items-center gap-3 sm:gap-4"
+            >
+              <Link
+                href="/scripts/"
+                className="group ring-accent inline-flex h-12 items-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent),0_8px_22px_-12px_color-mix(in_oklab,var(--brand-accent)_60%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0"
+              >
+                Browse scripts
+                <span
+                  aria-hidden="true"
+                  className="relative inline-block h-4 w-4 overflow-hidden"
+                >
+                  <ArrowRight className="absolute inset-0 h-4 w-4 transition-transform duration-300 group-hover:translate-x-4 group-hover:-translate-y-4" />
+                  <ArrowUpRight className="absolute inset-0 h-4 w-4 -translate-x-4 translate-y-4 transition-transform duration-300 group-hover:translate-x-0 group-hover:translate-y-0" />
+                </span>
+              </Link>
+
+              <a
+                href="#how-it-works"
+                className="border-border/70 hover:border-accent/40 group focus-visible:ring-accent inline-flex h-12 items-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <span>See how it works</span>
+                <span
+                  aria-hidden="true"
+                  className="text-muted-foreground group-hover:text-foreground transition-[color,transform] group-hover:translate-y-0.5"
+                >
+                  ↓
+                </span>
+              </a>
+
+              {/* Tertiary Search affordance — hidden on mobile because the
+               * navbar already exposes a search icon at the same width. From
+               * sm+ we surface the `/` shortcut hint inline. */}
+              <button
+                type="button"
+                onClick={handleSearchClick}
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent hidden h-12 items-center gap-2 rounded-md px-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:inline-flex"
+              >
+                <Search className="h-3.5 w-3.5" strokeWidth={2} />
+                <span>Search</span>
+                <kbd className="border-border/70 text-muted-foreground ml-0.5 inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] opacity-80 select-none">
+                  /
+                </kbd>
+              </button>
+            </motion.div>
+
+            {/* Trust micro-strip — small linked attestations */}
+            <motion.div
+              initial={init}
+              animate={animate}
+              transition={t(0.82)}
+              className="text-muted-foreground mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-widest uppercase"
+            >
+              <Link
+                href="/scripts/"
+                className="hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Dot /> {scriptsCountLabel} scripts
+              </Link>
+              <span className="inline-flex items-center gap-1.5">
+                <Dot /> PSScriptAnalyzer validated in CI
+              </span>
+            </motion.div>
+          </div>
+
+          {/* ============================================== */}
+          {/* RIGHT — Category map                           */}
+          {/* The library's shape at a glance. Each tile     */}
+          {/* clicks through to a filtered view. Honest about*/}
+          {/* scale — no single script pretends to be "the"  */}
+          {/* canonical example.                              */}
+          {/* ============================================== */}
           <motion.div
-            key={index}
-            className="bg-primary/20 absolute h-1 w-1 rounded-full"
-            style={{
-              left: `${particle.left}%`,
-              top: `${particle.top}%`,
-            }}
-            animate={{
-              y: [-20, -100, -20],
-              opacity: [0, 1, 0],
-            }}
-            transition={{
-              duration: particle.duration,
-              repeat: Number.POSITIVE_INFINITY,
-              delay: particle.delay,
-            }}
-          />
-        ))}
+            initial={prefersReducedMotion ? false : { opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={t(0.32, 0.7)}
+            className="min-w-0"
+          >
+            <CategoryMap />
+          </motion.div>
+        </div>
       </div>
 
-      <motion.div className="z-10 mx-auto max-w-6xl" style={{ y, opacity }}>
-        {/* Enhanced Badge with Live Stats */}
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="mb-6 inline-block sm:mb-8"
-        >
-          <div className="border-primary/20 text-primary rounded-full border bg-gradient-to-r from-blue-500/10 to-purple-500/10 px-4 py-2 text-sm font-medium backdrop-blur-sm sm:px-6 sm:text-sm">
-            <span className="inline-flex items-center gap-1.5 sm:gap-2">
-              <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">
-                Scripts for Microsoft Intune
-              </span>
-              <span className="sm:hidden">Intune Scripts</span>
-            </span>
-          </div>
-        </motion.div>
-
-        {/* Main Heading with Enhanced Accessibility */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-          className="mb-4 sm:mb-6"
-        >
-          <h1 className="mb-3 text-4xl leading-tight font-bold tracking-tight sm:mb-4 sm:text-5xl md:text-7xl lg:text-8xl">
-            <span
-              className="bg-size-200 animate-gradient bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 bg-clip-text text-transparent"
-              style={prefersReducedMotion ? { animation: "none" } : {}}
-            >
-              IntuneAutomation
-            </span>
-          </h1>
-        </motion.div>
-
-        {/* Enhanced Dynamic Subtitle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="mb-6 sm:mb-8"
-        >
-          <p className="text-muted-foreground mb-3 text-xl leading-relaxed sm:mb-4 sm:text-2xl md:text-3xl">
-            <span className="text-foreground font-semibold">
-              Save 20+ hours per week
-            </span>{" "}
-            automating Microsoft Intune.
-          </p>
-          <div className="relative flex h-10 items-center justify-center px-4 sm:h-12">
-            {prefersReducedMotion ? (
-              <p className="text-primary absolute inset-0 flex items-center justify-center text-center text-base font-medium sm:text-lg md:text-xl">
-                {currentFeature}
-              </p>
-            ) : (
-              <motion.div
-                className="text-primary absolute inset-0 flex items-center justify-center text-center text-base font-medium sm:text-lg md:text-xl"
-                key={currentFeature}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{
-                  opacity: isVisible ? 1 : 0,
-                  y: isVisible ? 0 : -10,
-                }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                {currentFeature}
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Enhanced Call-to-Action Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-          className="mb-8 flex flex-col justify-center gap-3 px-4 sm:mb-12 sm:flex-row sm:gap-4 sm:px-0"
-        >
-          <motion.button
-            onClick={handleSearchClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            disabled={isLoading}
-            className="group focus:ring-offset-background relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-purple-700 px-10 py-5 text-lg font-bold text-white shadow-2xl transition-all duration-150 hover:from-blue-700 hover:to-purple-800 hover:shadow-2xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:px-10 sm:py-5"
-            whileHover={
-              prefersReducedMotion
-                ? {}
-                : { scale: isLoading ? 1 : 1.08, y: isLoading ? 0 : -3 }
-            }
-            whileTap={
-              prefersReducedMotion ? {} : { scale: isLoading ? 1 : 0.95 }
-            }
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            aria-label="Open search dialog to find scripts"
-          >
-            {/* Animated background effect */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0"
-              initial={{ x: "-100%" }}
-              animate={isHovered && !isLoading ? { x: "100%" } : { x: "-100%" }}
-              transition={{ duration: 0.5 }}
-            />
-            <span className="relative flex items-center justify-center gap-2">
-              <Search
-                className={`h-4 w-4 transition-transform sm:h-5 sm:w-5 ${isLoading ? "animate-spin" : "group-hover:rotate-12"}`}
-              />
-              <span className="text-sm sm:text-base">
-                {isLoading ? "Loading..." : "Search Scripts"}
-              </span>
-            </span>
-          </motion.button>
-
-          <motion.button
-            onClick={navigateToScripts}
-            className="group bg-background/80 text-foreground hover:bg-background border-border focus:ring-primary focus:ring-offset-background cursor-pointer rounded-2xl border px-8 py-4 font-medium backdrop-blur-sm transition-all duration-150 hover:border-primary/30 focus:ring-2 focus:ring-offset-2 focus:outline-none sm:px-8 sm:py-4"
-            whileHover={prefersReducedMotion ? {} : { scale: 1.02, y: -1 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            aria-label="Navigate to scripts collection page"
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Play className="h-4 w-4 transition-transform group-hover:translate-x-1 sm:h-5 sm:w-5" />
-              <span className="text-sm sm:text-base">Browse Collection</span>
-            </span>
-          </motion.button>
-        </motion.div>
-
-        {/* Trust Badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
-          className="mb-8 flex flex-wrap items-center justify-center gap-3 px-4 sm:mb-10 sm:gap-4"
-        >
-          <div className="flex items-center gap-1.5 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-600 backdrop-blur-sm dark:text-green-400 sm:text-sm">
-            <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span>Open Source</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-600 backdrop-blur-sm dark:text-blue-400 sm:text-sm">
-            <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span>Community Tested</span>
-          </div>
-          {totalViews && (
-            <div className="flex items-center gap-1.5 rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-600 backdrop-blur-sm dark:text-purple-400 sm:text-sm">
-              <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span>{(totalViews / 1000).toFixed(1)}K+ Views</span>
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 backdrop-blur-sm dark:text-amber-400 sm:text-sm">
-            <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span>PSScriptAnalyzer Validated</span>
-          </div>
-        </motion.div>
-
-        {/* Error State */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400"
-          >
-            <p>⚠️ Having trouble loading scripts. Please try again later.</p>
-          </motion.div>
-        )}
-      </motion.div>
-
-      {/* Enhanced Scroll Indicator with Keyboard Support */}
-      <motion.div
-        className="group focus:ring-primary focus:ring-offset-background absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer rounded-lg focus:ring-2 focus:ring-offset-2 focus:outline-none sm:bottom-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
-        onClick={scrollToScripts}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="button"
-        aria-label="Scroll down to see popular scripts"
-        whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-      >
-        <motion.div
-          animate={prefersReducedMotion ? {} : { y: [0, 8, 0] }}
-          transition={{ repeat: Number.POSITIVE_INFINITY, duration: 2 }}
-          className="flex flex-col items-center gap-1 p-2 sm:gap-2"
-        >
-          <span className="text-muted-foreground group-hover:text-foreground text-xs transition-colors">
-            Popular Scripts
-          </span>
-          <ChevronDown className="text-muted-foreground group-hover:text-foreground h-6 w-6 transition-colors sm:h-8 sm:w-8" />
-        </motion.div>
-      </motion.div>
+      {/* Custom scroll cue — hardware-style ready indicator */}
+      <ScrollCue />
     </section>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Atmosphere layers                                                          */
+/* -------------------------------------------------------------------------- */
+
+function HeroAtmosphere() {
+  return (
+    <>
+      {/* Phosphor glow anchored upper-right, drifts subtly.
+       * Lower opacity in light mode so cyan reads as warmth, not a teal smudge
+       * on cream paper. The dark: variant restores the full intensity. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -right-32 -z-20 h-[680px] w-[680px] rounded-full opacity-30 blur-3xl dark:opacity-70"
+        style={{
+          background:
+            "radial-gradient(circle at center, color-mix(in oklab, var(--brand-accent) 28%, transparent) 0%, color-mix(in oklab, var(--brand-accent) 12%, transparent) 35%, transparent 70%)",
+        }}
+      >
+        <div className="animate-drift h-full w-full" />
+      </div>
+
+      {/* Secondary cool glow anchored lower-left, much fainter */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-40 -left-20 -z-20 h-[520px] w-[520px] rounded-full opacity-15 blur-3xl dark:opacity-40"
+        style={{
+          background:
+            "radial-gradient(circle at center, color-mix(in oklab, var(--brand-azure) 18%, transparent) 0%, transparent 65%)",
+        }}
+      />
+
+      {/* Blueprint grid with radial mask so corners feel infinite */}
+      <div
+        aria-hidden="true"
+        className="bg-blueprint-soft pointer-events-none absolute inset-0 -z-10 opacity-60"
+        style={{
+          maskImage:
+            "radial-gradient(ellipse 90% 70% at 50% 35%, black 35%, transparent 88%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 90% 70% at 50% 35%, black 35%, transparent 88%)",
+        }}
+      />
+
+      {/* Grain noise — tactile texture. Multiply on light, overlay on dark
+       * so the texture reads as ink rather than haze on either canvas. */}
+      <div
+        aria-hidden="true"
+        className="bg-grain pointer-events-none absolute inset-0 -z-10 opacity-[0.03] mix-blend-multiply dark:opacity-[0.04] dark:mix-blend-overlay"
+      />
+
+      {/* Bottom hairline rule to mark end of hero section */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-0 bottom-0 left-0 h-px"
+        style={{ background: "var(--brand-rule)", opacity: 0.5 }}
+      />
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  RevealLine — clip-path mask wipe-reveal for headline lines                 */
+/* -------------------------------------------------------------------------- */
+
+function RevealLine({
+  children,
+  delay,
+  weight,
+}: {
+  children: React.ReactNode;
+  delay: number;
+  weight: "normal" | "display" | "muted";
+}) {
+  const reduced = useReducedMotion();
+  const weightClass =
+    weight === "display"
+      ? "font-semibold"
+      : weight === "muted"
+        ? "text-muted-foreground font-normal"
+        : "font-normal";
+
+  return (
+    <motion.span
+      initial={reduced ? false : { clipPath: "inset(0 100% 0 0)", opacity: 0 }}
+      animate={{ clipPath: "inset(0 0% 0 0)", opacity: 1 }}
+      transition={{
+        delay,
+        duration: 0.65,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className={`block tracking-[-0.04em] ${weightClass}`}
+    >
+      {children}
+    </motion.span>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Dot — tiny cyan indicator used in trust strip                              */
+/* -------------------------------------------------------------------------- */
+
+function Dot() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-1 w-1 rounded-full"
+      style={{ backgroundColor: "var(--brand-accent)" }}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  ScrollCue — custom hardware-ready indicator                                */
+/* -------------------------------------------------------------------------- */
+
+function ScrollCue() {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 sm:flex"
+    >
+      <div className="flex flex-col items-center gap-[3px]">
+        <span
+          className="pulse-cue h-px w-6"
+          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0s" }}
+        />
+        <span
+          className="pulse-cue h-px w-6"
+          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0.4s" }}
+        />
+        <span
+          className="pulse-cue h-px w-6"
+          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0.8s" }}
+        />
+      </div>
+      <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+        Scroll
+      </span>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  CategoryMap — the library's shape at a glance.                             */
+/*  Six topic tiles, each with a live script count and a one-liner. Clicking   */
+/*  a tile filters /scripts/ to that tag. Honest about the library being a    */
+/*  catalog — no single script pretends to be canonical.                       */
+/* -------------------------------------------------------------------------- */
+
+interface CategoryEntry {
+  tag: ScriptTag;
+  slug: string; // dir-name representation in the catalog tree
+}
+
+// Order: the six most-trafficked categories first, then five more. On lg+
+// screens we show all 11. Below lg we render only the first 6 + a closing
+// "more topics" branch so the catalog stays compact on tablets and phones.
+const CATEGORY_TREE: CategoryEntry[] = [
+  { tag: "Devices", slug: "devices" },
+  { tag: "Compliance", slug: "compliance" },
+  { tag: "Apps", slug: "apps" },
+  { tag: "Security", slug: "security" },
+  { tag: "Reporting", slug: "reporting" },
+  { tag: "Operational", slug: "operational" },
+  { tag: "Configuration", slug: "configuration" },
+  { tag: "Monitoring", slug: "monitoring" },
+  { tag: "Diagnostics", slug: "diagnostics" },
+  { tag: "Notification", slug: "notification" },
+  { tag: "Remediation", slug: "remediation" },
+];
+
+const COMPACT_VISIBLE = 6;
+
+function CategoryMap() {
+  const { allScripts } = useScripts();
+
+  // Real per-tag counts from allScripts. Falls back to em-dash until loaded.
+  const counts = useMemo(() => {
+    const map = new Map<ScriptTag, number>();
+    for (const script of allScripts) {
+      for (const tag of script.tags) {
+        map.set(tag, (map.get(tag) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allScripts]);
+
+  const totalCount = allScripts.length;
+  const compactList = CATEGORY_TREE.slice(0, COMPACT_VISIBLE);
+  const moreCategoriesCount = Math.max(
+    0,
+    CATEGORY_TREE.length - COMPACT_VISIBLE,
+  );
+  const totalLabel = totalCount > 0 ? totalCount.toString() : "120+";
+
+  return (
+    <div
+      className="bg-card/40 relative overflow-hidden rounded-lg border backdrop-blur-md"
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      {/* Header — mono kicker with real total */}
+      <div
+        className="flex items-center justify-between border-b px-5 py-3"
+        style={{ borderColor: "var(--brand-rule)" }}
+      >
+        <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+          // Library · {totalLabel} scripts
+        </p>
+        <Link
+          href="/scripts/"
+          className="text-muted-foreground hover:text-foreground font-mono inline-flex items-center gap-1 text-[10px] tracking-[0.18em] uppercase transition-colors"
+        >
+          All
+          <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+        </Link>
+      </div>
+
+      {/* Filesystem-tree body — each row is a real `<a>` to the filtered view.
+       * Below `lg`: first 6 entries + a "more topics" closing branch (keeps
+       * the catalog compact on tablets/phones). On `lg+`: all 11 entries are
+       * rendered, the last using a `└──` corner connector. */}
+      <div className="px-5 py-5 font-mono text-[13px] leading-[1.9]">
+        {/* Root label */}
+        <p className="text-muted-foreground select-none">
+          ~/intune-library
+          <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
+        </p>
+
+        {/* Compact tree — visible below lg */}
+        <ul className="mt-1.5 lg:hidden">
+          {compactList.map((entry) => (
+            <CatalogRow
+              key={entry.tag}
+              entry={entry}
+              connector="├──"
+              count={counts.get(entry.tag) ?? null}
+            />
+          ))}
+          <BrowseAllBranch
+            connector="└──"
+            moreCount={moreCategoriesCount}
+          />
+        </ul>
+
+        {/* Full tree — visible at lg+ */}
+        <ul className="mt-1.5 hidden lg:block">
+          {CATEGORY_TREE.map((entry, i) => {
+            const isLast = i === CATEGORY_TREE.length - 1;
+            return (
+              <CatalogRow
+                key={entry.tag}
+                entry={entry}
+                connector={isLast ? "└──" : "├──"}
+                count={counts.get(entry.tag) ?? null}
+              />
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function CatalogRow({
+  entry,
+  connector,
+  count,
+}: {
+  entry: CategoryEntry;
+  connector: string;
+  count: number | null;
+}) {
+  return (
+    <li>
+      <Link
+        href={`/scripts/${entry.slug}/`}
+        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none"
+        aria-label={`Browse ${entry.tag} scripts`}
+      >
+        <span
+          aria-hidden="true"
+          className="text-muted-foreground/60 select-none"
+        >
+          {connector}
+        </span>
+        <span className="text-foreground group-hover:text-accent-hi transition-colors">
+          {entry.slug}
+        </span>
+        <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
+        <span
+          aria-hidden="true"
+          className="text-muted-foreground/40 mx-1 flex-1 overflow-hidden tracking-[0.18em] select-none"
+        >
+          ··················································································
+        </span>
+        <span className="text-foreground tabular-nums">{count ?? "—"}</span>
+        <ArrowUpRight
+          className="text-muted-foreground group-hover:text-accent-hi h-3 w-3 shrink-0 translate-y-[1px] transition-all group-hover:-translate-y-px"
+          aria-hidden="true"
+        />
+      </Link>
+    </li>
+  );
+}
+
+function BrowseAllBranch({
+  connector,
+  moreCount,
+}: {
+  connector: string;
+  moreCount: number;
+}) {
+  return (
+    <li>
+      <Link
+        href="/scripts/"
+        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none"
+      >
+        <span
+          aria-hidden="true"
+          className="text-muted-foreground/60 select-none"
+        >
+          {connector}
+        </span>
+        <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+          + {moreCount} more topics
+        </span>
+        <span
+          aria-hidden="true"
+          className="text-muted-foreground/40 mx-1 flex-1 overflow-hidden tracking-[0.18em] select-none"
+        >
+          ··················································································
+        </span>
+        <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+          browse all
+        </span>
+        <ArrowRight
+          className="text-muted-foreground group-hover:text-accent-hi h-3 w-3 shrink-0 translate-y-[1px] transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </Link>
+    </li>
+  );
+}
+

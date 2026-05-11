@@ -2,6 +2,7 @@
 
 import { lazy, Suspense } from "react";
 import dynamic from "next/dynamic";
+import { MotionConfig } from "framer-motion";
 import Navbar from "~/components/navbar";
 import HeroSection from "~/components/hero-section";
 import { ScriptsProvider, useScripts } from "~/components/scripts-provider";
@@ -12,11 +13,18 @@ const Footer = lazy(() => import("~/components/footer"));
 const SearchDialog = lazy(() => import("~/components/search-dialog"));
 const EcosystemSection = lazy(() => import("~/components/ecosystem-section"));
 const FAQSection = lazy(() => import("~/components/faq-section"));
-const FloatingSubscriptionCTA = lazy(
-  () => import("~/components/floating-subscription-cta"),
+const HowItWorksSection = lazy(
+  () => import("~/components/how-it-works-section"),
 );
-const StatsSection = lazy(() => import("~/components/stats-section"));
-const HowItWorksSection = lazy(() => import("~/components/how-it-works-section"));
+const WhatsNewStrip = lazy(() => import("~/components/whats-new-strip"));
+
+// FloatingSubscriptionCTA initialises a Supabase client at module load (for
+// the subscriber-count query) which touches localStorage. Defer it to the
+// client so it doesn't blow up during SSR.
+const FloatingSubscriptionCTA = dynamic(
+  () => import("~/components/floating-subscription-cta"),
+  { ssr: false },
+);
 
 // Dynamic import for heavy components with loading states
 const PopularScripts = dynamic(() => import("~/components/popular-scripts"), {
@@ -46,32 +54,45 @@ const ScriptDetail = dynamic(
 
 export default function Home() {
   return (
-    <AnalyticsProvider>
-      <ScriptsProvider>
-        <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+    // reducedMotion="user" tells framer-motion to honor the user's OS
+    // preference from the first SSR/CSR frame onward — avoids the one-frame
+    // animation flash on devices that prefer reduced motion (which happens
+    // when useReducedMotion() returns null on initial render).
+    <MotionConfig reducedMotion="user">
+      <AnalyticsProvider>
+        <ScriptsProvider>
+        <div className="bg-background flex min-h-screen flex-col">
           <Navbar />
           <main className="flex-1">
             <HeroSection />
-            <Suspense fallback={<div className="h-24" />}>
-              <StatsSection />
+            <PopularScripts />
+            <Suspense fallback={<div className="h-40" />}>
+              <WhatsNewStrip />
             </Suspense>
             <Suspense fallback={<div className="h-64" />}>
               <HowItWorksSection />
             </Suspense>
-            <PopularScripts />
+            {/* FAQSection lives inside main because the navbar scrolls to its
+             * id anchor. Give it its own Suspense with min-height so the page
+             * doesn't collapse while the chunk loads. */}
+            <Suspense fallback={<div className="min-h-[400px]" />}>
+              <FAQSection />
+            </Suspense>
+            <Suspense fallback={<div className="min-h-[300px]" />}>
+              <EcosystemSection />
+            </Suspense>
           </main>
 
           <Suspense fallback={<div className="h-0" />}>
             <SearchDialog />
-            <FAQSection />
-            <EcosystemSection />
-            <FloatingSubscriptionCTA />
             <Footer />
           </Suspense>
+          <FloatingSubscriptionCTA />
         </div>
-        <HomeScriptDetail />
-      </ScriptsProvider>
-    </AnalyticsProvider>
+          <HomeScriptDetail />
+        </ScriptsProvider>
+      </AnalyticsProvider>
+    </MotionConfig>
   );
 }
 

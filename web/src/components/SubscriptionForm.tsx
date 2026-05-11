@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Mail } from "lucide-react";
 import { getSubscriberHeaders } from "~/lib/supabase-headers";
 
 // Initialize Supabase client
@@ -76,42 +77,72 @@ export default function SubscriptionForm() {
     }
   };
 
+  const isError = status.toLowerCase().includes("error");
+
   return (
-    <div className="my-8 rounded-lg bg-gray-50 p-6 dark:bg-gray-800">
-      <h3 className="mb-2 flex items-center gap-2 text-xl font-semibold">
-        <span>📧</span>
-        <span>Subscribe to Script Updates</span>
-      </h3>
-      <p className="mb-4 text-gray-600 dark:text-gray-300">
-        Get notified when new Intune automation scripts are added or updated.
-      </p>
-
-      <form onSubmit={handleSubscribe} className="flex gap-3">
-        <input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? "Subscribing..." : "Subscribe"}
-        </button>
-      </form>
-
-      {status && (
-        <p
-          className={`mt-4 ${status.includes("Error") ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
-        >
-          {status}
+    <div
+      className="bg-card/40 my-8 overflow-hidden rounded-md border backdrop-blur-md"
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      <div
+        className="flex items-center justify-between border-b px-5 py-3"
+        style={{ borderColor: "var(--brand-rule)" }}
+      >
+        <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
+          // SUBSCRIBE
         </p>
-      )}
+        <Mail
+          className="h-3.5 w-3.5"
+          strokeWidth={1.75}
+          style={{ color: "var(--brand-accent-hi)" }}
+          aria-hidden="true"
+        />
+      </div>
+
+      <div className="px-6 py-6">
+        <h3 className="font-display text-foreground mb-2 text-xl tracking-tight">
+          Subscribe to script updates
+        </h3>
+        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
+          Get notified when new Intune automation scripts are added or updated.
+        </p>
+
+        <form
+          onSubmit={handleSubscribe}
+          className="flex flex-col gap-3 sm:flex-row"
+        >
+          <input
+            type="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            className="bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-accent flex-1 rounded-md border px-4 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-60"
+            style={{ borderColor: "var(--brand-rule)" }}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-foreground text-background ring-accent inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+          >
+            {loading ? "Subscribing..." : "Subscribe"}
+          </button>
+        </form>
+
+        {status && (
+          <p
+            className="mt-4 font-mono text-[11px] tracking-[0.14em] uppercase"
+            style={{
+              color: isError
+                ? "var(--destructive)"
+                : "var(--brand-accent-hi)",
+            }}
+          >
+            {status}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

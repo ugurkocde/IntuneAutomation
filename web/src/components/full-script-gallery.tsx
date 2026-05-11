@@ -1,198 +1,151 @@
 "use client";
 
+// FullScriptGallery v4 — page chrome for /scripts/.
+// Surface vocabulary inherited from hero + script-card v4:
+//   - mono `// SECTION` kickers in accent-hi
+//   - Geist font-display headlines, no gradient text
+//   - hairline-bordered panels via var(--brand-rule), rounded-md / rounded-lg
+//   - mono uppercase tag pills (cyan-hi border + text-accent-hi when active)
+//   - search input mirrors the v4 search-dialog field treatment
+//   - sort + pagination use semantic tokens, mono labels
+// Card rendering itself is unchanged — ScriptCard is already v4 and owns its
+// own surface. We only style the OUTER wrapper + filter chrome.
+//
+// Strict useScripts contracts preserved:
+//   - searchQuery/setSearchQuery bidirectional binding (shared with search-dialog)
+//   - selectedTags/toggleTag (shared filter state)
+//   - setSelectedScript + setIsDetailOpen open the modal
+//   - handleScriptClick dispatches `scriptViewed` window event
+//   - handleScriptClick pushes `/script/{slug}/` to history
+//   - AnalyticsService.trackScriptView fire-and-forget per card click
+
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ScriptCard } from "~/components/script-card";
-import { ScriptListItem } from "~/components/script-list-item";
 import { ScriptDetail } from "~/components/script-detail";
-import { TagFilter } from "~/components/tag-filter";
 import { useScripts } from "~/components/scripts-provider";
 import { AnalyticsService } from "~/lib/supabase-analytics";
+import { allTags, type Script, type ScriptTag } from "~/lib/scripts";
 import {
   Search,
   RefreshCw,
   AlertCircle,
-  Github,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown,
-  Eye,
-  Calendar,
-  Download as DownloadIcon,
-  SortAsc,
-  Grid3X3,
-  List,
-  ArrowLeft,
+  X,
 } from "lucide-react";
-import { Input } from "~/components/ui/input";
-import { Button } from "~/components/ui/button";
-import { Alert, AlertDescription } from "~/components/ui/alert";
 import Link from "next/link";
 
 type SortOption = "views" | "recent" | "alphabetical" | "downloads";
-type ViewMode = "grid" | "list";
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "views", label: "Most viewed" },
+  { value: "downloads", label: "Most downloaded" },
+  { value: "recent", label: "Recently updated" },
+  { value: "alphabetical", label: "Alphabetical" },
+];
+
+const SCRIPTS_PER_PAGE = 12;
 
 export default function FullScriptGallery() {
   const {
+    allScripts,
     filteredScripts,
     selectedScript,
     setSelectedScript,
     searchQuery,
     setSearchQuery,
-    setSearchOpen,
+    selectedTags,
+    toggleTag,
+    setSelectedTags,
     isDetailOpen,
     setIsDetailOpen,
     isLoading,
     error,
-    lastFetched,
     refetchScripts,
     updateScriptStats,
   } = useScripts();
 
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [localSearch, setLocalSearch] = useState(searchQuery);
   const [sortBy, setSortBy] = useState<SortOption>("views");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [sortOpen, setSortOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const hasHandledInitialUrl = useRef(false);
+  const prefersReducedMotion = useReducedMotion();
 
-  // Pagination settings - adjust based on view mode
-  const scriptsPerPage = viewMode === "grid" ? 12 : 15;
-
-  // Handle initial URL parameters
+  // Keep local input mirrored to provider state (provider is the source of
+  // truth — `filteredScripts` is derived from `searchQuery`).
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const viewParam = params.get("view");
-      if (viewParam === "list") {
-        setViewMode("list");
-      }
-    }
-  }, []);
-
-  // Sort scripts based on selected option
-  const sortedScripts = [...filteredScripts].sort((a, b) => {
-    switch (sortBy) {
-      case "views":
-        const aViews = a.usageStats?.totalViews || 0;
-        const bViews = b.usageStats?.totalViews || 0;
-        return bViews - aViews;
-
-      case "downloads":
-        const aDownloads = a.usageStats?.totalDownloads || 0;
-        const bDownloads = b.usageStats?.totalDownloads || 0;
-        return bDownloads - aDownloads;
-
-      case "recent":
-        const aDate = new Date(a.lastUpdated || 0).getTime();
-        const bDate = new Date(b.lastUpdated || 0).getTime();
-        // If dates are the same, sort by title alphabetically for consistent ordering
-        if (aDate === bDate) {
-          return a.title.localeCompare(b.title);
-        }
-        return bDate - aDate;
-
-      case "alphabetical":
-        return a.title.localeCompare(b.title);
-
-      default:
-        return 0;
-    }
-  });
-
-  const totalPages = Math.ceil(sortedScripts.length / scriptsPerPage);
-
-  // Get current page scripts
-  const currentScripts = sortedScripts.slice(
-    currentPage * scriptsPerPage,
-    (currentPage + 1) * scriptsPerPage,
-  );
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [filteredScripts, sortBy, viewMode]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isDropdownOpen) {
-        const target = event.target as Element;
-        if (!target.closest(".relative")) {
-          setIsDropdownOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isDropdownOpen]);
-
-  useEffect(() => {
-    setLocalSearchQuery(searchQuery);
+    setLocalSearch(searchQuery);
   }, [searchQuery]);
 
-  const handlePrevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-      scrollToTop();
+  // Per-tag counts (mono pills surface real counts next to the tag name).
+  const tagCounts = useMemo(() => {
+    const map = new Map<ScriptTag, number>();
+    for (const script of allScripts) {
+      for (const tag of script.tags) {
+        map.set(tag, (map.get(tag) ?? 0) + 1);
+      }
     }
-  };
+    return map;
+  }, [allScripts]);
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(currentPage + 1);
-      scrollToTop();
-    }
-  };
+  // Sort the already-filtered scripts.
+  const sortedScripts = useMemo(() => {
+    const copy = [...filteredScripts];
+    copy.sort((a, b) => {
+      switch (sortBy) {
+        case "views":
+          return (b.usageStats?.totalViews ?? 0) - (a.usageStats?.totalViews ?? 0);
+        case "downloads":
+          return (
+            (b.usageStats?.totalDownloads ?? 0) -
+            (a.usageStats?.totalDownloads ?? 0)
+          );
+        case "recent": {
+          const aDate = new Date(a.lastUpdated ?? 0).getTime();
+          const bDate = new Date(b.lastUpdated ?? 0).getTime();
+          if (aDate === bDate) return a.title.localeCompare(b.title);
+          return bDate - aDate;
+        }
+        case "alphabetical":
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+    return copy;
+  }, [filteredScripts, sortBy]);
 
-  const scrollToTop = () => {
-    const scriptsSection = document.getElementById("scripts-section");
-    if (scriptsSection) {
-      scriptsSection.scrollIntoView({ behavior: "smooth" });
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(sortedScripts.length / SCRIPTS_PER_PAGE));
+  const currentScripts = sortedScripts.slice(
+    currentPage * SCRIPTS_PER_PAGE,
+    (currentPage + 1) * SCRIPTS_PER_PAGE,
+  );
 
-  const getSortIcon = (option: SortOption) => {
-    switch (option) {
-      case "views":
-        return <Eye className="h-4 w-4" />;
-      case "downloads":
-        return <DownloadIcon className="h-4 w-4" />;
-      case "recent":
-        return <Calendar className="h-4 w-4" />;
-      case "alphabetical":
-        return <SortAsc className="h-4 w-4" />;
-      default:
-        return <ArrowUpDown className="h-4 w-4" />;
-    }
-  };
-
-  const getSortLabel = (option: SortOption) => {
-    switch (option) {
-      case "views":
-        return "Most Viewed";
-      case "downloads":
-        return "Most Downloaded";
-      case "recent":
-        return "Recently Added";
-      case "alphabetical":
-        return "Alphabetical";
-      default:
-        return "Sort";
-    }
-  };
-
+  // Reset to first page when filters / sort change.
   useEffect(() => {
-    // Handle initial URL params for deep linking
-    if (!hasHandledInitialUrl.current) {
+    setCurrentPage(0);
+  }, [filteredScripts.length, sortBy]);
+
+  // Close sort dropdown on outside click.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (target && !target.closest("[data-sort-menu]")) setSortOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [sortOpen]);
+
+  // Initial deep-link handling + popstate sync.
+  useEffect(() => {
+    if (!hasHandledInitialUrl.current && typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const scriptParam = params.get("script");
-
       if (scriptParam) {
         const script = filteredScripts.find(
           (s) =>
@@ -200,7 +153,6 @@ export default function FullScriptGallery() {
             s.slug === scriptParam ||
             s.title.toLowerCase().replace(/\s+/g, "-") === scriptParam,
         );
-
         if (script) {
           setSelectedScript(script);
           setIsDetailOpen(true);
@@ -209,11 +161,9 @@ export default function FullScriptGallery() {
       hasHandledInitialUrl.current = true;
     }
 
-    // Listen for browser back/forward navigation
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const scriptParam = params.get("script");
-
       if (scriptParam) {
         const script = filteredScripts.find(
           (s) =>
@@ -221,7 +171,6 @@ export default function FullScriptGallery() {
             s.slug === scriptParam ||
             s.title.toLowerCase().replace(/\s+/g, "-") === scriptParam,
         );
-
         if (script && script !== selectedScript) {
           setSelectedScript(script);
           setIsDetailOpen(true);
@@ -233,459 +182,323 @@ export default function FullScriptGallery() {
     };
 
     window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [filteredScripts, selectedScript, setSelectedScript, setIsDetailOpen]);
 
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [filteredScripts, selectedScript, setSelectedScript]);
-
+  // Mirror selected script to URL for shareable state.
   useEffect(() => {
-    // Update URL when selected script changes
     if (selectedScript && isDetailOpen) {
       const scriptSlug = selectedScript.slug || selectedScript.id;
       window.history.pushState(null, "", `?script=${scriptSlug}`);
     } else if (!isDetailOpen && selectedScript === null) {
-      window.history.pushState(null, "", "/scripts");
+      window.history.pushState(null, "", "/scripts/");
     }
   }, [selectedScript, isDetailOpen]);
 
-  const handleScriptClick = (script: any) => {
-    // Update stats immediately in the UI for real-time feedback
+  // Card click — preserves all analytics + URL contracts.
+  const handleScriptClick = (script: Script) => {
     updateScriptStats(script.id, "view");
-
-    // Emit custom event for script view
     window.dispatchEvent(new Event("scriptViewed"));
 
-    // Track analytics in the background (don't block UI)
     const userAgent =
       typeof window !== "undefined" ? navigator.userAgent : undefined;
     const sessionId =
       typeof window !== "undefined"
-        ? sessionStorage.getItem("session_id") || undefined
+        ? sessionStorage.getItem("session_id") ?? undefined
         : undefined;
 
-    AnalyticsService.trackScriptView(script.id, script.title, {
+    void AnalyticsService.trackScriptView(script.id, script.title, {
       userAgent,
       sessionId,
-    }).catch((error) => {
-      // Silently fail - analytics shouldn't block user experience
+    }).catch(() => {
+      /* swallow — analytics never block UX */
     });
 
-    // Update URL to match the script page for better navigation
-    window.history.pushState(null, "", `/scripts?script=${script.slug || script.id}`);
-
+    window.history.pushState(null, "", `/script/${script.slug || script.id}/`);
     setSelectedScript(script);
     setIsDetailOpen(true);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(localSearchQuery);
+  // Debounced-ish search: we push every keystroke directly to provider since
+  // it is already O(filtered) and the dataset is small.
+  const handleSearchChange = (value: string) => {
+    setLocalSearch(value);
+    setSearchQuery(value);
+  };
+
+  const totalCount = allScripts.length;
+  const filtersActive = selectedTags.length > 0 || searchQuery.length > 0;
+
+  const scrollToResults = () => {
+    const el = document.getElementById("scripts-results");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <section
       id="scripts-section"
-      className="container mx-auto max-w-7xl px-4 py-8"
+      className="container mx-auto max-w-7xl px-4 pt-16 pb-20 sm:px-6 sm:pt-20"
     >
-      {/* Page Header */}
-      <div className="mb-8">
-        <div className="mb-6 flex items-center gap-4">
-          <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Link>
-          </Button>
-        </div>
+      {/* ─────────────── Page header ─────────────── */}
+      <header className="mb-12">
+        <p className="font-mono-label text-accent-hi">
+          // Library · {totalCount > 0 ? totalCount : "—"} scripts
+        </p>
+        <h1 className="font-display text-foreground mt-4 text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.05] tracking-[-0.02em]">
+          Every script in the{" "}
+          <span className="text-accent-hi font-semibold">library.</span>
+        </h1>
+        <p className="text-muted-foreground mt-5 max-w-2xl text-base leading-relaxed sm:text-lg">
+          The complete catalog of open-source PowerShell scripts for Microsoft
+          Intune — run locally or deploy as Azure Automation runbooks. Filter
+          by tag, search, sort.
+        </p>
 
-        <div className="text-center">
-          <h1 className="mb-4 text-4xl font-bold">Script Collection</h1>
-          <p className="text-muted-foreground mx-auto max-w-2xl">
-            Browse the complete collection of PowerShell scripts to automate
-            Microsoft Intune tasks. Filter by tags, search, and choose your
-            preferred view.
-          </p>
-        </div>
-
-        {/* Status Information */}
-        <div className="mt-6 flex flex-col items-center gap-4">
-          {isLoading && (
-            <div className="text-muted-foreground flex items-center gap-2 text-sm">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Fetching latest scripts from GitHub...</span>
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive" className="max-w-2xl">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
-                <span>Failed to fetch scripts from GitHub: {error}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refetchScripts}
-                  className="ml-4"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {lastFetched && !isLoading && !error && (
-            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <Github className="h-3 w-3" />
-              <span>
-                Last updated from GitHub:{" "}
-                {new Date(lastFetched).toLocaleString()}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refetchScripts}
-                className="h-6 px-2 text-xs"
-              >
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-10 space-y-8">
-        {/* Search Section */}
-        <div className="flex flex-col items-center justify-center">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="relative w-full max-w-lg"
+        {/* Status row — surfaced inline rather than centered to keep the
+            header rhythm intact. */}
+        {error && (
+          <div
+            className="bg-card/40 mt-6 flex items-start gap-3 rounded-md border p-4 backdrop-blur-md"
+            style={{ borderColor: "var(--brand-rule)" }}
+            role="alert"
           >
-            <Search className="text-muted-foreground absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="Search scripts by name, description, or tags..."
-              className="focus:border-primary/50 focus:ring-primary/20 h-12 rounded-xl border-2 py-3 pr-4 pl-12 text-base transition-all duration-200 focus:ring-2"
-              value={localSearchQuery}
-              onChange={(e) => setLocalSearchQuery(e.target.value)}
-              onFocus={() => setSearchOpen(true)}
+            <AlertCircle
+              className="text-destructive h-4 w-4 shrink-0 translate-y-0.5"
+              aria-hidden="true"
             />
-          </form>
+            <div className="flex flex-1 items-center justify-between gap-3">
+              <p className="text-sm">
+                <span className="text-foreground font-medium">
+                  Failed to fetch scripts from GitHub.
+                </span>{" "}
+                <span className="text-muted-foreground">{error}</span>
+              </p>
+              <button
+                type="button"
+                onClick={refetchScripts}
+                className="focus-visible:ring-accent text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
+              >
+                <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* ─────────────── Filter chrome ─────────────── */}
+      <div
+        className="bg-card/40 mb-10 rounded-lg border backdrop-blur-md"
+        style={{ borderColor: "var(--brand-rule)" }}
+      >
+        {/* Search row */}
+        <div
+          className="flex items-center gap-3 border-b px-5"
+          style={{ borderColor: "var(--brand-rule)" }}
+        >
+          <Search
+            className="text-muted-foreground h-4 w-4 shrink-0"
+            aria-hidden="true"
+            strokeWidth={2}
+          />
+          <input
+            type="text"
+            value={localSearch}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="search filename, tag, description..."
+            aria-label="Search scripts"
+            className="placeholder:text-muted-foreground/70 text-foreground flex h-14 w-full bg-transparent text-[15px] outline-none"
+          />
+          {localSearch && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange("")}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+          <kbd className="border-border/70 text-muted-foreground hidden h-5 shrink-0 items-center rounded border px-1.5 font-mono text-[10px] opacity-80 select-none sm:inline-flex">
+            /
+          </kbd>
         </div>
 
-        {/* Info Cards - Right under search */}
-        <div className="mx-auto max-w-4xl">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Usage Stats Card - Redesigned */}
-            <div className="group relative overflow-hidden rounded-lg border bg-gradient-to-br from-slate-50/50 to-gray-50/30 p-4 transition-all duration-300 hover:shadow-sm dark:from-slate-900/50 dark:to-gray-900/30 dark:hover:shadow-md">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/50">
-                      <Eye className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Usage Statistics
-                    </h3>
-                  </div>
-
-                  <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                    Track popularity and recent activity. Green shows weekly
-                    growth.
-                  </p>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-gray-800">
-                        <Eye className="h-2.5 w-2.5" />
-                      </div>
-                      <span>Views</span>
-                      <span className="ml-auto text-xs font-medium text-green-600 dark:text-green-400">
-                        +X this week
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <div className="flex h-4 w-4 items-center justify-center rounded bg-gray-100 dark:bg-gray-800">
-                        <DownloadIcon className="h-2.5 w-2.5" />
-                      </div>
-                      <span>Downloads</span>
-                      <span className="ml-auto text-xs font-medium text-green-600 dark:text-green-400">
-                        +X this week
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Subtle background decoration */}
-              <div className="absolute -top-3 -right-3 h-12 w-12 rounded-full bg-blue-50 opacity-50 dark:bg-blue-900/20"></div>
-            </div>
-
-            {/* Growing Collection Card - Redesigned */}
-            <div className="group relative overflow-hidden rounded-lg border bg-gradient-to-br from-emerald-50/50 to-teal-50/30 p-4 transition-all duration-300 hover:shadow-sm dark:from-emerald-900/20 dark:to-teal-900/20 dark:hover:shadow-md">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/50">
-                      <RefreshCw className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                      <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></div>
-                    </div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Active Development
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <div className="h-1 w-1 rounded-full bg-emerald-500"></div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Live
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                  Continuously updated based on community feedback and latest
-                  Intune features.
-                </p>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <div className="h-1 w-1 rounded-full bg-blue-500"></div>
-                    <span>Community Driven</span>
-                  </div>
-
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="h-6 border-emerald-200 bg-white/80 px-2 text-xs text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-700/50 dark:bg-gray-800/50 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
-                  >
-                    <Link
-                      href="https://github.com/ugurkocde/IntuneAutomation/issues/new?assignees=&labels=script-request&projects=&template=script-request.md&title=%5BScript+Request%5D"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1"
-                    >
-                      <Github className="h-3 w-3" />
-                      Request Script
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Subtle background decoration */}
-              <div className="absolute -right-4 -bottom-4 h-14 w-14 rounded-full bg-emerald-50 opacity-40 dark:bg-emerald-900/10"></div>
-            </div>
+        {/* Tag pill row (horizontally scrollable) */}
+        <div
+          className="border-b px-5 py-3"
+          style={{ borderColor: "var(--brand-rule)" }}
+        >
+          <div
+            className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="group"
+            aria-label="Filter by tag"
+          >
+            {allTags.map((tag) => {
+              const active = selectedTags.includes(tag);
+              const count = tagCounts.get(tag) ?? 0;
+              return (
+                <TagPill
+                  key={tag}
+                  tag={tag}
+                  count={count}
+                  active={active}
+                  onClick={() => toggleTag(tag)}
+                />
+              );
+            })}
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="bg-border mx-auto h-px w-24"></div>
+        {/* Sort + filter-summary row */}
+        <div className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+              {filtersActive ? (
+                <>
+                  {selectedTags.length > 0 && (
+                    <>
+                      {selectedTags.length} tag
+                      {selectedTags.length === 1 ? "" : "s"}
+                    </>
+                  )}
+                  {selectedTags.length > 0 && searchQuery.length > 0 && " · "}
+                  {searchQuery.length > 0 && "search"}
+                  {" · "}
+                  {sortedScripts.length} result
+                  {sortedScripts.length === 1 ? "" : "s"}
+                </>
+              ) : (
+                <>{sortedScripts.length} results</>
+              )}
+            </p>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTags([]);
+                  handleSearchChange("");
+                }}
+                className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+              >
+                Clear
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            )}
+          </div>
 
-        {/* Filter Section with integrated Sort Control and View Toggle */}
-        <TagFilter
-          sortControl={
-            <div className="flex items-center gap-3">
-              {/* View Toggle */}
-              <div className="flex items-center gap-1 rounded-lg border p-1">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className="gap-2 px-3"
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Grid</span>
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="gap-2 px-3"
-                >
-                  <List className="h-4 w-4" />
-                  <span className="hidden sm:inline">List</span>
-                </Button>
-              </div>
-
-              <span className="text-muted-foreground text-sm font-medium">
-                Sort by:
+          {/* Sort dropdown */}
+          <div className="relative" data-sort-menu>
+            <button
+              type="button"
+              onClick={() => setSortOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={sortOpen}
+              className="focus-visible:ring-accent border-border/70 hover:border-accent/40 hover:text-foreground text-muted-foreground inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
+              style={{ borderColor: "var(--brand-rule)" }}
+            >
+              <span className="text-muted-foreground/80">Sort</span>
+              <span className="text-foreground">
+                {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
               </span>
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-[180px] justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    {getSortIcon(sortBy)}
-                    <span>{getSortLabel(sortBy)}</span>
-                  </div>
-                  <ChevronRight
-                    className={`h-4 w-4 transition-transform ${isDropdownOpen ? "rotate-90" : ""}`}
-                  />
-                </Button>
+              <ChevronRight
+                className={`h-3 w-3 transition-transform ${sortOpen ? "rotate-90" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
 
-                {isDropdownOpen && (
-                  <div className="bg-popover absolute top-full right-0 z-50 mt-1 w-[180px] rounded-md border p-1 shadow-md">
-                    {(
-                      [
-                        "views",
-                        "downloads",
-                        "recent",
-                        "alphabetical",
-                      ] as SortOption[]
-                    ).map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => {
-                          setSortBy(option);
-                          setIsDropdownOpen(false);
-                        }}
-                        className={`hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm ${
-                          sortBy === option
-                            ? "bg-accent text-accent-foreground"
-                            : ""
-                        }`}
-                      >
-                        {getSortIcon(option)}
-                        {getSortLabel(option)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          }
-        />
+            <AnimatePresence>
+              {sortOpen && (
+                <motion.ul
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+                  role="listbox"
+                  className="bg-card/95 absolute top-full right-0 z-30 mt-2 w-56 overflow-hidden rounded-md border backdrop-blur-md"
+                  style={{ borderColor: "var(--brand-rule)" }}
+                >
+                  {SORT_OPTIONS.map((opt) => {
+                    const active = sortBy === opt.value;
+                    return (
+                      <li key={opt.value}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            setSortBy(opt.value);
+                            setSortOpen(false);
+                          }}
+                          className={`hover:bg-accent-soft flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-mono text-[11px] tracking-[0.14em] uppercase transition-colors ${
+                            active
+                              ? "text-accent-hi"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          {active && (
+                            <span
+                              aria-hidden="true"
+                              className="inline-block h-1 w-1 rounded-full"
+                              style={{
+                                backgroundColor: "var(--brand-accent-hi)",
+                              }}
+                            />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="py-12 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <RefreshCw className="text-muted-foreground h-8 w-8 animate-spin" />
-            <p className="text-muted-foreground">
-              Loading scripts from GitHub...
-            </p>
-          </div>
-        </div>
-      ) : filteredScripts.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-muted-foreground">
-            No scripts found matching your criteria.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Scripts Display */}
-          <motion.div
-            className={`min-h-[600px] ${
-              viewMode === "grid"
-                ? "grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-                : "space-y-4"
-            }`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ staggerChildren: 0.1 }}
-          >
-            {currentScripts.map((script, index) => (
-              <motion.div
-                key={script.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                {viewMode === "grid" ? (
-                  <ScriptCard
-                    script={script}
-                    onClick={() => handleScriptClick(script)}
-                  />
-                ) : (
-                  <ScriptListItem
-                    script={script}
-                    onClick={() => handleScriptClick(script)}
-                  />
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
+      {/* ─────────────── Results grid ─────────────── */}
+      <div id="scripts-results">
+        {isLoading ? (
+          <LoadingState />
+        ) : sortedScripts.length === 0 ? (
+          <EmptyState
+            onClear={() => {
+              setSelectedTags([]);
+              handleSearchChange("");
+            }}
+          />
+        ) : (
+          <>
+            <motion.div
+              key={`${sortBy}-${currentPage}-${selectedTags.join("-")}-${searchQuery}`}
+              initial={prefersReducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {currentScripts.map((script) => (
+                <ScriptCard
+                  key={script.id}
+                  script={script}
+                  onClick={() => handleScriptClick(script)}
+                />
+              ))}
+            </motion.div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="mt-12 flex items-center justify-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrevPage}
-                disabled={currentPage === 0}
-                className="flex items-center gap-2 shadow-sm"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-
-              {/* Page Indicators */}
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setCurrentPage(i);
-                      scrollToTop();
-                    }}
-                    className={`h-9 w-9 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      i === currentPage
-                        ? "bg-primary text-primary-foreground scale-105 shadow-sm"
-                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:scale-105"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages - 1}
-                className="flex items-center gap-2 shadow-sm"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {/* Results Summary */}
-          <div className="mt-8 text-center">
-            <div className="bg-muted/30 inline-flex items-center gap-2 rounded-full border px-4 py-2">
-              <span className="text-sm font-medium">
-                Showing {currentPage * scriptsPerPage + 1}-
-                {Math.min(
-                  (currentPage + 1) * scriptsPerPage,
-                  sortedScripts.length,
-                )}{" "}
-                of {sortedScripts.length} scripts
-              </span>
-              {sortBy !== "views" && (
-                <span className="text-muted-foreground text-xs">
-                  • sorted by{" "}
-                  {sortBy === "recent"
-                    ? "recently added"
-                    : sortBy === "alphabetical"
-                      ? "name"
-                      : sortBy}
-                </span>
-              )}
-              <span className="text-muted-foreground text-xs">
-                • {viewMode} view
-              </span>
-            </div>
-          </div>
-        </>
-      )}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onChange={(page) => {
+                  setCurrentPage(page);
+                  scrollToResults();
+                }}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       <AnimatePresence>
         {selectedScript && isDetailOpen && (
@@ -695,12 +508,159 @@ export default function FullScriptGallery() {
             onClose={() => {
               setIsDetailOpen(false);
               setSelectedScript(null);
-              // Navigate back to scripts page when closing modal
-              window.history.pushState(null, "", "/scripts");
+              window.history.pushState(null, "", "/scripts/");
             }}
           />
         )}
       </AnimatePresence>
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sub-primitives                                                     */
+/* ------------------------------------------------------------------ */
+
+function TagPill({
+  tag,
+  count,
+  active,
+  onClick,
+}: {
+  tag: ScriptTag;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      data-tag={tag}
+      className={
+        "focus-visible:ring-accent inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none " +
+        (active
+          ? "border-accent bg-accent-soft text-foreground"
+          : "text-accent-hi hover:bg-accent-soft hover:text-foreground")
+      }
+      style={
+        active
+          ? undefined
+          : {
+              borderColor:
+                "color-mix(in oklab, var(--brand-rule) 80%, transparent)",
+            }
+      }
+    >
+      <span>{tag}</span>
+      <span className="text-muted-foreground/70 tabular-nums">{count}</span>
+    </button>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div
+      className="bg-card/40 flex flex-col items-center gap-4 rounded-md border py-16 backdrop-blur-md"
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      <RefreshCw
+        className="text-muted-foreground h-6 w-6 animate-spin"
+        aria-hidden="true"
+      />
+      <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+        Loading scripts from GitHub...
+      </p>
+    </div>
+  );
+}
+
+function EmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <div
+      className="bg-card/40 flex flex-col items-center gap-4 rounded-md border py-16 text-center backdrop-blur-md"
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+        No scripts match your filters
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+      >
+        Clear filters
+        <span aria-hidden="true">→</span>
+      </button>
+    </div>
+  );
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  onChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  return (
+    <nav
+      aria-label="Pagination"
+      className="mt-10 flex items-center justify-center gap-2"
+    >
+      <button
+        type="button"
+        onClick={() => onChange(currentPage - 1)}
+        disabled={currentPage === 0}
+        className="focus-visible:ring-accent border-border/70 text-muted-foreground hover:text-foreground hover:border-accent/40 inline-flex h-9 items-center gap-1.5 rounded-md border px-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        style={{ borderColor: "var(--brand-rule)" }}
+        aria-label="Previous page"
+      >
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        Prev
+      </button>
+
+      <div className="flex items-center gap-1">
+        {Array.from({ length: totalPages }, (_, i) => {
+          const active = i === currentPage;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(i)}
+              aria-current={active ? "page" : undefined}
+              aria-label={`Page ${i + 1}`}
+              className={`focus-visible:ring-accent inline-flex h-9 w-9 items-center justify-center rounded-md border font-mono text-[11px] tabular-nums tracking-wide transition-colors focus-visible:ring-1 focus-visible:outline-none ${
+                active
+                  ? "text-foreground border-accent bg-accent-soft"
+                  : "text-muted-foreground hover:text-foreground hover:border-accent/40 border-border/70"
+              }`}
+              style={
+                active
+                  ? undefined
+                  : { borderColor: "var(--brand-rule)" }
+              }
+            >
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange(currentPage + 1)}
+        disabled={currentPage === totalPages - 1}
+        className="focus-visible:ring-accent border-border/70 text-muted-foreground hover:text-foreground hover:border-accent/40 inline-flex h-9 items-center gap-1.5 rounded-md border px-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        style={{ borderColor: "var(--brand-rule)" }}
+        aria-label="Next page"
+      >
+        Next
+        <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </nav>
   );
 }

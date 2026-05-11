@@ -1,9 +1,15 @@
 "use client";
 
+// ScriptComparisonTable v4 — editorial spec-sheet treatment.
+// Hairline-bordered comparison grid, mono column headers with Lucide icons (no emojis),
+// single cyan accent for the active column row separators. Summary cards reuse the
+// rounded-md / hairline / no-shadow card vocabulary; the "Notification" card carries
+// a faint azure-tinted top edge instead of the previous violet gradient.
+
 import React from "react";
-import { motion } from "framer-motion";
-import { Check, X, ArrowRight } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, Bell, Check, Settings, X } from "lucide-react";
 
 interface ComparisonRow {
   feature: string;
@@ -52,259 +58,320 @@ const comparisonData: ComparisonRow[] = [
     operational: "Read-only for specific resources",
     notification: "Read + Mail.Send",
   },
-  {
-    feature: "Local Execution Support",
-    operational: true,
-    notification: false,
-  },
-  {
-    feature: "Email Alerts",
-    operational: false,
-    notification: true,
-  },
+  { feature: "Local Execution Support", operational: true, notification: false },
+  { feature: "Email Alerts", operational: false, notification: true },
 ];
 
-export function ScriptComparisonTable() {
+/* ------------------------------------------------------------------------ */
+/*  Cell content primitive                                                   */
+/* ------------------------------------------------------------------------ */
+
+function CellValue({ value }: { value: string | boolean }) {
+  if (typeof value === "boolean") {
+    return value ? (
+      <span
+        className="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wide uppercase"
+        style={{ color: "var(--brand-accent-hi)" }}
+      >
+        <Check className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+        Yes
+      </span>
+    ) : (
+      <span className="text-muted-foreground/70 inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wide uppercase">
+        <X className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+        No
+      </span>
+    );
+  }
   return (
-    <section className="py-16">
-      <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto max-w-5xl"
-        >
-          <h2 className="mb-4 text-center text-3xl font-bold">
-            Script Types Comparison
+    <span className="text-muted-foreground text-sm leading-relaxed">
+      {value}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/*  Section                                                                  */
+/* ------------------------------------------------------------------------ */
+
+export function ScriptComparisonTable() {
+  const prefersReducedMotion = useReducedMotion();
+  const ease = [0.22, 1, 0.36, 1] as const;
+  const fade = (delay: number) => ({
+    initial: prefersReducedMotion ? false : { opacity: 0, y: 12 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, margin: "-80px" },
+    transition: { delay, duration: 0.55, ease },
+  });
+
+  return (
+    <section className="py-20 sm:py-24" aria-labelledby="comparison-heading">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        {/* Opener — mono kicker + display headline */}
+        <motion.div className="text-center" {...fade(0)}>
+          <p className="font-mono-label text-accent-hi">// COMPARISON</p>
+          <h2
+            id="comparison-heading"
+            className="font-display text-foreground mt-3 text-3xl leading-tight tracking-[-0.02em] sm:text-4xl"
+          >
+            Script types, side by side.
           </h2>
-          <p className="text-muted-foreground mb-12 text-center text-lg">
-            Understanding the differences between script types helps you choose
-            the right tool for your needs.
+          <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-base leading-relaxed sm:text-lg">
+            Understanding the difference between operational and notification
+            scripts helps you pick the right tool for the job.
           </p>
-
-          {/* Desktop Table */}
-          <div className="hidden overflow-hidden rounded-xl border shadow-sm md:block">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-muted/50 border-b">
-                  <th className="p-4 text-left font-semibold">Feature</th>
-                  <th className="p-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">⚙️</span>
-                      <div>
-                        <div className="font-semibold">
-                          Operational & Reporting Scripts
-                        </div>
-                        <div className="text-muted-foreground text-sm font-normal">
-                          Traditional scripts
-                        </div>
-                      </div>
-                    </div>
-                  </th>
-                  <th className="p-4 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">🔔</span>
-                      <div>
-                        <div className="flex items-center gap-2 font-semibold">
-                          Notification Scripts
-                          <span className="rounded bg-red-500 px-1.5 py-0.5 text-xs font-medium text-white">
-                            NEW
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground text-sm font-normal">
-                          Monitoring & alerts
-                        </div>
-                      </div>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonData.map((row, index) => (
-                  <motion.tr
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="hover:bg-muted/30 border-b transition-colors"
-                  >
-                    <td className="p-4 font-medium">{row.feature}</td>
-                    <td className="p-4">
-                      {typeof row.operational === "boolean" ? (
-                        row.operational ? (
-                          <Check className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <X className="h-5 w-5 text-red-600" />
-                        )
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {row.operational}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      {typeof row.notification === "boolean" ? (
-                        row.notification ? (
-                          <Check className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <X className="h-5 w-5 text-red-600" />
-                        )
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {row.notification}
-                        </span>
-                      )}
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="space-y-4 md:hidden">
-            {comparisonData.map((row, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card rounded-lg border p-4"
-              >
-                <h4 className="mb-3 font-semibold">{row.feature}</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground text-sm">
-                      Operational/Reporting
-                    </span>
-                    {typeof row.operational === "boolean" ? (
-                      row.operational ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-red-600" />
-                      )
-                    ) : (
-                      <span className="text-sm">{row.operational}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground text-sm">
-                      Notification
-                    </span>
-                    {typeof row.notification === "boolean" ? (
-                      row.notification ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-red-600" />
-                      )
-                    ) : (
-                      <span className="text-sm">{row.notification}</span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Summary Cards */}
-          <div className="mt-12 grid gap-6 md:grid-cols-2">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="bg-card rounded-xl border p-6"
-            >
-              <h3 className="mb-4 text-xl font-semibold">
-                When to Use Operational/Reporting Scripts
-              </h3>
-              <ul className="space-y-2">
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Need immediate results or reports
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Running ad-hoc analysis or troubleshooting
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Exporting data for further processing
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Performing one-time administrative tasks
-                  </span>
-                </li>
-              </ul>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/50 to-indigo-50/50 p-6 dark:border-violet-800 dark:from-violet-950/20 dark:to-indigo-950/20"
-            >
-              <h3 className="mb-4 text-xl font-semibold">
-                When to Use Notification Scripts
-              </h3>
-              <ul className="mb-6 space-y-2">
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Want proactive monitoring of your environment
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Need alerts for critical events or thresholds
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Managing compliance and security posture
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                  <span className="text-muted-foreground">
-                    Tracking expiration dates and renewals
-                  </span>
-                </li>
-              </ul>
-              <Button
-                variant="outline"
-                className="w-full justify-between border-violet-300 hover:bg-violet-100 dark:border-violet-700 dark:hover:bg-violet-900/50"
-                onClick={() => {
-                  const scriptsSection =
-                    document.getElementById("scripts-section");
-                  if (scriptsSection) {
-                    scriptsSection.scrollIntoView({ behavior: "smooth" });
-                    setTimeout(() => {
-                      const notificationButton = document.querySelector(
-                        '[data-tag="Notification"]',
-                      );
-                      if (notificationButton instanceof HTMLElement) {
-                        notificationButton.click();
-                      }
-                    }, 500);
-                  }
-                }}
-              >
-                <span>Explore Notification Scripts</span>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </motion.div>
-          </div>
         </motion.div>
+
+        {/* Desktop table */}
+        <motion.div
+          {...fade(0.1)}
+          className="bg-card/40 mt-12 hidden overflow-hidden rounded-md border backdrop-blur-md md:block"
+          style={{ borderColor: "var(--brand-rule)" }}
+        >
+          <table className="w-full text-left">
+            <thead>
+              <tr
+                className="border-b"
+                style={{ borderColor: "var(--brand-rule)" }}
+              >
+                <th className="w-1/3 px-5 py-4 align-bottom">
+                  <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+                    // FEATURE
+                  </p>
+                </th>
+                <th className="px-5 py-4 align-bottom">
+                  <p
+                    className="font-mono text-[10.5px] tracking-[0.18em] uppercase"
+                    style={{ color: "var(--brand-accent-hi)" }}
+                  >
+                    // OPERATIONAL · REPORTING
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Settings
+                      className="h-4 w-4"
+                      style={{ color: "var(--brand-accent-hi)" }}
+                      aria-hidden="true"
+                    />
+                    <span className="font-display text-foreground text-base leading-tight tracking-[-0.015em]">
+                      Traditional scripts
+                    </span>
+                  </div>
+                </th>
+                <th className="px-5 py-4 align-bottom">
+                  <p
+                    className="font-mono text-[10.5px] tracking-[0.18em] uppercase"
+                    style={{ color: "var(--brand-azure)" }}
+                  >
+                    // NOTIFICATION · RUNBOOK
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Bell
+                      className="h-4 w-4"
+                      style={{ color: "var(--brand-azure)" }}
+                      aria-hidden="true"
+                    />
+                    <span className="font-display text-foreground text-base leading-tight tracking-[-0.015em]">
+                      Monitoring &amp; alerts
+                    </span>
+                    <span
+                      className="ml-1 inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono text-[9.5px] font-medium tracking-[0.16em] uppercase"
+                      style={{
+                        borderColor:
+                          "color-mix(in oklab, var(--brand-warn) 50%, transparent)",
+                        color: "var(--brand-warn)",
+                      }}
+                    >
+                      New
+                    </span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonData.map((row, index) => (
+                <tr
+                  key={row.feature}
+                  className={
+                    index === comparisonData.length - 1
+                      ? ""
+                      : "border-b"
+                  }
+                  style={
+                    index === comparisonData.length - 1
+                      ? undefined
+                      : { borderColor: "var(--brand-rule)" }
+                  }
+                >
+                  <td className="text-foreground px-5 py-4 align-top text-sm font-medium">
+                    {row.feature}
+                  </td>
+                  <td className="px-5 py-4 align-top">
+                    <CellValue value={row.operational} />
+                  </td>
+                  <td className="px-5 py-4 align-top">
+                    <CellValue value={row.notification} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </motion.div>
+
+        {/* Mobile stacked cards */}
+        <div className="mt-10 space-y-3 md:hidden">
+          {comparisonData.map((row, index) => (
+            <motion.div
+              key={row.feature}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{
+                delay: Math.min(index * 0.04, 0.32),
+                duration: 0.45,
+                ease,
+              }}
+              className="bg-card/40 rounded-md border p-4 backdrop-blur-sm"
+              style={{ borderColor: "var(--brand-rule)" }}
+            >
+              <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+                {row.feature}
+              </p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <dt
+                    className="font-mono text-[10.5px] tracking-[0.16em] uppercase"
+                    style={{ color: "var(--brand-accent-hi)" }}
+                  >
+                    Operational
+                  </dt>
+                  <dd className="text-right">
+                    <CellValue value={row.operational} />
+                  </dd>
+                </div>
+                <div
+                  className="flex items-start justify-between gap-3 border-t pt-2"
+                  style={{ borderColor: "var(--brand-rule)" }}
+                >
+                  <dt
+                    className="font-mono text-[10.5px] tracking-[0.16em] uppercase"
+                    style={{ color: "var(--brand-azure)" }}
+                  >
+                    Notification
+                  </dt>
+                  <dd className="text-right">
+                    <CellValue value={row.notification} />
+                  </dd>
+                </div>
+              </dl>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Summary cards — both share the same v4 vocabulary. The notification
+         * card carries a faint azure top-edge instead of the old violet gradient. */}
+        <div className="mt-14 grid gap-5 md:grid-cols-2">
+          <motion.div
+            {...fade(0.15)}
+            className="bg-card/40 rounded-md border p-6 backdrop-blur-md"
+            style={{ borderColor: "var(--brand-rule)" }}
+          >
+            <p
+              className="font-mono text-[10.5px] tracking-[0.18em] uppercase"
+              style={{ color: "var(--brand-accent-hi)" }}
+            >
+              // WHEN TO PICK · OPERATIONAL
+            </p>
+            <h3 className="font-display text-foreground mt-2 text-xl leading-tight tracking-[-0.015em]">
+              Direct execution &amp; one-off tasks
+            </h3>
+            <ul className="mt-5 space-y-2.5">
+              {[
+                "Need immediate results or reports",
+                "Running ad-hoc analysis or troubleshooting",
+                "Exporting data for further processing",
+                "Performing one-time administrative tasks",
+              ].map((bullet) => (
+                <li
+                  key={bullet}
+                  className="text-muted-foreground flex items-start gap-2.5 text-sm leading-relaxed"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: "var(--brand-accent)" }}
+                  />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          <motion.div
+            {...fade(0.22)}
+            className="bg-card/40 relative rounded-md border p-6 backdrop-blur-md"
+            style={{ borderColor: "var(--brand-rule)" }}
+          >
+            {/* Azure hairline rule — signals the notification path */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, color-mix(in oklab, var(--brand-azure) 60%, transparent), transparent)",
+              }}
+            />
+            <p
+              className="font-mono text-[10.5px] tracking-[0.18em] uppercase"
+              style={{ color: "var(--brand-azure)" }}
+            >
+              // WHEN TO PICK · NOTIFICATION
+            </p>
+            <h3 className="font-display text-foreground mt-2 text-xl leading-tight tracking-[-0.015em]">
+              Continuous monitoring &amp; alerting
+            </h3>
+            <ul className="mt-5 space-y-2.5">
+              {[
+                "Want proactive monitoring of your environment",
+                "Need alerts for critical events or thresholds",
+                "Managing compliance and security posture",
+                "Tracking expiration dates and renewals",
+              ].map((bullet) => (
+                <li
+                  key={bullet}
+                  className="text-muted-foreground flex items-start gap-2.5 text-sm leading-relaxed"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: "var(--brand-azure)" }}
+                  />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+
+            <Link
+              href="/scripts/notification/"
+              className="focus-visible:ring-accent group mt-6 inline-flex w-full items-center justify-between rounded-sm border px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              style={{ borderColor: "var(--brand-rule)" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor =
+                  "color-mix(in oklab, var(--brand-azure) 50%, transparent)";
+                e.currentTarget.style.color = "var(--brand-azure)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--brand-rule)";
+                e.currentTarget.style.color = "";
+              }}
+            >
+              <span>Explore notification scripts</span>
+              <ArrowRight
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </Link>
+          </motion.div>
+        </div>
       </div>
     </section>
   );

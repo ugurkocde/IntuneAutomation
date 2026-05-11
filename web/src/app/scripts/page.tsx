@@ -23,7 +23,7 @@ export default function ScriptsPage() {
       <BreadcrumbSchema baseUrl={baseUrl} items={breadcrumbItems} />
       <AnalyticsProvider>
         <ScriptsProvider>
-          <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+          <div className="bg-background flex min-h-screen flex-col">
             <Navbar />
             <main className="flex-1">
               <FullScriptGallery />

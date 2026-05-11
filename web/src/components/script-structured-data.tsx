@@ -31,13 +31,6 @@ export function ScriptStructuredData({ script, url }: ScriptStructuredDataProps)
     keywords: [...script.tags, "PowerShell", "Microsoft Intune", "Automation", "Script"].join(", "),
     datePublished: script.lastUpdated || new Date().toISOString(),
     dateModified: script.lastUpdated || new Date().toISOString(),
-    aggregateRating: script.usageStats ? {
-      "@type": "AggregateRating",
-      ratingValue: "4.5",
-      ratingCount: script.usageStats.totalDownloads || 1,
-      bestRating: "5",
-      worstRating: "1",
-    } : undefined,
     interactionStatistic: script.usageStats ? [
       {
         "@type": "InteractionCounter",
@@ -53,11 +46,6 @@ export function ScriptStructuredData({ script, url }: ScriptStructuredDataProps)
     softwareHelp: {
       "@type": "WebPage",
       url: "https://intuneautomation.com/blog/",
-    },
-    screenshot: {
-      "@type": "ImageObject",
-      url: "https://intuneautomation.com/og/script-screenshot.png",
-      caption: `Screenshot of ${script.title}`,
     },
     isAccessibleForFree: true,
     license: "https://opensource.org/licenses/MIT",

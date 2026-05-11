@@ -1,13 +1,17 @@
 "use client";
 
+// Blog post — reskinned to the v4 design system.
+// Vocabulary: mono breadcrumb, mono category kicker, big display headline,
+// dek in muted-foreground, mono metadata strip with hairline rule beneath,
+// max-w-prose body, manifest-pattern related-posts list. No gradient hero.
+// MDX prose styling lives in mdx-components.tsx (single source of truth).
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MDXRemote } from "next-mdx-remote";
+import { MDXRemote, type MDXRemoteSerializeResult } from "next-mdx-remote";
 import { serialize } from "next-mdx-remote/serialize";
-import { CalendarIcon, ClockIcon, UserIcon, ArrowLeftIcon } from "lucide-react";
-import { Badge } from "~/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import Navbar from "~/components/navbar";
 import Footer from "~/components/footer";
 import { ScriptsProvider } from "~/components/scripts-provider";
@@ -16,14 +20,14 @@ import { useMDXComponents } from "../../../../mdx-components";
 import { type BlogPostWithContent, type BlogPost } from "~/lib/blog";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
 
 interface BlogPostClientProps {
   slug: string;
 }
 
-function formatDate(dateString: string): string {
+function formatDateLong(dateString: string): string {
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "long",
@@ -31,7 +35,20 @@ function formatDate(dateString: string): string {
   }).format(date);
 }
 
-// Article structured data component
+function formatDateMono(dateString: string): string {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+    .format(date)
+    .toUpperCase();
+}
+
+// Article structured data — preserved verbatim from prior implementation.
+// JSON.stringify output is safe to inline into a <script type="application/ld+json"> tag.
 function ArticleStructuredData({ post }: { post: BlogPostWithContent }) {
   const structuredData = {
     "@context": "https://schema.org",
@@ -68,6 +85,7 @@ function ArticleStructuredData({ post }: { post: BlogPostWithContent }) {
   return (
     <script
       type="application/ld+json"
+      // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{
         __html: JSON.stringify(structuredData),
       }}
@@ -79,7 +97,8 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
   const [post, setPost] = useState<BlogPostWithContent | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mdxSource, setMdxSource] = useState<any>(null);
+  const [mdxSource, setMdxSource] =
+    useState<MDXRemoteSerializeResult | null>(null);
   const components = useMDXComponents({});
 
   useEffect(() => {
@@ -87,26 +106,24 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
       try {
         const [postResponse, relatedResponse] = await Promise.all([
           fetch(`/api/blog/posts/${slug}`),
-          fetch(`/api/blog/posts/${slug}/related`)
+          fetch(`/api/blog/posts/${slug}/related`),
         ]);
 
         if (!postResponse.ok) {
           notFound();
         }
 
-        const postData = await postResponse.json();
-        const relatedData = await relatedResponse.json();
+        const postData = (await postResponse.json()) as BlogPostWithContent;
+        const relatedData = (await relatedResponse.json()) as BlogPost[];
 
         setPost(postData);
         setRelatedPosts(relatedData);
 
-        // Serialize MDX content
+        // Serialize MDX content — same plugin set as before.
         const serialized = await serialize(postData.content, {
           mdxOptions: {
             remarkPlugins: [remarkGfm],
-            rehypePlugins: [
-              rehypeSlug,
-            ],
+            rehypePlugins: [rehypeSlug],
           },
         });
         setMdxSource(serialized);
@@ -116,25 +133,26 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
         setLoading(false);
       }
     }
-    fetchPost();
+    void fetchPost();
   }, [slug]);
 
   if (loading) {
     return (
       <ScriptsProvider>
-        <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+        <div className="flex min-h-screen flex-col bg-background">
           <Navbar />
           <main className="flex-1 pt-20">
-            <article className="container mx-auto px-4 py-12">
+            <article className="px-4 py-16 sm:py-20">
               <div className="mx-auto max-w-4xl">
-                <div className="animate-pulse">
-                  <div className="h-4 w-24 bg-muted rounded mb-8" />
-                  <div className="h-10 w-3/4 bg-muted rounded mb-4" />
-                  <div className="h-6 w-full bg-muted rounded mb-4" />
-                  <div className="h-4 w-1/2 bg-muted rounded mb-8" />
+                <div className="animate-pulse" aria-hidden="true">
+                  <div className="mb-10 h-3 w-32 rounded bg-muted" />
+                  <div className="mb-6 h-3 w-24 rounded bg-muted" />
+                  <div className="mb-4 h-12 w-3/4 rounded bg-muted" />
+                  <div className="mb-8 h-6 w-full rounded bg-muted" />
+                  <div className="mb-10 h-3 w-1/2 rounded bg-muted" />
                   <div className="space-y-4">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="h-4 w-full bg-muted rounded" />
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-4 w-full rounded bg-muted" />
                     ))}
                   </div>
                 </div>
@@ -152,59 +170,186 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
     notFound();
   }
 
+  const categoryKicker = post.category
+    ? `// ${post.category.toUpperCase()}`
+    : "// BLOG";
+
   return (
     <ScriptsProvider>
-      <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+      <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
         <main className="flex-1 pt-20">
           <ArticleStructuredData post={post} />
-          <article className="container mx-auto px-4 py-12">
+
+          <article className="px-4 py-16 sm:py-20">
             <div className="mx-auto max-w-4xl">
-              {/* Back to blog link */}
+              {/* Breadcrumb */}
               <Link
                 href="/blog/"
-                className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="group mb-12 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground transition-colors hover:text-accent-hi focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <ArrowLeftIcon className="h-4 w-4" />
-                Back to Blog
+                <ArrowLeft
+                  className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+                  aria-hidden="true"
+                />
+                All posts
               </Link>
 
-              {/* Article header */}
-              <header className="mb-8 space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight lg:text-5xl">
+              {/* Header */}
+              <header
+                className="mb-12 border-b pb-10 sm:mb-14 sm:pb-12"
+                style={{ borderColor: "var(--brand-rule)" }}
+              >
+                <p className="font-mono-label text-accent-hi mb-5">
+                  {categoryKicker}
+                </p>
+                <h1 className="font-display text-foreground mb-6 text-4xl leading-[1.05] tracking-[-0.02em] sm:text-5xl md:text-6xl">
                   {post.title}
                 </h1>
-                <p className="text-xl text-muted-foreground">{post.description}</p>
+                {post.description && (
+                  <p className="text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl">
+                    {post.description}
+                  </p>
+                )}
+
+                {/* Metadata strip */}
+                <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-2 font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground/90">
+                  <time dateTime={new Date(post.date).toISOString()}>
+                    {formatDateMono(post.date)}
+                  </time>
+                  {post.author && (
+                    <>
+                      <span aria-hidden="true" className="px-2 opacity-50">
+                        ·
+                      </span>
+                      <span>{post.author}</span>
+                    </>
+                  )}
+                  {post.readingTime && (
+                    <>
+                      <span aria-hidden="true" className="px-2 opacity-50">
+                        ·
+                      </span>
+                      <span>{post.readingTime}</span>
+                    </>
+                  )}
+                </div>
               </header>
 
-              {/* Article content */}
-              <div className="prose prose-gray dark:prose-invert max-w-none">
+              {/* Body — constrained reading width, MDX provides prose styling */}
+              <div className="mx-auto max-w-prose">
                 <MDXRemote {...mdxSource} components={components} />
               </div>
 
+              {/* Tag strip (if present) */}
+              {post.tags && post.tags.length > 0 && (
+                <div
+                  className="mx-auto mt-16 max-w-prose border-t pt-8"
+                  style={{ borderColor: "var(--brand-rule)" }}
+                >
+                  <p className="font-mono-label text-accent-hi mb-4">
+                    // TAGS
+                  </p>
+                  <ul className="flex flex-wrap gap-2">
+                    {post.tags.map((tag) => (
+                      <li key={tag}>
+                        <span
+                          className="inline-block rounded-md border px-2.5 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase text-muted-foreground"
+                          style={{ borderColor: "var(--brand-rule)" }}
+                        >
+                          {tag}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Author footer */}
+              {post.author && (
+                <footer
+                  className="mx-auto mt-12 max-w-prose border-t pt-8"
+                  style={{ borderColor: "var(--brand-rule)" }}
+                >
+                  <p className="font-mono-label text-accent-hi mb-3">
+                    // ABOUT THE AUTHOR
+                  </p>
+                  <p className="text-foreground text-base">
+                    Written by{" "}
+                    <span className="font-medium">{post.author}</span>
+                    {post.date && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        on{" "}
+                        <time dateTime={new Date(post.date).toISOString()}>
+                          {formatDateLong(post.date)}
+                        </time>
+                      </span>
+                    )}
+                    .
+                  </p>
+                </footer>
+              )}
+
               {/* Related posts */}
               {relatedPosts.length > 0 && (
-                <div className="mt-12 border-t pt-12">
-                  <h2 className="mb-6 text-2xl font-bold">Related Articles</h2>
-                  <div className="grid gap-6 md:grid-cols-3">
-                    {relatedPosts.map((relatedPost) => (
-                      <Card key={relatedPost.slug}>
-                        <CardHeader>
-                          <Link href={`/blog/${relatedPost.slug}/`}>
-                            <CardTitle className="text-lg hover:text-primary transition-colors">
-                              {relatedPost.title}
-                            </CardTitle>
+                <section
+                  aria-labelledby="related-heading"
+                  className="mt-20 sm:mt-24"
+                >
+                  <p className="font-mono-label text-accent-hi mb-4">
+                    // RELATED POSTS
+                  </p>
+                  <h2
+                    id="related-heading"
+                    className="font-display text-foreground mb-10 text-2xl leading-[1.05] sm:text-3xl"
+                  >
+                    Keep reading.
+                  </h2>
+
+                  <ul
+                    className="border-b"
+                    style={{ borderColor: "var(--brand-rule)" }}
+                  >
+                    {relatedPosts.map((relatedPost, index) => {
+                      const num = String(index + 1).padStart(2, "0");
+                      return (
+                        <li
+                          key={relatedPost.slug}
+                          className="group/row border-t transition-colors duration-200 hover:bg-card/60"
+                          style={{ borderColor: "var(--brand-rule)" }}
+                        >
+                          <Link
+                            href={`/blog/${relatedPost.slug}/`}
+                            className="flex items-baseline gap-5 px-2 py-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-8"
+                            aria-label={`Read ${relatedPost.title}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="font-mono text-accent-hi w-10 shrink-0 text-xs tracking-widest sm:w-12 sm:text-sm"
+                            >
+                              {num}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-display text-foreground group-hover/row:text-accent-hi text-lg leading-snug transition-colors sm:text-xl">
+                                {relatedPost.title}
+                              </p>
+                              {relatedPost.description && (
+                                <p className="text-muted-foreground mt-1.5 line-clamp-1 text-sm">
+                                  {relatedPost.description}
+                                </p>
+                              )}
+                            </div>
+                            <ArrowUpRight
+                              className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5"
+                              aria-hidden="true"
+                            />
                           </Link>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {relatedPost.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               )}
             </div>
           </article>

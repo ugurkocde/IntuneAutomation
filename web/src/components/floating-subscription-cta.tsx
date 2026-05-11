@@ -1,27 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, X, Mail, Sparkles, CheckCircle, RefreshCw } from "lucide-react";
+import { X, Mail, CheckCircle, RefreshCw } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { createClient } from "@supabase/supabase-js";
 import { useToast } from "~/hooks/use-toast";
 
+// SSR-safe init — avoids the localStorage polyfill present in Node 22+.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  },
 );
 
 interface FloatingSubscriptionCTAProps {
   triggerAfterViews?: number;
   triggerAfterScroll?: number;
-  triggerAfterTime?: number;
 }
 
+// Triggers are intentionally activation-gated. We require at least one script
+// interaction before showing the CTA (or an explicit "show subscription form"
+// event from elsewhere in the app). The pure time-based trigger was removed —
+// asking for email before the visitor has received any value is an anti-pattern
+// for a trust-sensitive admin audience.
 export default function FloatingSubscriptionCTA({
-  triggerAfterViews = 5,
-  triggerAfterScroll = 50,
-  triggerAfterTime = 60000, // 60 seconds
+  triggerAfterViews = 1,
+  triggerAfterScroll = 75,
 }: FloatingSubscriptionCTAProps) {
   const { toast } = useToast();
   const [isVisible, setIsVisible] = useState(false);
@@ -32,6 +43,21 @@ export default function FloatingSubscriptionCTA({
   const [viewCount, setViewCount] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+
+  // Refs survive effect re-registration so each trigger can only fire once
+  // per session, regardless of how many times `isVisible` flips.
+  const hasTriggeredByScroll = useRef(false);
+  const hasTriggeredByExitIntent = useRef(false);
+  const isVisibleRef = useRef(isVisible);
+  const isDismissedRef = useRef(isDismissed);
+
+  useEffect(() => {
+    isVisibleRef.current = isVisible;
+  }, [isVisible]);
+
+  useEffect(() => {
+    isDismissedRef.current = isDismissed;
+  }, [isDismissed]);
 
   useEffect(() => {
     // Fetch subscriber count from Supabase
@@ -62,82 +88,70 @@ export default function FloatingSubscriptionCTA({
       return;
     }
 
-    // Track script views
+    // Track script views — funcitonal setState reads the latest count without
+    // re-registering, and we check isVisibleRef so the listener doesn't need
+    // to be torn down when isVisible flips.
     const handleScriptView = () => {
       setViewCount((prev) => {
         const newCount = prev + 1;
-        if (newCount >= triggerAfterViews && !isVisible) {
+        if (newCount >= triggerAfterViews && !isVisibleRef.current) {
           setIsVisible(true);
         }
         return newCount;
       });
     };
-
-    // Listen for custom script view events
     window.addEventListener("scriptViewed", handleScriptView);
 
     // Listen for show subscription form event
     const handleShowForm = () => {
-      if (!isDismissed) {
+      if (!isDismissedRef.current) {
         setIsVisible(true);
         setShowForm(true);
       }
     };
     window.addEventListener("showSubscriptionForm", handleShowForm);
 
-    // Track scroll depth
-    let hasTriggeredByScroll = false;
+    // Track scroll depth — once per session, guarded by ref so the trigger
+    // can't fire again after isVisible flips and the effect re-runs.
     const handleScroll = () => {
-      if (hasTriggeredByScroll) return;
+      if (hasTriggeredByScroll.current) return;
+      if (isDismissedRef.current) return;
 
       const scrollPercentage =
         (window.scrollY /
           (document.documentElement.scrollHeight - window.innerHeight)) *
         100;
 
-      if (scrollPercentage >= triggerAfterScroll && !isVisible) {
-        hasTriggeredByScroll = true;
+      if (scrollPercentage >= triggerAfterScroll && !isVisibleRef.current) {
+        hasTriggeredByScroll.current = true;
         setIsVisible(true);
       }
     };
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    window.addEventListener("scroll", handleScroll);
-
-    // Exit-intent trigger (when mouse leaves viewport)
-    let hasTriggeredByExitIntent = false;
+    // Exit-intent trigger (when mouse leaves viewport from top edge) — also
+    // ref-guarded so it can only fire once per session.
     const handleMouseLeave = (e: MouseEvent) => {
-      if (hasTriggeredByExitIntent) return;
+      if (hasTriggeredByExitIntent.current) return;
+      if (isDismissedRef.current) return;
 
-      // Only trigger if mouse leaves from top of viewport
-      if (e.clientY <= 0 && !isVisible && !isDismissed) {
-        hasTriggeredByExitIntent = true;
+      if (e.clientY <= 0 && !isVisibleRef.current) {
+        hasTriggeredByExitIntent.current = true;
         setIsVisible(true);
       }
     };
-
     document.addEventListener("mouseleave", handleMouseLeave);
-
-    // Time-based trigger
-    const timer = setTimeout(() => {
-      if (!isVisible && !isDismissed) {
-        setIsVisible(true);
-      }
-    }, triggerAfterTime);
 
     return () => {
       window.removeEventListener("scriptViewed", handleScriptView);
       window.removeEventListener("showSubscriptionForm", handleShowForm);
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("mouseleave", handleMouseLeave);
-      clearTimeout(timer);
     };
-  }, [
-    triggerAfterViews,
-    triggerAfterScroll,
-    triggerAfterTime,
-    isVisible,
-    isDismissed,
-  ]);
+    // Listeners no longer depend on isVisible/isDismissed (refs handle that),
+    // so the effect runs only once on mount unless the trigger thresholds
+    // change via props.
+  }, [triggerAfterViews, triggerAfterScroll]);
 
   const handleDismiss = () => {
     setIsVisible(false);
@@ -233,60 +247,49 @@ export default function FloatingSubscriptionCTA({
       >
         <div className="relative">
           {!showForm ? (
-            // Compact floating button with enhanced design
-            <motion.div
-              className="group relative cursor-pointer overflow-hidden rounded-full bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 p-[2px] shadow-2xl"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowForm(true)}
+            // Slim cyan-outlined pill with a sibling dismiss button (avoids
+            // nested interactive content — keeps tab order to two stops).
+            <div
+              className="bg-background/90 inline-flex items-center gap-1 rounded-full border pl-4 pr-1 py-1 text-sm shadow-lg backdrop-blur-xl sm:pl-5"
+              style={{ borderColor: "var(--brand-rule)" }}
             >
-              {/* Animated background gradient */}
-              <div className="animate-gradient-x absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-              <div className="relative flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-700 px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-3.5">
-                {/* Animated bell icon */}
-                <motion.div
-                  animate={{
-                    rotate: [0, -10, 10, -10, 10, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatDelay: 3,
-                  }}
-                >
-                  <Bell className="h-4 w-4 text-white sm:h-5 sm:w-5" />
-                </motion.div>
-
-                <span className="text-xs font-semibold text-white transition-colors group-hover:text-blue-100 sm:text-sm">
-                  Get script updates
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="group focus-visible:ring-accent inline-flex items-center gap-2.5 rounded-full py-1 transition-colors focus-visible:ring-2 focus-visible:outline-none sm:py-1.5"
+                aria-label="Open subscription form"
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "var(--brand-accent)" }}
+                />
+                <span className="text-foreground font-medium">
+                  Script updates
                 </span>
-
-                {/* Sparkles decoration */}
-                <Sparkles className="hidden h-3 w-3 animate-pulse text-white/70 sm:block sm:h-4 sm:w-4" />
-
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDismiss();
-                  }}
-                  className="ml-1 cursor-pointer rounded-full bg-white/10 p-1 transition-all duration-200 hover:bg-white/20 sm:ml-2 sm:p-1.5"
-                  aria-label="Dismiss"
-                >
-                  <X className="h-3 w-3 text-white sm:h-3.5 sm:w-3.5" />
-                </button>
-              </div>
-            </motion.div>
+              </button>
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent flex h-7 w-7 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                aria-label="Dismiss subscription prompt"
+              >
+                <X className="h-3 w-3" strokeWidth={1.75} />
+              </button>
+            </div>
           ) : (
-            // Expanded form with enhanced design
+            // Expanded form — sober card, cyan accent rule on top, no gradients
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.98, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="relative w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-2xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-800/95"
+              className="bg-card relative w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-lg border shadow-2xl backdrop-blur-xl"
+              style={{ borderColor: "var(--brand-rule)" }}
             >
-              {/* Gradient header */}
-              <div className="animate-gradient-x relative h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600" />
+              {/* Single cyan top rule replaces gradient header */}
+              <div
+                className="relative h-px"
+                style={{ backgroundColor: "var(--brand-accent)" }}
+              />
 
               {/* Success state */}
               {isSuccess ? (
@@ -305,71 +308,85 @@ export default function FloatingSubscriptionCTA({
                       stiffness: 300,
                     }}
                   >
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600 sm:mb-4 sm:h-16 sm:w-16">
-                      <CheckCircle className="h-6 w-6 text-white sm:h-8 sm:w-8" />
+                    <div
+                      className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full sm:mb-4 sm:h-12 sm:w-12"
+                      style={{
+                        backgroundColor:
+                          "color-mix(in oklab, var(--brand-accent) 14%, transparent)",
+                      }}
+                    >
+                      <CheckCircle
+                        className="h-5 w-5 sm:h-6 sm:w-6"
+                        style={{ color: "var(--brand-accent-hi)" }}
+                      />
                     </div>
                   </motion.div>
 
-                  <h3 className="mb-1 text-base font-bold text-gray-900 sm:text-lg dark:text-gray-100">
-                    You're all set! 🎉
+                  <h3 className="font-display text-foreground mb-1 text-xl sm:text-2xl">
+                    You're in.
                   </h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm">
+                    Next email arrives the first Monday of the month.
+                  </p>
                 </motion.div>
               ) : (
                 <>
-                  <div className="p-4 pb-3 sm:p-6 sm:pb-4">
-                    <div className="mb-3 flex items-center justify-between sm:mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 sm:h-10 sm:w-10">
-                          <Mail className="h-4 w-4 text-white sm:h-5 sm:w-5" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-900 sm:text-base dark:text-gray-100">
-                            Stay in the loop
-                          </h3>
-                          <p className="text-[10px] text-gray-500 sm:text-xs dark:text-gray-400">
-                            Never miss a new script
-                          </p>
-                        </div>
+                  <div className="p-5 sm:p-6">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono-label text-accent-hi mb-2">
+                          // MONTHLY DIGEST
+                        </p>
+                        <h3 className="font-display text-foreground text-2xl leading-tight sm:text-[1.625rem]">
+                          New scripts in your inbox.
+                        </h3>
                       </div>
-
                       <button
+                        type="button"
                         onClick={() => setShowForm(false)}
-                        className="cursor-pointer rounded-full p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="text-muted-foreground hover:text-foreground -mt-1 -mr-1 rounded-md p-1.5 transition-colors"
                         aria-label="Close"
                       >
-                        <X className="h-4 w-4 text-gray-500" />
+                        <X className="h-4 w-4" strokeWidth={1.75} />
                       </button>
                     </div>
 
-                    <p className="mb-3 text-xs text-gray-600 sm:mb-4 sm:text-sm dark:text-gray-400">
-                      Join{" "}
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">
-                        {subscriberCount !== null ? `${subscriberCount}+` : "500+"}
-                      </span>{" "}
-                      IT professionals getting notified about new Intune
-                      automation scripts.
+                    <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
+                      One email a month: new scripts and Microsoft Graph API
+                      breakage alerts. No marketing.
+                      {subscriberCount !== null && subscriberCount > 0 ? (
+                        <>
+                          {" "}
+                          <span className="text-foreground font-mono text-xs">
+                            ({subscriberCount.toLocaleString()} subscribers)
+                          </span>
+                        </>
+                      ) : null}
                     </p>
 
-                    <form onSubmit={handleSubscribe} className="space-y-3">
+                    <form onSubmit={handleSubscribe} className="space-y-2.5">
                       <div className="relative">
+                        <Mail
+                          className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+                          aria-hidden="true"
+                        />
                         <input
                           type="email"
-                          placeholder="Enter your email"
+                          placeholder="you@company.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
                           disabled={isSubscribing}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-10 text-xs text-gray-900 placeholder-gray-400 transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none disabled:opacity-60 sm:px-4 sm:py-3 sm:pr-12 sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+                          className="bg-background text-foreground placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-accent w-full rounded-md border py-2.5 pr-3 pl-10 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:opacity-60"
+                          style={{ borderColor: "var(--brand-rule)" }}
                         />
-                        <Mail className="absolute top-3 right-3 h-3 w-3 text-gray-400 sm:top-3.5 sm:right-4 sm:h-4 sm:w-4" />
                       </div>
 
                       <div className="flex gap-2">
                         <Button
                           type="submit"
-                          size="sm"
                           disabled={isSubscribing}
-                          className="flex-1 cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 py-2 text-xs font-medium text-white transition-all duration-200 hover:from-blue-700 hover:to-purple-700 disabled:cursor-not-allowed sm:py-2.5 sm:text-sm"
+                          className="ring-accent flex-1 h-10 rounded-md text-sm font-medium focus-visible:ring-2 focus-visible:ring-offset-2"
                         >
                           {isSubscribing ? (
                             <motion.div
@@ -389,10 +406,9 @@ export default function FloatingSubscriptionCTA({
 
                         <Button
                           type="button"
-                          size="sm"
                           variant="outline"
                           onClick={handleDismiss}
-                          className="cursor-pointer px-3 text-xs sm:px-4 sm:text-sm"
+                          className="h-10 rounded-md px-4 text-sm"
                         >
                           Later
                         </Button>
@@ -400,18 +416,17 @@ export default function FloatingSubscriptionCTA({
                     </form>
                   </div>
 
-                  {/* Trust indicators */}
-                  <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-2 sm:px-6 sm:py-3 dark:border-gray-700 dark:bg-gray-900/50">
-                    <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500 sm:gap-4 sm:text-xs dark:text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        No spam
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        Unsubscribe anytime
-                      </span>
-                    </div>
+                  {/* Trust footer */}
+                  <div
+                    className="bg-background/40 flex items-center justify-between border-t px-5 py-3 sm:px-6"
+                    style={{ borderColor: "var(--brand-rule)" }}
+                  >
+                    <span className="text-muted-foreground font-mono text-[10px] tracking-widest uppercase">
+                      No spam
+                    </span>
+                    <span className="text-muted-foreground font-mono text-[10px] tracking-widest uppercase">
+                      Unsubscribe anytime
+                    </span>
                   </div>
                 </>
               )}

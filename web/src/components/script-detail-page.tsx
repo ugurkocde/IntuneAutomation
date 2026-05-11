@@ -1,44 +1,41 @@
 "use client";
 
+// ScriptDetailPage v4 — page-version of the script detail view.
+// Editorial layout: mono kicker breadcrumb, display headline, hairline-bordered
+// surfaces, single cyan accent. Azure-blue reserved exclusively for Deploy-to-Azure.
+// Sections open with `// LABEL` kickers; the code block uses a dark mono surface with
+// a v4 toolbar. Plain background (no atmosphere — that's landing-only). Every analytics
+// call, download payload, deploy URL, and Prism highlight path is preserved verbatim
+// from v1; only the visual chrome has changed.
+
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { type Script } from "~/lib/scripts";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
 import { useToast } from "~/hooks/use-toast";
 import "prismjs/themes/prism-tomorrow.css";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
-  Code2,
-  User,
-  Shield,
-  Smartphone,
-  CheckCircle,
-  Package,
-  BarChart3,
-  Stethoscope,
-  Settings,
-  Clock,
-  Key,
-  Github,
-  Download,
-  ExternalLink,
-  ArrowLeft,
-  Cog,
   AlertTriangle,
-  XCircle,
+  Calendar,
+  Check,
+  CheckCircle,
   Cloud,
+  Copy,
+  Download,
+  Eye,
+  ExternalLink,
+  Github,
+  Key,
   Maximize2,
   Minimize2,
-  Copy,
-  Check,
+  Monitor,
+  User,
+  XCircle,
 } from "lucide-react";
 import Navbar from "~/components/navbar";
 import Footer from "~/components/footer";
 import { ScriptsProvider } from "~/components/scripts-provider";
 import SearchDialog from "~/components/search-dialog";
 import { AnalyticsService } from "~/lib/supabase-analytics";
-import { Breadcrumb, type BreadcrumbItem } from "~/components/breadcrumb";
 import { RelatedScripts } from "~/components/related-scripts";
 import { QualityChecks } from "~/components/quality-checks";
 
@@ -51,48 +48,82 @@ interface ScriptDetailPageProps {
   >;
 }
 
-// Icon mapping for each tag
-const tagIcons: Record<string, typeof Shield> = {
-  Security: Shield,
-  Devices: Smartphone,
-  Compliance: CheckCircle,
-  Apps: Package,
-  Reporting: BarChart3,
-  Diagnostics: Stethoscope,
-  Configuration: Settings,
-  Operational: Cog,
-};
+/* -------------------------- formatting helpers --------------------------- */
 
-// Color mapping for each tag
-const tagColors: Record<string, string> = {
-  Security:
-    "text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950/50 dark:border-red-800/50",
-  Devices:
-    "text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-950/50 dark:border-blue-800/50",
-  Compliance:
-    "text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/50 dark:border-green-800/50",
-  Apps: "text-purple-600 bg-purple-50 border-purple-200 dark:text-purple-400 dark:bg-purple-950/50 dark:border-purple-800/50",
-  Reporting:
-    "text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-950/50 dark:border-orange-800/50",
-  Diagnostics:
-    "text-cyan-600 bg-cyan-50 border-cyan-200 dark:text-cyan-400 dark:bg-cyan-950/50 dark:border-cyan-800/50",
-  Configuration:
-    "text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-400 dark:bg-slate-950/50 dark:border-slate-800/50",
-  Operational:
-    "text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950/50 dark:border-amber-800/50",
-};
+function formatCompactNumber(num: number): string {
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
+  if (num >= 10_000) return (num / 1000).toFixed(1) + "k";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+  return num.toString();
+}
 
-const testResultColors = {
-  pass: "text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/50 dark:border-green-800/50",
-  fail: "text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950/50 dark:border-red-800/50",
-  warning:
-    "text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-950/50 dark:border-yellow-800/50",
-};
+function formatRelative(iso?: string): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const diff = Date.now() - then;
+  const day = 86_400_000;
+  const days = Math.floor(diff / day);
+  if (days < 1) return "today";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
 
-const testResultIcons = {
-  pass: CheckCircle,
-  fail: XCircle,
-  warning: AlertTriangle,
+/* ------------------------- small v4 sub-primitives ----------------------- */
+
+function SectionKicker({ label }: { label: string }) {
+  return <p className="font-mono-label text-accent-hi">// {label}</p>;
+}
+
+function MonoTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="text-muted-foreground inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-[10.5px] tracking-[0.14em] uppercase"
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function HairlinePanel({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-card/40 rounded-md border backdrop-blur-md ${className}`}
+      style={{ borderColor: "var(--brand-rule)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const testResultMeta: Record<
+  "pass" | "fail" | "warning",
+  { icon: typeof CheckCircle; label: string; color: string }
+> = {
+  pass: {
+    icon: CheckCircle,
+    label: "All tests passed",
+    color: "var(--brand-accent-hi)",
+  },
+  fail: {
+    icon: XCircle,
+    label: "Tests failed",
+    color: "oklch(0.65 0.20 25)",
+  },
+  warning: {
+    icon: AlertTriangle,
+    label: "Warnings found",
+    color: "var(--brand-warn)",
+  },
 };
 
 export function ScriptDetailPage({
@@ -113,11 +144,32 @@ export function ScriptDetailPage({
   const remediationCodeRef = useRef<HTMLPreElement>(null);
   const hasTrackedView = useRef(false);
   const primaryTag = script.tags[0];
-  const PrimaryIcon = primaryTag ? tagIcons[primaryTag] || Code2 : Code2;
   const fileExtension = script.githubPath?.endsWith(".sh") ? "sh" : "ps1";
   const githubUrl =
     script.githubUrl ||
     `https://github.com/ugurkocde/IntuneAutomation/blob/main/${script.githubPath || `scripts/${script.id}.${fileExtension}`}`;
+
+  const isRemediation =
+    script.scriptType === "remediation" && !!script.remediationPair;
+  const isNotification =
+    script.execution === "RunbookOnly" ||
+    script.category === "notification" ||
+    script.tags.includes("Notification");
+
+  const kicker = isRemediation
+    ? "// REMEDIATION · DETECTION"
+    : isNotification
+      ? "// NOTIFICATION · RUNBOOK"
+      : primaryTag
+        ? `// ${primaryTag.toUpperCase()}`
+        : "// SCRIPT";
+
+  const kickerColor = isNotification
+    ? "var(--brand-azure)"
+    : "var(--brand-accent-hi)";
+
+  const breadcrumbDir = primaryTag ? primaryTag.toLowerCase() : "scripts";
+  const breadcrumbFile = `${script.id || "script"}.${fileExtension}`;
 
   const handleDownload = async () => {
     // Track download analytics
@@ -292,6 +344,21 @@ export function ScriptDetailPage({
     }
   };
 
+  const handleGithubView = () => {
+    const userAgent =
+      typeof window !== "undefined" ? navigator.userAgent : undefined;
+    const sessionId =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("session_id") || undefined
+        : undefined;
+    AnalyticsService.trackScriptDownload(script.id, script.title, "github", {
+      userAgent,
+      sessionId,
+    }).catch((error) => {
+      console.error("Failed to track GitHub view:", error);
+    });
+  };
+
   const handleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
@@ -389,319 +456,658 @@ export function ScriptDetailPage({
     };
   }, [isFullscreen]);
 
+  /* ----------------------------- meta strip ---------------------------- */
+
+  const updatedRel = formatRelative(script.lastUpdated);
+  const metaParts: Array<{ key: string; node: React.ReactNode }> = [];
+  if (script.usageStats && script.usageStats.totalViews > 0) {
+    metaParts.push({
+      key: "views",
+      node: (
+        <>
+          <Eye className="h-3 w-3" aria-hidden="true" />
+          <span>{formatCompactNumber(script.usageStats.totalViews)} views</span>
+        </>
+      ),
+    });
+  }
+  if (script.usageStats && script.usageStats.totalDownloads > 0) {
+    metaParts.push({
+      key: "dl",
+      node: (
+        <>
+          <Download className="h-3 w-3" aria-hidden="true" />
+          <span>
+            {formatCompactNumber(script.usageStats.totalDownloads)} downloads
+          </span>
+        </>
+      ),
+    });
+  }
+  if (updatedRel) {
+    metaParts.push({
+      key: "updated",
+      node: <span>Updated {updatedRel}</span>,
+    });
+  }
+  if (script.version) {
+    metaParts.push({
+      key: "version",
+      node: <span>Version {script.version}</span>,
+    });
+  }
+  if (script.author) {
+    metaParts.push({
+      key: "author",
+      node: (
+        <>
+          <User className="h-3 w-3" aria-hidden="true" />
+          <span>By {script.author}</span>
+        </>
+      ),
+    });
+  }
+
   return (
     <ScriptsProvider>
-      <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+      <div className="bg-background flex min-h-screen flex-col">
         <Navbar />
         <main className="flex-1 pt-20">
-          <div className="container mx-auto max-w-4xl px-4 py-8">
-            {/* Breadcrumb navigation */}
-            <Breadcrumb
-              items={[
-                { name: "Home", href: "/" },
-                { name: "Scripts", href: "/scripts/" },
-                { name: script.title },
-              ]}
-              className="mb-6"
-            />
+          <article className="container mx-auto max-w-5xl px-4 py-12 sm:py-16">
+            {/* ───────────── Mono filesystem breadcrumb ───────────── */}
+            <nav
+              aria-label="Breadcrumb"
+              className="text-muted-foreground font-mono text-[12px] leading-relaxed sm:text-[13px]"
+            >
+              <Link
+                href="/"
+                className="hover:text-foreground transition-colors"
+              >
+                ~
+              </Link>
+              <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
+              <Link
+                href="/scripts/"
+                className="hover:text-foreground transition-colors"
+              >
+                intune-library
+              </Link>
+              <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
+              {primaryTag ? (
+                <>
+                  <Link
+                    href={`/scripts/${breadcrumbDir}/`}
+                    className="hover:text-foreground transition-colors"
+                  >
+                    {breadcrumbDir}
+                  </Link>
+                  <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
+                </>
+              ) : null}
+              <span className="text-foreground">{breadcrumbFile}</span>
+            </nav>
 
-            {/* Script header */}
-            <div className="mb-8">
-              <div className="mb-4 flex items-center gap-4">
-                <div
-                  className={`rounded-xl p-3 ${primaryTag ? tagColors[primaryTag] : "bg-primary/10 text-primary"}`}
-                >
-                  <PrimaryIcon className="h-6 w-6" />
+            {/* ───────────── Header ───────────── */}
+            <header className="mt-8">
+              <p
+                className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase"
+                style={{ color: kickerColor }}
+                aria-hidden="true"
+              >
+                {kicker}
+              </p>
+              <h1 className="font-display text-foreground mt-4 text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] tracking-[-0.025em]">
+                {script.title}
+              </h1>
+              <p className="text-muted-foreground mt-5 max-w-3xl text-base leading-relaxed sm:text-lg">
+                {script.description}
+              </p>
+
+              {script.tags.length > 0 && (
+                <div className="mt-6 flex flex-wrap gap-1.5">
+                  {script.tags.map((tag) => (
+                    <MonoTag key={tag}>{tag}</MonoTag>
+                  ))}
                 </div>
-                <div>
-                  <h1 className="mb-2 text-3xl font-bold">{script.title}</h1>
-                  <p className="text-muted-foreground text-lg">
-                    {script.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Tags */}
-              <div className="mb-6 flex flex-wrap gap-2">
-                {script.tags.map((tag) => {
-                  const TagIcon = tagIcons[tag] || Code2;
-                  return (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className={`gap-1.5 border px-3 py-1 text-sm font-medium ${tagColors[tag]}`}
-                    >
-                      <TagIcon className="h-4 w-4" />
-                      {tag}
-                    </Badge>
-                  );
-                })}
-              </div>
-
-              {/* Metadata */}
-              <div className="text-muted-foreground mb-6 flex flex-wrap items-center gap-6 text-sm">
-                {script.author && (
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>Author: {script.author}</span>
-                  </div>
-                )}
-                {script.version && (
-                  <div className="flex items-center gap-2">
-                    <Code2 className="h-4 w-4" />
-                    <span>Version: {script.version}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Test Results - per-tier panel when available, fallback to flat badge */}
-              {script.tests ? (
-                <QualityChecks tests={script.tests} />
-              ) : (
-                script.testResult && (
-                  <div className="bg-muted/50 mb-6 rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={`gap-2 border px-3 py-1 text-sm font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
-                      >
-                        {React.createElement(
-                          testResultIcons[script.testResult.result] ||
-                            testResultIcons.fail,
-                          { className: "h-4 w-4" },
-                        )}
-                        {script.testResult.result === "pass"
-                          ? "All Tests Passed"
-                          : script.testResult.result === "fail"
-                            ? "Tests Failed"
-                            : "Warnings Found"}
-                      </Badge>
-                      <span className="text-muted-foreground text-sm">
-                        Tested on {script.testResult.timestamp}
-                      </span>
-                    </div>
-                  </div>
-                )
               )}
 
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-3">
-                <Button asChild>
-                  <a href={githubUrl} target="_blank" rel="noopener noreferrer">
-                    <Github className="mr-2 h-4 w-4" />
-                    View on GitHub
-                    <ExternalLink className="ml-2 h-3 w-3" />
-                  </a>
-                </Button>
-                {!script.githubPath?.endsWith(".sh") &&
-                  script.scriptType !== "remediation" && (
-                    <Button
-                      variant="secondary"
+              {metaParts.length > 0 && (
+                <div
+                  className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-5 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase"
+                  style={{ borderColor: "var(--brand-rule)" }}
+                >
+                  {metaParts.map((part, i) => (
+                    <span
+                      key={part.key}
+                      className="inline-flex items-center gap-1.5"
+                    >
+                      {i > 0 && (
+                        <span
+                          aria-hidden="true"
+                          className="text-muted-foreground/40 -ml-3 mr-2"
+                        >
+                          ·
+                        </span>
+                      )}
+                      {part.node}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </header>
+
+            {/* ───────────── Action row ───────────── */}
+            <div
+              className="bg-card/40 mt-8 flex flex-col gap-1 rounded-md border p-1 backdrop-blur-md sm:flex-row sm:items-stretch"
+              style={{ borderColor: "var(--brand-rule)" }}
+            >
+              {!script.githubPath?.endsWith(".sh") &&
+                script.scriptType !== "remediation" && (
+                  <>
+                    <button
+                      type="button"
                       onClick={handleDeployToAzure}
                       disabled={isDeployingToAzure}
-                      className="cursor-pointer border-[#0078d4] bg-[#0078d4] text-white hover:border-[#106ebe] hover:bg-[#106ebe]"
+                      className="focus-visible:ring-accent group flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-azure)_8%,transparent)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      style={{ color: "var(--brand-azure)" }}
                     >
-                      {isDeployingToAzure ? (
+                      <Cloud
+                        className={`h-4 w-4 ${isDeployingToAzure ? "animate-pulse" : ""}`}
+                        aria-hidden="true"
+                      />
+                      <span>
+                        {isDeployingToAzure
+                          ? "Deploying to Azure…"
+                          : "Deploy to Azure"}
+                      </span>
+                    </button>
+                    <span
+                      aria-hidden="true"
+                      className="hidden w-px self-stretch sm:block"
+                      style={{ backgroundColor: "var(--brand-rule)" }}
+                    />
+                  </>
+                )}
+
+              <button
+                type="button"
+                onClick={handleCopyScript}
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                {copied ? (
+                  <>
+                    <Check
+                      className="h-4 w-4"
+                      strokeWidth={2.25}
+                      style={{ color: "var(--brand-accent-hi)" }}
+                      aria-hidden="true"
+                    />
+                    <span style={{ color: "var(--brand-accent-hi)" }}>
+                      Copied
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" aria-hidden="true" />
+                    <span>
+                      {isRemediation
+                        ? `Copy ${activeRemediationTab}`
+                        : "Copy script"}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              <span
+                aria-hidden="true"
+                className="hidden w-px self-stretch sm:block"
+                style={{ backgroundColor: "var(--brand-rule)" }}
+              />
+
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                <span>
+                  {script.scriptType === "remediation"
+                    ? "Download both"
+                    : "Download"}
+                </span>
+              </button>
+
+              <span
+                aria-hidden="true"
+                className="hidden w-px self-stretch sm:block"
+                style={{ backgroundColor: "var(--brand-rule)" }}
+              />
+
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleGithubView}
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <Github className="h-4 w-4" aria-hidden="true" />
+                <span>View on GitHub</span>
+                <ExternalLink
+                  className="h-3 w-3 opacity-60"
+                  aria-hidden="true"
+                />
+              </a>
+            </div>
+
+            {/* ───────────── Quality checks ───────────── */}
+            {(script.tests || script.testResult) && (
+              <section
+                className="mt-12"
+                aria-labelledby="quality-checks-heading"
+              >
+                <SectionKicker label="QUALITY CHECKS" />
+                <h2
+                  id="quality-checks-heading"
+                  className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  Validation status
+                </h2>
+                <div className="mt-5">
+                  {script.tests ? (
+                    <QualityChecks tests={script.tests} />
+                  ) : script.testResult ? (
+                    (() => {
+                      const meta =
+                        testResultMeta[script.testResult.result] ||
+                        testResultMeta.fail;
+                      const Icon = meta.icon;
+                      return (
+                        <HairlinePanel className="p-4 sm:p-5">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span
+                              className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase"
+                              style={{ color: meta.color }}
+                            >
+                              <Icon className="h-4 w-4" aria-hidden="true" />
+                              {meta.label}
+                            </span>
+                            <span className="text-muted-foreground font-mono text-[11px] tracking-wide">
+                              · tested {script.testResult.timestamp}
+                            </span>
+                          </div>
+                        </HairlinePanel>
+                      );
+                    })()
+                  ) : null}
+                </div>
+              </section>
+            )}
+
+            {/* ───────────── Required permissions ───────────── */}
+            {script.permissions && script.permissions.length > 0 && (
+              <section className="mt-12" aria-labelledby="permissions-heading">
+                <SectionKicker label="REQUIRED PERMISSIONS" />
+                <h2
+                  id="permissions-heading"
+                  className="font-display text-foreground mt-3 flex items-center gap-2 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  <Key
+                    className="h-5 w-5 shrink-0"
+                    style={{ color: "var(--brand-accent-hi)" }}
+                    aria-hidden="true"
+                  />
+                  Microsoft Graph scopes
+                </h2>
+                <HairlinePanel className="mt-5 divide-y">
+                  {script.permissions.map((permission) => {
+                    const permissionInfo = permissionsData?.[permission];
+                    return (
+                      <div
+                        key={permission}
+                        className="px-5 py-4"
+                        style={{ borderColor: "var(--brand-rule)" }}
+                      >
+                        <code
+                          className="font-mono text-[12.5px] font-medium"
+                          style={{ color: "var(--brand-accent-hi)" }}
+                        >
+                          {permission}
+                        </code>
+                        {permissionInfo?.description && (
+                          <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                            {permissionInfo.description}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </HairlinePanel>
+              </section>
+            )}
+
+            {/* ───────────── Schedule (runbook) ───────────── */}
+            {script.schedule && script.schedule !== "OnDemand" && (
+              <section className="mt-12" aria-labelledby="schedule-heading">
+                <SectionKicker label="SCHEDULE" />
+                <h2
+                  id="schedule-heading"
+                  className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  Runs on a cadence
+                </h2>
+                <HairlinePanel className="mt-5 flex items-center gap-3 px-5 py-4">
+                  <Calendar
+                    className="h-4 w-4 shrink-0"
+                    style={{ color: "var(--brand-azure)" }}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="font-mono text-[11px] tracking-[0.16em] uppercase"
+                    style={{ color: "var(--brand-azure)" }}
+                  >
+                    {script.schedule}
+                  </span>
+                  <span className="text-muted-foreground text-sm">
+                    · expected execution cadence as a runbook
+                  </span>
+                </HairlinePanel>
+              </section>
+            )}
+
+            {/* ───────────── Tested platforms ───────────── */}
+            {script.testedPlatforms && script.testedPlatforms.length > 0 && (
+              <section className="mt-12" aria-labelledby="platforms-heading">
+                <SectionKicker label="TESTED PLATFORMS" />
+                <h2
+                  id="platforms-heading"
+                  className="font-display text-foreground mt-3 flex items-center gap-2 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  <Monitor
+                    className="h-5 w-5 shrink-0"
+                    style={{ color: "var(--brand-accent-hi)" }}
+                    aria-hidden="true"
+                  />
+                  Verified runtimes
+                </h2>
+                <div className="mt-5 flex flex-wrap gap-1.5">
+                  {script.testedPlatforms.map((platform) => (
+                    <MonoTag key={platform}>{platform}</MonoTag>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ───────────── Changelog ───────────── */}
+            {script.changelog && script.changelog.length > 0 && (
+              <section className="mt-12" aria-labelledby="changelog-heading">
+                <SectionKicker label="CHANGELOG" />
+                <h2
+                  id="changelog-heading"
+                  className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  Version history
+                </h2>
+                <ol className="mt-5 space-y-3">
+                  {script.changelog.map((entry, i) => (
+                    <li
+                      key={i}
+                      className="border-l-2 pl-5"
+                      style={{
+                        borderColor:
+                          "color-mix(in oklab, var(--brand-accent) 55%, transparent)",
+                      }}
+                    >
+                      <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+                        Entry · {String(i + 1).padStart(2, "0")}
+                      </p>
+                      <p className="text-foreground mt-1.5 text-sm leading-relaxed">
+                        {entry}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            {/* ───────────── Code block ───────────── */}
+            <section className="mt-12" aria-labelledby="code-heading">
+              <SectionKicker label="CODE" />
+              <h2
+                id="code-heading"
+                className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+              >
+                Source
+              </h2>
+
+              <div
+                className={
+                  isFullscreen
+                    ? "bg-background fixed inset-0 z-50 flex flex-col"
+                    : "mt-5 overflow-hidden rounded-md border"
+                }
+                style={
+                  isFullscreen
+                    ? undefined
+                    : { borderColor: "var(--brand-rule)" }
+                }
+              >
+                {/* Toolbar */}
+                <div
+                  className="flex items-center justify-between border-b px-4 py-2.5"
+                  style={{
+                    borderColor: "var(--brand-rule)",
+                    background:
+                      "color-mix(in oklab, var(--foreground) 4%, var(--background))",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: "var(--brand-accent)" }}
+                    />
+                    <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">
+                      {script.id}.
+                      {script.githubPath?.endsWith(".sh") ? "sh" : "ps1"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleCopyScript}
+                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      aria-label={copied ? "Copied" : "Copy code"}
+                    >
+                      {copied ? (
                         <>
-                          <Cloud className="mr-2 h-4 w-4 animate-pulse" />
-                          Deploying to Azure...
+                          <Check
+                            className="h-3 w-3"
+                            strokeWidth={2.25}
+                            style={{ color: "var(--brand-accent-hi)" }}
+                            aria-hidden="true"
+                          />
+                          <span style={{ color: "var(--brand-accent-hi)" }}>
+                            Copied
+                          </span>
                         </>
                       ) : (
                         <>
-                          <Cloud className="mr-2 h-4 w-4" />
-                          Deploy to Azure
+                          <Copy className="h-3 w-3" aria-hidden="true" />
+                          <span>Copy</span>
                         </>
                       )}
-                    </Button>
-                  )}
-                <Button
-                  variant="outline"
-                  onClick={handleDownload}
-                  className="cursor-pointer"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {script.scriptType === "remediation"
-                    ? "Download Both Scripts"
-                    : "Download Script"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Permissions section */}
-            {script.permissions && script.permissions.length > 0 && (
-              <div className="mb-8">
-                <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
-                  <Key className="h-4 w-4" />
-                  Required Permissions
-                </h2>
-                <div className="border-border bg-muted/30 rounded-lg border p-3">
-                  <div className="space-y-2">
-                    {script.permissions.map((permission, index) => {
-                      const permissionInfo = permissionsData?.[permission];
-                      return (
-                        <div
-                          key={permission}
-                          className={`${index !== script.permissions!.length - 1 ? "border-border/50 border-b pb-2" : ""}`}
-                        >
-                          <code className="text-primary text-xs font-medium">
-                            {permission}
-                          </code>
-                          {permissionInfo?.description && (
-                            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                              {permissionInfo.description}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Code block */}
-            <div
-              className={`${isFullscreen ? "bg-background fixed inset-0 z-50" : "border-border bg-muted/50 overflow-hidden rounded-lg border"}`}
-            >
-              <div
-                className={`${isFullscreen ? "border-b" : "border-border border-b"} bg-muted flex items-center justify-between px-4 py-2`}
-              >
-                <div className="flex items-center gap-2">
-                  <Code2 className="text-muted-foreground h-4 w-4" />
-                  <span className="text-muted-foreground text-sm font-medium">
-                    {script.id}.
-                    {script.githubPath?.endsWith(".sh") ? "sh" : "ps1"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopyScript}
-                    className="hover:bg-muted-foreground/10 h-8 cursor-pointer px-2 transition-colors"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-xs">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4" />
-                        <span className="ml-2 text-xs">Copy</span>
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleFullscreen}
-                    className="hover:bg-muted-foreground/10 h-8 cursor-pointer px-2 transition-colors"
-                  >
-                    {isFullscreen ? (
-                      <>
-                        <Minimize2 className="h-4 w-4" />
-                        <span className="ml-2 text-xs">Exit Fullscreen</span>
-                      </>
-                    ) : (
-                      <>
-                        <Maximize2 className="h-4 w-4" />
-                        <span className="ml-2 text-xs">Fullscreen</span>
-                      </>
-                    )}
-                  </Button>
-                  <div className="ml-2 flex gap-1">
-                    <div className="h-2 w-2 rounded-full bg-red-500/60" />
-                    <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
-                    <div className="h-2 w-2 rounded-full bg-green-500/60" />
-                  </div>
-                </div>
-              </div>
-              {script.scriptType === "remediation" && script.remediationPair ? (
-                <Tabs
-                  value={activeRemediationTab}
-                  onValueChange={(value) =>
-                    setActiveRemediationTab(
-                      value as "detection" | "remediation",
-                    )
-                  }
-                  className="flex flex-1 flex-col overflow-hidden"
-                >
-                  <TabsList className="grid w-full grid-cols-2 rounded-none border-b">
-                    <TabsTrigger value="detection" className="rounded-none">
-                      Detection Script
-                    </TabsTrigger>
-                    <TabsTrigger value="remediation" className="rounded-none">
-                      Remediation Script
-                    </TabsTrigger>
-                  </TabsList>
-                  <div
-                    className={`${isFullscreen ? "h-[calc(100vh-3.5rem-2.5rem)]" : "max-h-[560px]"} overflow-auto bg-[#2d2d2d]`}
-                  >
-                    <TabsContent value="detection" className="m-0">
-                      <pre
-                        ref={detectionCodeRef}
-                        className={`${script.remediationPair.detection.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-sm leading-relaxed`}
-                        style={{ margin: 0, background: "transparent" }}
-                      >
-                        <code
-                          className={
-                            script.remediationPair.detection.githubPath?.endsWith(
-                              ".sh",
-                            )
-                              ? "language-bash"
-                              : "language-powershell"
-                          }
-                        >
-                          {script.remediationPair.detection.code}
-                        </code>
-                      </pre>
-                    </TabsContent>
-                    <TabsContent value="remediation" className="m-0">
-                      <pre
-                        ref={remediationCodeRef}
-                        className={`${script.remediationPair.remediation.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-sm leading-relaxed`}
-                        style={{ margin: 0, background: "transparent" }}
-                      >
-                        <code
-                          className={
-                            script.remediationPair.remediation.githubPath?.endsWith(
-                              ".sh",
-                            )
-                              ? "language-bash"
-                              : "language-powershell"
-                          }
-                        >
-                          {script.remediationPair.remediation.code}
-                        </code>
-                      </pre>
-                    </TabsContent>
-                  </div>
-                </Tabs>
-              ) : (
-                <div
-                  className={`${isFullscreen ? "h-[calc(100vh-3.5rem)]" : "max-h-[600px]"} overflow-auto bg-[#2d2d2d]`}
-                >
-                  <pre
-                    ref={codeRef}
-                    className={`${script.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-sm leading-relaxed`}
-                    style={{ margin: 0, background: "transparent" }}
-                  >
-                    <code
-                      className={
-                        script.githubPath?.endsWith(".sh")
-                          ? "language-bash"
-                          : "language-powershell"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFullscreen}
+                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      aria-label={
+                        isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
                       }
                     >
-                      {script.code}
-                    </code>
-                  </pre>
+                      {isFullscreen ? (
+                        <>
+                          <Minimize2 className="h-3 w-3" aria-hidden="true" />
+                          <span>Exit</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="h-3 w-3" aria-hidden="true" />
+                          <span>Fullscreen</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Related scripts section */}
+                {/* Remediation tabs */}
+                {isRemediation && script.remediationPair ? (
+                  <>
+                    <div
+                      role="tablist"
+                      aria-label="Remediation script tabs"
+                      className="grid grid-cols-2 border-b"
+                      style={{ borderColor: "var(--brand-rule)" }}
+                    >
+                      <button
+                        role="tab"
+                        type="button"
+                        aria-selected={activeRemediationTab === "detection"}
+                        onClick={() => setActiveRemediationTab("detection")}
+                        className="focus-visible:ring-accent group relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
+                        style={{
+                          color:
+                            activeRemediationTab === "detection"
+                              ? "var(--brand-accent-hi)"
+                              : undefined,
+                        }}
+                      >
+                        Detection
+                        {activeRemediationTab === "detection" && (
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                            style={{ backgroundColor: "var(--brand-accent)" }}
+                          />
+                        )}
+                      </button>
+                      <button
+                        role="tab"
+                        type="button"
+                        aria-selected={activeRemediationTab === "remediation"}
+                        onClick={() => setActiveRemediationTab("remediation")}
+                        className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
+                        style={{
+                          color:
+                            activeRemediationTab === "remediation"
+                              ? "var(--brand-accent-hi)"
+                              : undefined,
+                        }}
+                      >
+                        Remediation
+                        {activeRemediationTab === "remediation" && (
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                            style={{ backgroundColor: "var(--brand-accent)" }}
+                          />
+                        )}
+                      </button>
+                    </div>
+
+                    <div
+                      className={`overflow-auto ${isFullscreen ? "flex-1" : "max-h-[600px]"}`}
+                      style={{
+                        background:
+                          "color-mix(in oklab, var(--foreground) 5%, var(--background))",
+                      }}
+                    >
+                      {activeRemediationTab === "detection" ? (
+                        <pre
+                          ref={detectionCodeRef}
+                          className={`${script.remediationPair.detection.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-[13px] leading-relaxed`}
+                          style={{ margin: 0, background: "transparent" }}
+                        >
+                          <code
+                            className={
+                              script.remediationPair.detection.githubPath?.endsWith(
+                                ".sh",
+                              )
+                                ? "language-bash"
+                                : "language-powershell"
+                            }
+                          >
+                            {script.remediationPair.detection.code}
+                          </code>
+                        </pre>
+                      ) : (
+                        <pre
+                          ref={remediationCodeRef}
+                          className={`${script.remediationPair.remediation.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-[13px] leading-relaxed`}
+                          style={{ margin: 0, background: "transparent" }}
+                        >
+                          <code
+                            className={
+                              script.remediationPair.remediation.githubPath?.endsWith(
+                                ".sh",
+                              )
+                                ? "language-bash"
+                                : "language-powershell"
+                            }
+                          >
+                            {script.remediationPair.remediation.code}
+                          </code>
+                        </pre>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className={`overflow-auto ${isFullscreen ? "flex-1" : "max-h-[640px]"}`}
+                    style={{
+                      background:
+                        "color-mix(in oklab, var(--foreground) 5%, var(--background))",
+                    }}
+                  >
+                    <pre
+                      ref={codeRef}
+                      className={`${script.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} p-6 text-[13px] leading-relaxed`}
+                      style={{ margin: 0, background: "transparent" }}
+                    >
+                      <code
+                        className={
+                          script.githubPath?.endsWith(".sh")
+                            ? "language-bash"
+                            : "language-powershell"
+                        }
+                      >
+                        {script.code}
+                      </code>
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ───────────── Notes ───────────── */}
+            {script.notes && (
+              <section className="mt-12" aria-labelledby="notes-heading">
+                <SectionKicker label="NOTES" />
+                <h2
+                  id="notes-heading"
+                  className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                >
+                  Author notes
+                </h2>
+                <HairlinePanel className="mt-5 px-5 py-5">
+                  <p className="text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap">
+                    {script.notes}
+                  </p>
+                </HairlinePanel>
+              </section>
+            )}
+
+            {/* ───────────── Related scripts ───────────── */}
             {allScripts && allScripts.length > 1 && (
               <RelatedScripts
                 currentScript={script}
@@ -709,7 +1115,7 @@ export function ScriptDetailPage({
                 limit={3}
               />
             )}
-          </div>
+          </article>
 
           {/* Structured data for search engines */}
           <script

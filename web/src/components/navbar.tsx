@@ -1,20 +1,18 @@
 "use client";
 
+// Navbar v2 — slim, glass blur, mono wordmark, no gradients, no scale-on-hover.
+// Brand becomes a typographic mark (Geist Mono uppercase + cyan dot) rather
+// than a gradient icon. Reads as a serial number, not a logo. Sober.
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  Github,
-  Menu,
-  X,
-  Search,
-  ExternalLink,
-  HelpCircle,
-  BookOpen,
-} from "lucide-react";
+import { Github, Menu, X, Search, Sparkles } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { useScripts } from "~/components/scripts-provider";
 import { cn } from "~/lib/utils";
+
+const REPO_URL = "https://github.com/ugurkocde/IntuneAutomation";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -22,20 +20,15 @@ export default function Navbar() {
   const { setSearchOpen } = useScripts();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
-    window.addEventListener("scroll", handleScroll);
-
-    // Add keyboard shortcut for search
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setSearchOpen(true);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
@@ -47,191 +40,187 @@ export default function Navbar() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-500 ease-out",
+        "sticky top-0 z-50 w-full transition-colors duration-300",
         isScrolled
-          ? "bg-background/95 border-border/50 border-b shadow-sm backdrop-blur-xl"
-          : "bg-background/60 backdrop-blur-sm",
+          ? "bg-background/85 border-border/60 border-b backdrop-blur-xl"
+          : "bg-background/60 backdrop-blur-md",
       )}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo and Brand */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="group flex items-center gap-3 transition-all duration-300 hover:scale-105"
-            >
-              <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-purple-600 to-blue-700 shadow-lg transition-all duration-300 group-hover:from-blue-400 group-hover:via-purple-500 group-hover:to-blue-600 group-hover:shadow-xl">
-                  <span className="text-lg font-bold text-white">IA</span>
-                </div>
-                <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-20" />
-              </div>
-              <div className="hidden sm:block">
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-xl font-bold text-transparent">
-                  IntuneAutomation
-                </span>
-                <p className="text-muted-foreground hidden text-xs lg:block">
-                  Automate Intune, one script at a time
-                </p>
-              </div>
-            </Link>
-          </div>
+      <div className="container mx-auto max-w-7xl px-4">
+        <div className="flex h-14 items-center justify-between sm:h-16">
+          {/* Wordmark */}
+          <Link
+            href="/"
+            className="group flex items-center gap-2.5 transition-opacity duration-200 hover:opacity-90"
+            aria-label="IntuneAutomation home"
+          >
+            <span
+              className="text-accent inline-block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: "var(--brand-accent)" }}
+              aria-hidden="true"
+            />
+            <span className="font-mono text-[13px] font-medium tracking-[0.18em] uppercase">
+              IntuneAutomation
+            </span>
+          </Link>
 
-          {/* Desktop Actions */}
-          <div className="hidden items-center gap-3 md:flex">
-            <Button
-              variant="outline"
-              className="group gap-2 text-sm transition-all duration-200 hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-950/50"
+          {/* Desktop nav */}
+          <nav
+            className="hidden items-center gap-1 md:flex"
+            aria-label="Primary"
+          >
+            <button
+              type="button"
               onClick={() => setSearchOpen(true)}
+              className="group text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              aria-label="Search scripts"
             >
-              <Search className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-              <span>Search scripts</span>
-              <kbd className="bg-muted pointer-events-none ml-1 inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-70 transition-opacity duration-200 select-none group-hover:opacity-100">
-                <span className="text-xs">⌘</span>K
+              <Search className="h-3.5 w-3.5" strokeWidth={2} />
+              <span>Search</span>
+              <kbd className="border-border/70 text-muted-foreground ml-1 inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] opacity-70 select-none">
+                /
               </kbd>
-            </Button>
+            </button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="gap-2 text-sm transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/50"
+            <Link
+              href="/generator/"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
-              <Link href="/blog/">
-                <BookOpen className="h-4 w-4" />
-                <span>Blog</span>
-              </Link>
-            </Button>
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+              Generator
+              <span className="border-accent/40 text-accent rounded border px-1 py-0.5 font-mono text-[9px] leading-none tracking-wider uppercase">
+                New
+              </span>
+            </Link>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2 text-sm transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/50"
-              onClick={() => {
-                document.getElementById("faq-section")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              }}
+            <Link
+              href="/blog/"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
-              <HelpCircle className="h-4 w-4" />
-              <span>FAQ</span>
-            </Button>
+              Blog
+            </Link>
+
+            <button
+              type="button"
+              onClick={() =>
+                document
+                  .getElementById("faq-section")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              FAQ
+            </button>
+
+            <span className="bg-border/80 mx-1 h-4 w-px" aria-hidden="true" />
 
             <ThemeToggle />
 
-            <Button
-              asChild
-              variant="default"
-              size="sm"
-              className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 shadow-md transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border-border/70 hover:border-accent/40 ml-2 inline-flex items-center gap-2 rounded-md border bg-transparent px-3 py-1.5 text-sm transition-colors"
             >
-              <a
-                href="https://github.com/ugurkocde/intuneautomation"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Github className="h-4 w-4" />
-                <span>Contribute</span>
-                <ExternalLink className="h-3 w-3 opacity-70" />
-              </a>
-            </Button>
-          </div>
+              <Github className="h-3.5 w-3.5" strokeWidth={2} />
+              <span>GitHub</span>
+            </a>
+          </nav>
 
-          {/* Mobile Actions */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
+          {/* Mobile actions */}
+          <div className="flex items-center gap-1 md:hidden">
+            <button
+              type="button"
               onClick={() => setSearchOpen(true)}
-              className="p-2"
+              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+              aria-label="Search scripts"
             >
-              <Search className="h-4 w-4" />
-            </Button>
+              <Search className="h-4 w-4" strokeWidth={2} />
+            </button>
             <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen((v) => !v)}
               aria-label="Toggle menu"
-              className="transition-transform duration-200 hover:scale-105"
+              aria-expanded={isMobileMenuOpen}
+              className="text-muted-foreground hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
             >
               {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" strokeWidth={2} />
               ) : (
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" strokeWidth={2} />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="border-border/50 bg-background/95 border-t backdrop-blur-xl md:hidden">
-            <div className="animate-in slide-in-from-top-5 space-y-4 px-4 py-6 duration-300">
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 text-sm"
-                  onClick={() => {
-                    setSearchOpen(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  <Search className="h-4 w-4" />
-                  Search scripts
-                  <kbd className="bg-muted pointer-events-none ml-auto inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-70 select-none">
-                    <span className="text-xs">⌘</span>K
-                  </kbd>
-                </Button>
+          <div className="border-border/60 animate-in slide-in-from-top-2 border-t py-4 duration-200 md:hidden">
+            <nav
+              className="flex flex-col gap-1 text-sm"
+              aria-label="Mobile primary"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="text-foreground hover:bg-card flex items-center justify-between rounded-md px-3 py-2.5 transition-colors"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Search className="h-4 w-4" /> Search
+                </span>
+                <span className="border-border/70 text-muted-foreground inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] opacity-70">
+                  /
+                </span>
+              </button>
 
-                <Button
-                  variant="ghost"
-                  asChild
-                  className="w-full justify-start gap-3 text-sm"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Link href="/blog/">
-                    <BookOpen className="h-4 w-4" />
-                    Blog
-                  </Link>
-                </Button>
+              <Link
+                href="/generator/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-foreground hover:bg-card flex items-center gap-2 rounded-md px-3 py-2.5 transition-colors"
+              >
+                <Sparkles className="h-4 w-4" strokeWidth={2} />
+                Generator
+                <span className="border-accent/40 text-accent ml-auto rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-wider uppercase">
+                  New
+                </span>
+              </Link>
 
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 text-sm"
-                  onClick={() => {
-                    document.getElementById("faq-section")?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  <HelpCircle className="h-4 w-4" />
-                  FAQ
-                </Button>
+              <Link
+                href="/blog/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-foreground hover:bg-card rounded-md px-3 py-2.5 transition-colors"
+              >
+                Blog
+              </Link>
 
-                <Button
-                  asChild
-                  variant="default"
-                  size="sm"
-                  className="w-full justify-start gap-3 bg-gradient-to-r from-blue-600 to-purple-600"
-                >
-                  <a
-                    href="https://github.com/ugurkocde/intuneautomation"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Github className="h-4 w-4" />
-                    <span>Contribute on GitHub</span>
-                    <ExternalLink className="ml-auto h-3 w-3 opacity-70" />
-                  </a>
-                </Button>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => {
+                  document
+                    .getElementById("faq-section")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  setIsMobileMenuOpen(false);
+                }}
+                className="text-foreground hover:bg-card rounded-md px-3 py-2.5 text-left transition-colors"
+              >
+                FAQ
+              </button>
+
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="border-border/70 mt-2 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors"
+              >
+                <Github className="h-4 w-4" />
+                <span>GitHub repository</span>
+              </a>
+            </nav>
           </div>
         )}
       </div>

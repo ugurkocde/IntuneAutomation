@@ -3,9 +3,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Type system — two voices, same family:
+ *   --font-sans  Geist       — body, headlines, UI
+ *   --font-mono  Geist Mono  — labels, code, stats
+ *
+ * The .font-display utility tunes Geist for headline use (tight tracking,
+ * medium weight) so we get distinctive headlines without a third font.
+ */
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, "Liberation Mono", monospace;
 }
 
 @theme inline {
@@ -44,75 +54,106 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand tokens — used directly by landing-page components.
+   * --brand-accent     phosphor cyan (signature, large surfaces)
+   * --brand-accent-hi  brighter cyan (small text, AA-safe on dark)
+   * --brand-warn       sodium amber (single "live" status only)
+   * --brand-azure      Azure blue (Deploy-to-Azure surfaces only)
+   * --brand-rule       blueprint grid / divider line */
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-hi: var(--brand-accent-hi);
+  --color-brand-warn: var(--brand-warn);
+  --color-brand-azure: var(--brand-azure);
+  --color-brand-rule: var(--brand-rule);
 }
 
+/* Dark is the primary, designed theme. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+
+  /* Light theme — cream paper, ink, mirrored accents.
+   * Designed as a coherent secondary, not an afterthought. */
+  --background: oklch(0.985 0.005 90);            /* warm cream */
+  --foreground: oklch(0.17 0.018 250);            /* deep navy ink */
+  --card: oklch(0.995 0.003 90);
+  --card-foreground: oklch(0.17 0.018 250);
+  --popover: oklch(0.995 0.003 90);
+  --popover-foreground: oklch(0.17 0.018 250);
+  --primary: oklch(0.17 0.018 250);
+  --primary-foreground: oklch(0.985 0.005 90);
+  --secondary: oklch(0.95 0.008 90);
+  --secondary-foreground: oklch(0.17 0.018 250);
+  --muted: oklch(0.95 0.008 90);
+  --muted-foreground: oklch(0.45 0.018 250);
+  --accent: oklch(0.95 0.008 90);
+  --accent-foreground: oklch(0.17 0.018 250);
+  --destructive: oklch(0.55 0.22 27);
+  --border: oklch(0.88 0.012 250);
+  --input: oklch(0.88 0.012 250);
+  --ring: oklch(0.55 0.16 200);
+  --chart-1: oklch(0.65 0.18 200);
+  --chart-2: oklch(0.62 0.18 244);
+  --chart-3: oklch(0.55 0.18 195);
+  --chart-4: oklch(0.70 0.16 100);
+  --chart-5: oklch(0.45 0.18 250);
+  --sidebar: oklch(0.99 0.003 90);
+  --sidebar-foreground: oklch(0.17 0.018 250);
+  --sidebar-primary: oklch(0.17 0.018 250);
+  --sidebar-primary-foreground: oklch(0.985 0.005 90);
+  --sidebar-accent: oklch(0.95 0.008 90);
+  --sidebar-accent-foreground: oklch(0.17 0.018 250);
+  --sidebar-border: oklch(0.88 0.012 250);
+  --sidebar-ring: oklch(0.55 0.16 200);
+
+  /* Brand tokens — light theme variants. */
+  --brand-accent: oklch(0.55 0.18 195);
+  --brand-accent-hi: oklch(0.45 0.20 195);
+  --brand-warn: oklch(0.60 0.16 75);
+  --brand-azure: oklch(0.55 0.18 244);
+  --brand-rule: oklch(0.78 0.018 250);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark — the designed-first theme: midnight navy + phosphor cyan. */
+  --background: oklch(0.16 0.025 250);
+  --foreground: oklch(0.96 0.005 90);
+  --card: oklch(0.20 0.030 250);
+  --card-foreground: oklch(0.96 0.005 90);
+  --popover: oklch(0.20 0.030 250);
+  --popover-foreground: oklch(0.96 0.005 90);
+  --primary: oklch(0.96 0.005 90);
+  --primary-foreground: oklch(0.16 0.025 250);
+  --secondary: oklch(0.24 0.032 250);
+  --secondary-foreground: oklch(0.96 0.005 90);
+  --muted: oklch(0.22 0.030 250);
+  --muted-foreground: oklch(0.70 0.020 250);
+  --accent: oklch(0.24 0.032 250);
+  --accent-foreground: oklch(0.96 0.005 90);
+  --destructive: oklch(0.70 0.18 22);
+  --border: oklch(0.96 0.005 90 / 8%);
+  --input: oklch(0.96 0.005 90 / 12%);
+  --ring: oklch(0.82 0.18 195);
+  --chart-1: oklch(0.82 0.18 195);
+  --chart-2: oklch(0.70 0.18 244);
+  --chart-3: oklch(0.80 0.14 100);
+  --chart-4: oklch(0.65 0.18 250);
+  --chart-5: oklch(0.55 0.18 195);
+  --sidebar: oklch(0.18 0.028 250);
+  --sidebar-foreground: oklch(0.96 0.005 90);
+  --sidebar-primary: oklch(0.82 0.18 195);
+  --sidebar-primary-foreground: oklch(0.16 0.025 250);
+  --sidebar-accent: oklch(0.24 0.032 250);
+  --sidebar-accent-foreground: oklch(0.96 0.005 90);
+  --sidebar-border: oklch(0.96 0.005 90 / 8%);
+  --sidebar-ring: oklch(0.82 0.18 195);
+
+  /* Brand tokens — dark theme primary palette. */
+  --brand-accent: oklch(0.82 0.18 195);
+  --brand-accent-hi: oklch(0.88 0.16 195);
+  --brand-warn: oklch(0.75 0.16 75);
+  --brand-azure: oklch(0.70 0.18 244);
+  --brand-rule: oklch(0.36 0.030 250);
 }
 
 @layer base {
@@ -121,88 +162,159 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "ss02", "cv11";
+  }
+  /* Display headlines use the same Geist family, tuned for headline weight:
+   * tight tracking, slightly heavier weight, balanced character. Same font as
+   * body — character comes from scale and spacing, not a separate face. */
+  .font-display {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    font-feature-settings: "ss01" on, "ss03" on, "cv11" on;
+  }
+  /* Mono labels — tracked wide, uppercase by default in utility class. */
+  .font-mono-label {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+    font-size: 0.75rem;
+  }
+  /* Selectable code blocks in hero terminal — readable + copy-friendly. */
+  pre.terminal-block,
+  code.terminal-block {
+    font-family: var(--font-mono);
+    font-feature-settings: "calt" 0;
+    user-select: text;
   }
 }
 
 @layer utilities {
-  .bg-size-200 {
-    background-size: 200% 200%;
+  /* Blueprint grid background. Used by hero + How It Works section.
+   * Two layers: a 40px primary grid and an 8px sub-grid, both at low alpha
+   * so they're felt more than seen. No intentional misalignment — clean. */
+  .bg-blueprint {
+    background-image:
+      linear-gradient(to right, var(--brand-rule) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--brand-rule) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0;
   }
-  
-  .animate-gradient {
-    animation: gradient 6s ease infinite;
+  .bg-blueprint-soft {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--brand-rule) 35%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--brand-rule) 35%, transparent) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
-  
-  @keyframes gradient {
-    0%, 100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
+
+  /* Cyan-accent text utility, brighter for small-text AA on dark. */
+  .text-accent-hi {
+    color: var(--brand-accent-hi);
   }
-}
-
-@keyframes gradient-x {
-  0%, 100% {
-    background-position: 0% 50%;
+  .text-accent {
+    color: var(--brand-accent);
   }
-  50% {
-    background-position: 100% 50%;
+  .border-accent {
+    border-color: var(--brand-accent);
   }
-}
-
-.animate-gradient-x {
-  background-size: 200% 200%;
-  animation: gradient-x 3s ease infinite;
-}
-
-/* Notification Script Styles */
-.notification-script-card {
-  border: 2px solid rgb(139 92 246 / 0.3);
-  background: linear-gradient(135deg, rgb(243 244 246 / 0.5) 0%, rgb(224 231 255 / 0.5) 100%);
-}
-
-.dark .notification-script-card {
-  border: 2px solid rgb(139 92 246 / 0.2);
-  background: linear-gradient(135deg, rgb(30 30 30 / 0.5) 0%, rgb(49 46 129 / 0.1) 100%);
-}
-
-.notification-script-card:hover {
-  border-color: rgb(139 92 246 / 0.5);
-  box-shadow: 0 10px 40px -10px rgb(139 92 246 / 0.2);
-}
-
-/* Pulse animation for notification icons */
-@keyframes pulse-subtle {
-  0% {
-    transform: scale(1);
-    opacity: 1;
+  .bg-accent-soft {
+    background-color: color-mix(in oklab, var(--brand-accent) 12%, transparent);
   }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
+  .ring-accent {
+    --tw-ring-color: var(--brand-accent);
   }
-  100% {
-    transform: scale(1);
-    opacity: 1;
+
+  /* Atmospheric grain — fractal noise via inline SVG, scoped to a 256x256
+   * tile that loops seamlessly. Used as an overlay at very low opacity to
+   * give surfaces a refined photographic texture. */
+  .bg-grain {
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
   }
-}
 
-.pulse-icon {
-  animation: pulse-subtle 2s ease-in-out infinite;
-}
-
-/* Badge animations */
-.new-badge {
-  animation: badge-glow 2s ease-in-out infinite;
-}
-
-@keyframes badge-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgb(239 68 68 / 0.4);
+  /* Soft phosphor glow — a radial halo of the accent color, used to anchor
+   * a composition. The base utility renders centered; pair with positioning
+   * utilities for off-center placement. */
+  .bg-glow-accent {
+    background: radial-gradient(
+      circle at center,
+      color-mix(in oklab, var(--brand-accent) 22%, transparent) 0%,
+      color-mix(in oklab, var(--brand-accent) 10%, transparent) 30%,
+      transparent 70%
+    );
   }
-  50% {
-    box-shadow: 0 0 0 4px rgb(239 68 68 / 0);
+
+  /* Slow drift animation — used by the hero's anchor glow. ~18s loop, eases
+   * a tiny amount so the eye doesn't latch onto it. Respects reduced-motion
+   * via media query. */
+  .animate-drift {
+    animation: drift 18s ease-in-out infinite;
+  }
+  @keyframes drift {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+    50% { transform: translate3d(2%, -1%, 0) scale(1.04); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-drift { animation: none; }
+  }
+
+  /* Clip-path mask for reveal-on-load text. The element starts fully clipped
+   * and animates `--reveal` from 0% → 100% via framer-motion or a CSS keyframe.
+   * Used on hero H1 lines for a refined wipe-reveal. */
+  .clip-reveal {
+    clip-path: inset(0 calc(100% - var(--reveal, 100%)) 0 0);
+  }
+
+  /* Pulse cue — used on the scroll-down hardware-ready indicator. Three
+   * elements stagger via animation-delay. */
+  .pulse-cue {
+    animation: pulse-cue 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-cue {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-cue { animation: none; opacity: 0.7; }
+  }
+
+  /* Long-form legal copy (Terms of Use, Privacy Policy). Plain typographic
+   * defaults — no fancy color treatments — so the focus stays on the text. */
+  .legal-prose h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--foreground);
+  }
+  .legal-prose p {
+    margin-bottom: 1rem;
+    color: var(--muted-foreground);
+  }
+  .legal-prose ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--muted-foreground);
+  }
+  .legal-prose li {
+    margin-bottom: 0.35rem;
+  }
+  .legal-prose a {
+    color: var(--foreground);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal-prose a:hover {
+    color: var(--accent);
+  }
+  .legal-prose strong {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .legal-prose em {
+    font-style: italic;
   }
 }

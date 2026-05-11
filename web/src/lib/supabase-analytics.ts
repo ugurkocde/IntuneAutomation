@@ -4,7 +4,18 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// `persistSession: false` + an explicit `storage: undefined` keeps the auth
+// helper from touching `localStorage`. Required for SSR safety in Node 22+
+// where `globalThis.localStorage` exists as a partial polyfill that breaks
+// Supabase v2's default auth storage. Anonymous reads/writes (which is what
+// this app uses Supabase for) don't need session persistence anyway.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
 
 // Types for our analytics tables
 export interface ScriptView {

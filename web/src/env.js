@@ -9,6 +9,13 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
     PAT: z.string().min(1),
+    // Script Generator — all optional so dev/build works without keys.
+    // Runtime code checks for presence and falls back to mocked behavior.
+    ANTHROPIC_API_KEY: z.string().optional(),
+    TURNSTILE_SECRET_KEY: z.string().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+    GENERATOR_DAILY_TOKEN_CAP: z.coerce.number().int().positive().optional(),
   },
 
   /**
@@ -17,7 +24,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   },
 
   /**
@@ -27,7 +34,12 @@ export const env = createEnv({
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     PAT: process.env.PAT,
-    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    GENERATOR_DAILY_TOKEN_CAP: process.env.GENERATOR_DAILY_TOKEN_CAP,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

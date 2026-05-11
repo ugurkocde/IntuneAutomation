@@ -1,8 +1,13 @@
+// /unsubscribe page — v4 vocabulary.
+// Plain page background (atmosphere primitives are landing-only), v4 card with
+// hairline border, mono kickers, Lucide status icons, cyan-accent button.
+
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useSearchParams } from "next/navigation";
+import { AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Navbar from "~/components/navbar";
 import Footer from "~/components/footer";
 import { ScriptsProvider } from "~/components/scripts-provider";
@@ -11,15 +16,22 @@ import SearchDialog from "~/components/search-dialog";
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  },
 );
+
+type Status = "loading" | "success" | "error" | "invalid";
 
 function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
-  const [status, setStatus] = useState<
-    "loading" | "success" | "error" | "invalid"
-  >("loading");
+  const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -30,28 +42,24 @@ function UnsubscribeContent() {
       );
       return;
     }
-
-    handleUnsubscribe();
+    void handleUnsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleUnsubscribe = async () => {
     if (!token) return;
-
     try {
-      // Update the subscriber's status to inactive using the unsubscribe token
       const { error } = await supabase
         .from("script_subscribers")
         .update({ is_active: false })
         .eq("unsubscribe_token", token)
         .setHeader("unsubscribe_token", token);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       setStatus("success");
       setMessage(
-        `You have been successfully unsubscribed. We're sorry to see you go!`,
+        "You have been successfully unsubscribed. We're sorry to see you go.",
       );
     } catch (error) {
       console.error("Unsubscribe error:", error);
@@ -64,7 +72,6 @@ function UnsubscribeContent() {
 
   const handleResubscribe = async () => {
     if (!token) return;
-
     setStatus("loading");
     try {
       const { error } = await supabase
@@ -76,7 +83,7 @@ function UnsubscribeContent() {
       if (error) throw error;
 
       setStatus("success");
-      setMessage("You have been successfully re-subscribed to script updates!");
+      setMessage("You have been successfully re-subscribed to script updates.");
     } catch (error) {
       console.error("Resubscribe error:", error);
       setStatus("error");
@@ -85,37 +92,67 @@ function UnsubscribeContent() {
   };
 
   return (
-    <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+    <div className="bg-background flex min-h-screen flex-col">
       <Navbar />
-
       <main className="flex-1">
-        <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16">
-          <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800">
-            <div className="text-center">
+        <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md items-center px-4 py-20">
+          <div
+            className="bg-card/40 w-full overflow-hidden rounded-lg border backdrop-blur-md"
+            style={{ borderColor: "var(--brand-rule)" }}
+          >
+            <div
+              className="flex items-center justify-between border-b px-5 py-3"
+              style={{ borderColor: "var(--brand-rule)" }}
+            >
+              <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+                // SUBSCRIPTION
+              </p>
+              <StatusKicker status={status} />
+            </div>
+
+            <div className="px-6 py-10 text-center">
               {status === "loading" && (
                 <>
-                  <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    Processing your request...
+                  <Loader2
+                    className="text-muted-foreground mx-auto mb-5 h-10 w-10 animate-spin"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  <h2 className="font-display text-foreground text-xl tracking-tight">
+                    Processing your request
                   </h2>
                 </>
               )}
 
               {status === "success" && (
                 <>
-                  <div className="mb-4 text-6xl">✅</div>
-                  <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    Unsubscribe Successful
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor:
+                        "color-mix(in oklab, var(--brand-accent) 14%, transparent)",
+                    }}
+                  >
+                    <CheckCircle
+                      className="h-6 w-6"
+                      strokeWidth={1.75}
+                      style={{ color: "var(--brand-accent-hi)" }}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <h2 className="font-display text-foreground mb-3 text-2xl tracking-tight">
+                    Unsubscribe successful
                   </h2>
-                  <p className="mb-6 text-gray-600 dark:text-gray-300">
+                  <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
                     {message}
                   </p>
-                  <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-                    Changed your mind? You can re-subscribe anytime.
+                  <p className="text-muted-foreground mb-7 font-mono text-[11px] tracking-[0.12em] uppercase">
+                    Changed your mind? Re-subscribe anytime.
                   </p>
                   <button
                     onClick={handleResubscribe}
-                    className="transform rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-md transition-all duration-200 hover:scale-105 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
+                    className="ring-accent inline-flex h-11 items-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0"
                   >
                     Re-subscribe
                   </button>
@@ -124,48 +161,102 @@ function UnsubscribeContent() {
 
               {status === "error" && (
                 <>
-                  <div className="mb-4 text-6xl">❌</div>
-                  <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15"
+                  >
+                    <XCircle
+                      className="text-destructive h-6 w-6"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <h2 className="font-display text-foreground mb-3 text-2xl tracking-tight">
                     Something went wrong
                   </h2>
-                  <p className="mb-6 text-gray-600 dark:text-gray-300">
+                  <p className="text-muted-foreground mb-7 text-sm leading-relaxed">
                     {message}
                   </p>
                   <button
                     onClick={handleUnsubscribe}
-                    className="transform rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-md transition-all duration-200 hover:scale-105 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
+                    className="ring-accent inline-flex h-11 items-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0"
                   >
-                    Try Again
+                    Try again
                   </button>
                 </>
               )}
 
               {status === "invalid" && (
                 <>
-                  <div className="mb-4 text-6xl">⚠️</div>
-                  <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    Invalid Link
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor:
+                        "color-mix(in oklab, var(--brand-warn) 18%, transparent)",
+                    }}
+                  >
+                    <AlertTriangle
+                      className="h-6 w-6"
+                      strokeWidth={1.75}
+                      style={{ color: "var(--brand-warn)" }}
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <h2 className="font-display text-foreground mb-3 text-2xl tracking-tight">
+                    Invalid link
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-300">{message}</p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {message}
+                  </p>
                 </>
               )}
             </div>
 
-            <div className="mt-8 border-t border-gray-200 pt-6 text-center dark:border-gray-700">
+            <div
+              className="border-t px-5 py-3 text-center"
+              style={{ borderColor: "var(--brand-rule)" }}
+            >
               <a
                 href="/"
-                className="text-sm text-blue-600 transition-colors duration-200 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-muted-foreground hover:text-foreground font-mono inline-flex items-center gap-1 text-[11px] tracking-[0.14em] uppercase transition-colors"
               >
-                Return to homepage
+                ← Return to homepage
               </a>
             </div>
           </div>
         </div>
       </main>
-
       <SearchDialog />
       <Footer />
     </div>
+  );
+}
+
+function StatusKicker({ status }: { status: Status }) {
+  const label =
+    status === "loading"
+      ? "PROCESSING"
+      : status === "success"
+        ? "CONFIRMED"
+        : status === "error"
+          ? "ERROR"
+          : "INVALID";
+  const color =
+    status === "loading"
+      ? "var(--brand-accent-hi)"
+      : status === "success"
+        ? "var(--brand-accent-hi)"
+        : status === "error"
+          ? "var(--destructive)"
+          : "var(--brand-warn)";
+  return (
+    <span
+      className="font-mono text-[10px] tracking-[0.18em] uppercase"
+      style={{ color }}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -173,17 +264,22 @@ function UnsubscribePageContent() {
   return (
     <Suspense
       fallback={
-        <div className="from-background to-background/80 flex min-h-screen flex-col bg-gradient-to-b">
+        <div className="bg-background flex min-h-screen flex-col">
           <Navbar />
           <main className="flex-1">
-            <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16">
-              <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    Loading...
-                  </h2>
-                </div>
+            <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md items-center px-4 py-20">
+              <div
+                className="bg-card/40 w-full overflow-hidden rounded-lg border px-6 py-10 text-center backdrop-blur-md"
+                style={{ borderColor: "var(--brand-rule)" }}
+              >
+                <Loader2
+                  className="text-muted-foreground mx-auto mb-5 h-10 w-10 animate-spin"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+                <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+                  Loading
+                </p>
               </div>
             </div>
           </main>

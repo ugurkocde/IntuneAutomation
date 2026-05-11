@@ -6,16 +6,8 @@ import { motion } from "framer-motion";
 import { ScriptCard } from "~/components/script-card";
 import { useScripts } from "~/components/scripts-provider";
 import { AnalyticsService } from "~/lib/supabase-analytics";
-import {
-  RefreshCw,
-  AlertCircle,
-  Github,
-  ArrowRight,
-  TrendingUp,
-  Sparkles,
-} from "lucide-react";
+import { RefreshCw, ArrowRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Alert, AlertDescription } from "~/components/ui/alert";
 import Link from "next/link";
 
 export default function PopularScripts() {
@@ -75,110 +67,106 @@ export default function PopularScripts() {
   return (
     <section
       id="popular-scripts-section"
-      className="container mx-auto max-w-7xl px-4 py-16"
+      aria-labelledby="popular-heading"
+      className="border-t border-border/60 px-4 py-24 sm:py-32"
     >
-      <div className="mb-12 text-center">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 text-sm font-medium text-blue-700 dark:from-blue-950/50 dark:to-purple-950/50 dark:text-blue-400">
-          <TrendingUp className="h-4 w-4" />
-          <span>Popular This Week</span>
-        </div>
-
-        <h2 className="mb-4 text-3xl font-bold">Most Popular Scripts</h2>
-        <p className="text-muted-foreground mx-auto max-w-2xl">
-          Discover the most viewed and downloaded PowerShell scripts — the
-          community’s top picks for automating Intune tasks.
-        </p>
-
-        {/* Status Information */}
-        <div className="mt-6 flex flex-col items-center gap-4">
-          {isLoading && (
-            <div className="text-muted-foreground flex items-center gap-2 text-sm">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Loading latest scripts...</span>
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive" className="max-w-2xl">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
-                <span>Failed to fetch scripts: {error}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refetchScripts}
-                  className="ml-4"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {lastFetched && !isLoading && !error && (
-            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <Github className="h-3 w-3" />
-              <span>
-                Last updated: {new Date(lastFetched).toLocaleString()}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="py-12 text-center">
-          <div className="inline-flex flex-col items-center gap-4">
-            <RefreshCw className="text-muted-foreground h-8 w-8 animate-spin" />
-            <p className="text-muted-foreground">Loading popular scripts...</p>
-          </div>
-        </div>
-      ) : popularScripts.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-muted-foreground">
-            No scripts available at the moment.
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-14">
+          <p className="font-mono-label text-accent-hi mb-4">
+            // POPULAR THIS WEEK
+          </p>
+          <h2
+            id="popular-heading"
+            className="font-display text-foreground mb-3 text-4xl leading-[1.05] sm:text-5xl md:text-6xl"
+          >
+            What admins ran this week.
+          </h2>
+          <p className="text-muted-foreground max-w-2xl text-base sm:text-lg">
+            The six most viewed and downloaded scripts in the library over the
+            last seven days.
           </p>
         </div>
-      ) : (
-        <>
-          {/* Popular Scripts Grid */}
-          <motion.div
-            className="grid min-h-[400px] grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ staggerChildren: 0.1 }}
-          >
-            {popularScripts.map((script, index) => (
-              <motion.div
-                key={script.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <ScriptCard
-                  script={script}
-                  onClick={() => handleScriptClick(script)}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
 
-          {/* Call to Action */}
-          <div className="mt-16 text-center">
+        {/* Inline status — small, mono, no heavy alert UI */}
+        {error && (
+          <div className="border-destructive/30 bg-destructive/5 text-destructive mb-8 flex items-center justify-between gap-4 rounded-md border px-4 py-3 text-sm">
+            <span className="font-mono text-xs">
+              <span className="opacity-60">ERR · </span>
+              Failed to fetch scripts: {error}
+            </span>
             <Button
-              asChild
-              size="lg"
-              className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
+              variant="outline"
+              size="sm"
+              onClick={refetchScripts}
+              className="h-7 gap-1.5 text-xs"
             >
-              <Link href="/scripts">
-                <span>Explore All Scripts</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              <RefreshCw className="h-3 w-3" />
+              Retry
             </Button>
           </div>
-        </>
-      )}
+        )}
+
+        {isLoading ? (
+          <div className="grid min-h-[420px] grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-card/40 h-56 animate-pulse rounded-md border border-border/40"
+              />
+            ))}
+          </div>
+        ) : popularScripts.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-muted-foreground font-mono text-xs tracking-widest uppercase">
+              No scripts available
+            </p>
+          </div>
+        ) : (
+          <>
+            <motion.div
+              className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ staggerChildren: 0.06 }}
+            >
+              {popularScripts.map((script, index) => (
+                <motion.div
+                  key={script.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.06, duration: 0.4 }}
+                >
+                  <ScriptCard
+                    script={script}
+                    onClick={() => handleScriptClick(script)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <div className="mt-14 flex items-center justify-between gap-4 border-t border-border/60 pt-8">
+              {lastFetched && !error ? (
+                <p className="text-muted-foreground font-mono text-[11px] tracking-widest uppercase">
+                  Last sync · {new Date(lastFetched).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </p>
+              ) : (
+                <span />
+              )}
+
+              <Link
+                href="/scripts/"
+                className="text-foreground hover:text-accent-hi font-mono group inline-flex items-center gap-1.5 border-b border-current pb-0.5 text-sm transition-colors"
+              >
+                Browse all scripts
+                <ArrowRight
+                  className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }
