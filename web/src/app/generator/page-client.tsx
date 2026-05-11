@@ -505,7 +505,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
           </label>
 
           {/* Submit */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <Button
               type="submit"
               disabled={!canGenerate}
@@ -532,6 +532,19 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
               >
                 Cancel
               </Button>
+            )}
+            {!isStreaming && !canGenerate && (
+              <p className="text-muted-foreground text-[12px]">
+                {prompt.trim().length === 0
+                  ? "Describe what the script should do to enable."
+                  : prompt.length > MAX_PROMPT_LENGTH
+                    ? `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters).`
+                    : !accepted
+                      ? "Accept the Terms above to enable."
+                      : turnstileSiteKey && !turnstileToken && !isDev
+                        ? "Complete the verification above to enable."
+                        : null}
+              </p>
             )}
           </div>
         </form>
