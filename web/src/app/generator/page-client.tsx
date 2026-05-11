@@ -3,6 +3,7 @@
 import "prismjs/themes/prism-tomorrow.css";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Script from "next/script";
 import {
@@ -18,8 +19,16 @@ import {
 } from "lucide-react";
 import Navbar from "~/components/navbar";
 import Footer from "~/components/footer";
-import { ScriptsProvider } from "~/components/scripts-provider";
+import { ScriptsProvider, useScripts } from "~/components/scripts-provider";
 import SearchDialog from "~/components/search-dialog";
+
+const ScriptDetail = dynamic(
+  () =>
+    import("~/components/script-detail").then((mod) => ({
+      default: mod.ScriptDetail,
+    })),
+  { ssr: false },
+);
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { lintScript, type LintResult } from "~/lib/generator-lint";
@@ -818,7 +827,35 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
 
       <Footer />
     </div>
+    <GeneratorScriptDetail />
     </ScriptsProvider>
+  );
+}
+
+// Mounts the script detail modal when a user selects a script from the search
+// dialog while on the generator page. Without this consumer, the provider
+// flips `isDetailOpen` but nothing renders.
+function GeneratorScriptDetail() {
+  const {
+    selectedScript,
+    setSelectedScript,
+    isDetailOpen,
+    setIsDetailOpen,
+    updateScriptStats,
+  } = useScripts();
+
+  if (!selectedScript || !isDetailOpen) return null;
+
+  return (
+    <ScriptDetail
+      script={selectedScript}
+      updateScriptStats={updateScriptStats}
+      onClose={() => {
+        setIsDetailOpen(false);
+        setSelectedScript(null);
+        window.history.pushState(null, "", "/generator/");
+      }}
+    />
   );
 }
 
