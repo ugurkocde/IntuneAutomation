@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Minus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
@@ -652,6 +652,14 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
 
 export default function FAQSection() {
   const [openItems, setOpenItems] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#faq-section") return;
+    document
+      .getElementById("faq-section")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const toggleItem = (index: number) => {
     setOpenItems((prev) =>

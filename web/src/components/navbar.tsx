@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Github, Menu, X, Search, Sparkles } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
@@ -18,6 +19,14 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { setSearchOpen } = useScripts();
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+
+  const scrollToFaq = () => {
+    document
+      .getElementById("faq-section")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 8);
@@ -93,17 +102,22 @@ export default function Navbar() {
               </span>
             </Link>
 
-            <button
-              type="button"
-              onClick={() =>
-                document
-                  .getElementById("faq-section")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            >
-              FAQ
-            </button>
+            {isHome ? (
+              <button
+                type="button"
+                onClick={scrollToFaq}
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              >
+                FAQ
+              </button>
+            ) : (
+              <Link
+                href="/#faq-section"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              >
+                FAQ
+              </Link>
+            )}
 
             <span className="bg-border/80 mx-1 h-4 w-px" aria-hidden="true" />
 
@@ -182,18 +196,26 @@ export default function Navbar() {
                 </span>
               </Link>
 
-              <button
-                type="button"
-                onClick={() => {
-                  document
-                    .getElementById("faq-section")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  setIsMobileMenuOpen(false);
-                }}
-                className="text-foreground hover:bg-card rounded-md px-3 py-2.5 text-left transition-colors"
-              >
-                FAQ
-              </button>
+              {isHome ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    scrollToFaq();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="text-foreground hover:bg-card rounded-md px-3 py-2.5 text-left transition-colors"
+                >
+                  FAQ
+                </button>
+              ) : (
+                <Link
+                  href="/#faq-section"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-foreground hover:bg-card rounded-md px-3 py-2.5 transition-colors"
+                >
+                  FAQ
+                </Link>
+              )}
 
               <a
                 href={REPO_URL}
