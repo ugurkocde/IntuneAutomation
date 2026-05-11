@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { Script, ScriptTag } from "~/lib/scripts";
 import { Badge } from "~/components/ui/badge";
 import { useAnalyticsContext } from "~/components/analytics-provider";
+import { VerifiedBadge } from "~/components/verified-badge";
 import {
   Code2,
   Shield,
@@ -70,20 +71,6 @@ const tagColors: Record<ScriptTag, string> = {
     "text-violet-600 bg-violet-50 border-violet-200 dark:text-violet-400 dark:bg-violet-950/50 dark:border-violet-800/50",
   Remediation:
     "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/50 dark:border-emerald-800/50",
-};
-
-// Color mapping for test results
-const testResultColors = {
-  pass: "text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950/50 dark:border-green-800/50",
-  fail: "text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950/50 dark:border-red-800/50",
-  warning:
-    "text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-950/50 dark:border-yellow-800/50",
-};
-
-const testResultIcons = {
-  pass: CheckCircle,
-  fail: XCircle,
-  warning: AlertTriangle,
 };
 
 // Utility function to format numbers compactly
@@ -322,21 +309,7 @@ export function ScriptListItem({ script, onClick }: ScriptListItemProps) {
                   })}
                   <span>{scriptTypeInfo.text}</span>
                 </div>
-                {script.testResult && (
-                  <Badge
-                    variant="outline"
-                    className={`gap-1 border text-xs font-medium ${testResultColors[script.testResult.result] || testResultColors.fail}`}
-                  >
-                    {React.createElement(
-                      testResultIcons[script.testResult.result] ||
-                        testResultIcons.fail,
-                      { className: "h-3 w-3" },
-                    )}
-                    {script.testResult.result === "pass"
-                      ? "Tested"
-                      : script.testResult.result}
-                  </Badge>
-                )}
+                <VerifiedBadge script={script} />
               </div>
             </div>
 
