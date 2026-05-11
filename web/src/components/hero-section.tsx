@@ -64,7 +64,7 @@ export default function HeroSection() {
             >
               <Link
                 href="/generator/"
-                aria-label="Try the new AI Script Generator — beta"
+                aria-label="Try the new Script Generator — beta"
                 className="border-border/70 hover:border-accent/50 hover:bg-card/60 focus-visible:ring-accent group inline-flex items-center gap-2.5 rounded-full border bg-card/40 py-1.5 pl-3 pr-2.5 text-[11px] font-mono tracking-[0.16em] uppercase text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
               >
                 <span
@@ -79,7 +79,7 @@ export default function HeroSection() {
                   strokeWidth={2}
                   aria-hidden="true"
                 />
-                <span>AI Script Generator</span>
+                <span>Script Generator</span>
                 <ArrowRight
                   className="text-muted-foreground group-hover:text-foreground h-3 w-3 transition-transform group-hover:translate-x-0.5"
                   strokeWidth={2}
