@@ -288,7 +288,7 @@ jobs:
                       automationAccountName = @{
                           type = "string"
                           metadata = @{
-                              description = "Name of your existing Azure Automation Account (must exist in the selected resource group)"
+                              description = "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
                           }
                       }
                       runbookName = @{
@@ -321,10 +321,27 @@ jobs:
                   }
                   resources = @(
                       @{
+                          type = "Microsoft.Automation/automationAccounts"
+                          apiVersion = "2023-11-01"
+                          name = "[parameters('automationAccountName')]"
+                          location = "[parameters('location')]"
+                          identity = @{
+                              type = "SystemAssigned"
+                          }
+                          properties = @{
+                              sku = @{
+                                  name = "Basic"
+                              }
+                          }
+                      }
+                      @{
                           type = "Microsoft.Automation/automationAccounts/runbooks"
                           apiVersion = "2023-11-01"
                           name = "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
                           location = "[parameters('location')]"
+                          dependsOn = @(
+                              "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+                          )
                           properties = @{
                               runbookType = "[variables('runbookType')]"
                               logProgress = "[variables('logProgress')]"
@@ -355,7 +372,7 @@ jobs:
                       }
                       deploymentInstructions = @{
                           type = "string"
-                          value = "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Ensure your Automation Account has Managed Identity enabled, 2) Assign required Microsoft Graph permissions to the Managed Identity, 3) Test the runbook."
+                          value = "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
                       }
                   }
               }
