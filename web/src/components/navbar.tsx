@@ -93,13 +93,6 @@ export default function Navbar() {
               </span>
             </Link>
 
-            <Link
-              href="/blog/"
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            >
-              Blog
-            </Link>
-
             <button
               type="button"
               onClick={() =>
@@ -187,14 +180,6 @@ export default function Navbar() {
                 <span className="border-accent/40 text-accent ml-auto rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-wider uppercase">
                   New
                 </span>
-              </Link>
-
-              <Link
-                href="/blog/"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="text-foreground hover:bg-card rounded-md px-3 py-2.5 transition-colors"
-              >
-                Blog
               </Link>
 
               <button
