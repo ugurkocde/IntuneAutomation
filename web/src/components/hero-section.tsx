@@ -12,7 +12,7 @@
 import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, ArrowUpRight, Search } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Search, Sparkles } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
 import type { ScriptTag } from "~/lib/scripts";
 
@@ -51,6 +51,42 @@ export default function HeroSection() {
           {/* LEFT — typography + CTAs                       */}
           {/* ============================================== */}
           <div className="min-w-0">
+
+            {/* Launch pill — announces the AI Script Generator above the
+             * headline. Fades in just before the H1 reveal cascades. Uses
+             * the existing v2 mono-uppercase kicker pattern with a cyan
+             * accent dot and a small arrow that translates on hover. */}
+            <motion.div
+              initial={init}
+              animate={animate}
+              transition={t(0.05)}
+              className="mb-8"
+            >
+              <Link
+                href="/generator/"
+                aria-label="Try the new AI Script Generator — beta"
+                className="border-border/70 hover:border-accent/50 hover:bg-card/60 focus-visible:ring-accent group inline-flex items-center gap-2.5 rounded-full border bg-card/40 py-1.5 pl-3 pr-2.5 text-[11px] font-mono tracking-[0.16em] uppercase text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "var(--brand-accent)" }}
+                  aria-hidden="true"
+                />
+                <span className="text-foreground">New</span>
+                <span className="bg-border/80 h-3 w-px" aria-hidden="true" />
+                <Sparkles
+                  className="text-accent h-3 w-3"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+                <span>AI Script Generator</span>
+                <ArrowRight
+                  className="text-muted-foreground group-hover:text-foreground h-3 w-3 transition-transform group-hover:translate-x-0.5"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+              </Link>
+            </motion.div>
 
             {/* H1 — three-line weight-contrasted lockup with clip-reveal.
              * Last line uses the muted weight + cyan accent on "production"
