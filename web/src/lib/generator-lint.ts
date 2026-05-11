@@ -129,7 +129,6 @@ export function lintScript(code: string): LintResult {
     ".DESCRIPTION",
     ".TAGS",
     ".PLATFORM",
-    ".MINROLE",
     ".PERMISSIONS",
     ".AUTHOR",
     ".VERSION",
@@ -144,7 +143,7 @@ export function lintScript(code: string): LintResult {
       id: "metadata-complete",
       severity: "pass",
       category: "metadata",
-      message: "All 13 required metadata fields present.",
+      message: `All ${requiredFields.length} required metadata fields present.`,
     });
   } else {
     findings.push({

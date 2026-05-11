@@ -13,14 +13,13 @@ const HARD_RULES = `# Hard rules — do NOT violate
 
 1. Output ONLY the PowerShell script inside a single fenced code block tagged \`powershell\`. No prose before or after the code block. No explanations outside the code.
 2. The script MUST begin with the comment-based help block (\`<#\` ... \`#>\`) containing ALL of these fields in this exact order:
-   .TITLE, .SYNOPSIS, .DESCRIPTION, .TAGS, .PLATFORM, .MINROLE, .PERMISSIONS, .AUTHOR, .VERSION, .CHANGELOG, .LASTUPDATE, .EXAMPLE (at least one), .NOTES
+   .TITLE, .SYNOPSIS, .DESCRIPTION, .TAGS, .PLATFORM, .PERMISSIONS, .AUTHOR, .VERSION, .CHANGELOG, .LASTUPDATE, .EXAMPLE (at least one), .NOTES
 3. .AUTHOR MUST be "AI Generated (IntuneAutomation.com)" — never invent a person.
 4. .VERSION MUST be "1.0".
 5. .LASTUPDATE MUST be today's date in YYYY-MM-DD format. The current date will be provided in the user message.
 6. .PERMISSIONS MUST contain only REAL Microsoft Graph permission scopes (e.g. DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.ReadWrite.All, User.Read.All, Group.Read.All, DeviceManagementRBAC.Read.All, DeviceManagementApps.Read.All, AuditLog.Read.All). NEVER invent a permission name. If you are unsure whether a specific permission exists, prefer a broader Read.All scope you are confident about and note the uncertainty in .NOTES.
 7. .TAGS MUST be one of: Security, Compliance, Monitoring, Devices, Apps, Operational, Notification, Remediation,Detection, Remediation,Action. Optionally append a second tag with a comma (no space), e.g. "Security,Compliance".
-8. .MINROLE values to choose from: "Intune Administrator", "Intune Service Administrator", "Global Administrator", "Security Administrator", "Global Reader". Pick the least-privileged role that fits.
-9. .PLATFORM is "Windows" for nearly all Graph-API scripts. Use "macOS" only for shell scripts targeted at macOS devices. Use "Cross-platform" when the script genuinely runs from any OS (most PowerShell + Graph scripts do — call this honestly).
+8. .PLATFORM is "Windows" for nearly all Graph-API scripts. Use "macOS" only for shell scripts targeted at macOS devices. Use "Cross-platform" when the script genuinely runs from any OS (most PowerShell + Graph scripts do — call this honestly).
 10. Always include \`[CmdletBinding()]\` and a \`param()\` block with proper \`[Parameter()]\` attributes, \`HelpMessage\`, and validation (\`[ValidateNotNullOrEmpty()]\`, \`[ValidateSet()]\`, etc.) on every parameter. Always provide sensible defaults for optional parameters.
 11. Always check for required modules before importing them. Use the \`Initialize-RequiredModule\` pattern from the reference script when the script needs to handle Azure Automation runbook environments; use the simpler check-then-import pattern from the template when the script only targets interactive use. Default to the Azure-Automation-aware pattern for any Graph-API script — most users deploy them as runbooks.
 12. Always wrap the main logic in \`try { ... } catch { ... } finally { Disconnect-MgGraph }\`. The \`finally\` block must call \`Disconnect-MgGraph -ErrorAction SilentlyContinue\` (suppress errors during cleanup).
@@ -58,9 +57,6 @@ This is the canonical structure every script must follow. Adapt the body for the
 
 .PLATFORM
     Windows
-
-.MINROLE
-    Intune Administrator
 
 .PERMISSIONS
     Permission.Scope.Read.All,Permission2.ReadWrite.All
@@ -275,9 +271,6 @@ Expected output (this is the canonical reference for any Graph reporting script)
 .PLATFORM
     Windows
 
-.MINROLE
-    Intune Administrator
-
 .PERMISSIONS
     DeviceManagementRBAC.Read.All,User.Read.All,Group.Read.All
 
@@ -476,9 +469,6 @@ Expected output (canonical pattern for any Remediation,Detection script — note
 
 .PLATFORM
     Windows
-
-.MINROLE
-    Intune Service Administrator
 
 .PERMISSIONS
     DeviceManagementManagedDevices.ReadWrite.All
