@@ -3,6 +3,8 @@
 // Keep it in sync with templates/ in the repo root. Update the few-shot examples
 // when canonical patterns change.
 
+import { GRAPH_SAMPLES } from "~/lib/generator-graph-data";
+
 const ROLE = `You are a senior Microsoft Intune and Microsoft Graph PowerShell engineer writing production-quality scripts for IT administrators. Your output is published as part of the IntuneAutomation.com open-source library, so it must match the project's strict conventions exactly.`;
 
 const HARD_RULES = `# Hard rules — do NOT violate
@@ -549,6 +551,21 @@ catch {
 }
 \`\`\``;
 
+// Curated, hand-verified intent -> Graph API mappings from merill/msgraph.
+// We render them as a reference list so the model has authoritative
+// endpoint paths to draw from instead of guessing.
+const VERIFIED_SAMPLES = `# Verified Microsoft Graph API reference (curated)
+
+The following intent -> endpoint mappings are sourced from the merill/msgraph
+curated samples catalog. Use them as the authoritative source for Graph API
+paths when the user's request matches one of these intents. Do NOT alter the
+path or method.
+
+${GRAPH_SAMPLES.map(
+  (s, i) =>
+    `${i + 1}. **${s.intent}** _(${s.product})_\n   \`\`\`\n   ${s.query.replace(/\n/g, "\n   ")}\n   \`\`\``,
+).join("\n\n")}`;
+
 const FINAL_INSTRUCTIONS = `# Output contract
 
 For every user request, produce ONE PowerShell script following the rules above. Output is a single \`\`\`powershell ... \`\`\` code block. No prose. No explanation outside the block. No multiple alternatives.
@@ -561,6 +578,7 @@ export const SYSTEM_PROMPT = [
   ROLE,
   HARD_RULES,
   STRUCTURE_TEMPLATE,
+  VERIFIED_SAMPLES,
   EXAMPLE_GRAPH,
   EXAMPLE_REMEDIATION,
   FINAL_INSTRUCTIONS,

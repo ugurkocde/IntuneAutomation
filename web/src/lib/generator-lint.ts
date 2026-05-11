@@ -1,5 +1,7 @@
 // Lightweight quality + safety linter for AI-generated PowerShell scripts.
 // Pure function — runs client-side after streaming completes. No server roundtrip.
+
+import { GRAPH_SCOPES } from "./generator-graph-data";
 //
 // Categories of checks:
 //   - Metadata completeness (the .TITLE/.SYNOPSIS/... block)
@@ -54,71 +56,11 @@ function detectHardReject(code: string): { reason: string } | null {
   return null;
 }
 
-// Real Microsoft Graph permission scopes commonly used by Intune scripts.
-// Sourced from Microsoft Learn permission reference; extend as we see new
-// scopes appear in real generations.
-const KNOWN_GRAPH_SCOPES = new Set([
-  // Directory / users / groups
-  "User.Read",
-  "User.Read.All",
-  "User.ReadWrite.All",
-  "User.ReadBasic.All",
-  "Group.Read.All",
-  "Group.ReadWrite.All",
-  "GroupMember.Read.All",
-  "GroupMember.ReadWrite.All",
-  "Directory.Read.All",
-  "Directory.ReadWrite.All",
-  "Directory.AccessAsUser.All",
-  "Organization.Read.All",
-  "Device.Read.All",
-  "Device.ReadWrite.All",
-  // Mail / Teams
-  "Mail.Send",
-  "Mail.Read",
-  "Mail.ReadWrite",
-  "ChannelMessage.Send",
-  "Channel.ReadBasic.All",
-  "Chat.ReadWrite",
-  "TeamsActivity.Send",
-  // Intune device management
-  "DeviceManagementApps.Read.All",
-  "DeviceManagementApps.ReadWrite.All",
-  "DeviceManagementConfiguration.Read.All",
-  "DeviceManagementConfiguration.ReadWrite.All",
-  "DeviceManagementManagedDevices.Read.All",
-  "DeviceManagementManagedDevices.ReadWrite.All",
-  "DeviceManagementManagedDevices.PrivilegedOperations.All",
-  "DeviceManagementServiceConfig.Read.All",
-  "DeviceManagementServiceConfig.ReadWrite.All",
-  "DeviceManagementRBAC.Read.All",
-  "DeviceManagementRBAC.ReadWrite.All",
-  // Audit / reports / policy
-  "AuditLog.Read.All",
-  "Reports.Read.All",
-  "Policy.Read.All",
-  "Policy.Read.ConditionalAccess",
-  "Policy.ReadWrite.ConditionalAccess",
-  // Apps / role management
-  "Application.Read.All",
-  "Application.ReadWrite.All",
-  "RoleManagement.Read.All",
-  "RoleManagement.Read.Directory",
-  "RoleManagement.ReadWrite.Directory",
-  // Files / sites
-  "Files.Read.All",
-  "Sites.Read.All",
-  "Sites.ReadWrite.All",
-  // Calendar
-  "Calendars.Read",
-  "Calendars.ReadWrite",
-  // BitLocker
-  "BitlockerKey.Read.All",
-  "BitlockerKey.ReadBasic.All",
-  // Identity protection
-  "IdentityRiskEvent.Read.All",
-  "IdentityRiskyUser.Read.All",
-]);
+// Microsoft Graph permission scopes — sourced from the merill/msgraph
+// reference (https://graph.pm). The full set of ~700 scopes across every
+// published Graph endpoint, refreshed weekly via the sync-msgraph-data
+// script. See web/src/lib/generator-graph-data.ts.
+const KNOWN_GRAPH_SCOPES = GRAPH_SCOPES;
 
 // Common cmdlet confusions Claude has produced. Each entry: regex pattern
 // matched in the script body, message, and suggested replacement.
