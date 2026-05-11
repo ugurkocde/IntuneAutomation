@@ -1,30 +1,54 @@
 [
   {
-    "filename": "add-devices-to-groups-from-csv.ps1",
+    "filename": "backup-bitlocker-keys-to-keyvault.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "cleanup-autopilot-devices.ps1",
+    "filename": "get-intune-role-assignments.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "create-app-based-groups.ps1",
+    "filename": "rotate-bitlocker-keys.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-devices-by-scopetag.ps1",
+    "filename": "rotate-macos-laps-passwords.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-stale-devices.ps1",
+    "filename": "app-deployment-failure-alert.ps1",
+    "result": "pass",
+    "timestamp": "05-11-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "apple-token-expiration-alert.ps1",
+    "result": "pass",
+    "timestamp": "05-11-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "device-compliance-drift-alert.ps1",
+    "result": "pass",
+    "timestamp": "05-11-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "maa-pending-requests-monitor.ps1",
+    "result": "pass",
+    "timestamp": "05-11-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "stale-device-cleanup-alert.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
@@ -37,30 +61,6 @@
   },
   {
     "filename": "get-maa-compliance-report.ps1",
-    "result": "pass",
-    "timestamp": "05-11-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-disk-cleanup-needed.ps1",
-    "result": "pass",
-    "timestamp": "05-11-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-disk-cleanup.ps1",
-    "result": "pass",
-    "timestamp": "05-11-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-antivirus-definitions-outdated.ps1",
-    "result": "pass",
-    "timestamp": "05-11-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-antivirus-definitions.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
@@ -144,98 +144,98 @@
     "type": "PowerShell"
   },
   {
-    "filename": "app-deployment-failure-alert.ps1",
+    "filename": "add-devices-to-groups-from-csv.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "apple-token-expiration-alert.ps1",
+    "filename": "cleanup-autopilot-devices.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "device-compliance-drift-alert.ps1",
+    "filename": "create-app-based-groups.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "maa-pending-requests-monitor.ps1",
+    "filename": "get-devices-by-scopetag.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "stale-device-cleanup-alert.ps1",
+    "filename": "get-stale-devices.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "backup-bitlocker-keys-to-keyvault.ps1",
+    "filename": "detect-disk-cleanup-needed.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-intune-role-assignments.ps1",
+    "filename": "remediate-disk-cleanup.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "rotate-bitlocker-keys.ps1",
+    "filename": "detect-antivirus-definitions-outdated.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "rotate-macos-laps-passwords.ps1",
+    "filename": "remediate-antivirus-definitions.ps1",
     "result": "pass",
     "timestamp": "05-11-2026",
     "type": "PowerShell"
   },
   {
     "filename": "check-applecare-warranty-status.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "check-available-msupdate-updates.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "check-msupdate-status.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "check-network-requirements.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "check-xprotect-status.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "last-reboot.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   },
   {
     "filename": "local-admins.sh",
-    "result": "pass",
+    "result": "not passed",
     "timestamp": "05-11-2026",
     "type": "Shell"
   }

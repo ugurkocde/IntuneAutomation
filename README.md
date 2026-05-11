@@ -11,7 +11,12 @@
   <a href="#scripts-overview">Scripts</a> •
   <a href="#prerequisites">Prerequisites</a> •
   <a href="#contributing">Contributing</a> •
+  <a href="TESTING.md">Testing</a> •
   <a href="https://intuneautomation.com">Website</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ugurkocde/IntuneAutomation/actions/workflows/script-analysis.yml"><img src="https://github.com/ugurkocde/IntuneAutomation/actions/workflows/script-analysis.yml/badge.svg" alt="Script tests"></a>
 </p>
 
 ---
