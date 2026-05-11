@@ -1,0 +1,110 @@
+---
+title: "Getting Started with IntuneAutomation Scripts: Transform Your Manual Tasks"
+description: "Learn how to use IntuneAutomation.com scripts to automate repetitive Intune management tasks. From setup to your first automated workflow."
+tags:
+  [
+    "PowerShell",
+    "Microsoft Graph",
+    "Intune",
+    "Getting Started",
+    "Automation",
+    "Tutorial",
+  ]
+published: true
+---
+
+
+## Introduction
+
+Microsoft Intune is a powerful platform for managing devices, apps, and security policies across your organization. But many admins still find themselves spending hours on repetitive tasks: pulling device reports, checking compliance status, or tracking app deployments. With **IntuneAutomation.com scripts**, you can take these manual processes and turn them into automated workflows that run consistently, on demand, or even on a schedule. This guide introduces you to the script categories, shows how to set up your environment, and walks you through your first automation examples.
+
+## Understanding Our Script Categories
+
+Our script library is designed to cover the most common scenarios Intune admins face. Each script falls into one of four main categories:
+
+**Operational scripts** handle day-to-day management. This includes device actions like remote sync or wipe, managing user and group assignments, and deploying configurations automatically.
+
+**Reporting scripts** provide insights into your environment. Instead of exporting raw data from the Intune portal, you can generate compliance dashboards, detailed device inventory reports, and app deployment status updates with a single command.
+
+**Notification scripts** focus on visibility. These scripts can automatically send alerts when compliance issues occur, deliver scheduled reports, or push updates to Teams or email so your team stays informed without logging into the portal.
+
+**Remediation scripts** take automation a step further by fixing issues proactively. Detection and remediation pairs identify problems and apply fixes automatically, from resolving common client-side errors to addressing security vulnerabilities.
+
+## Setting Up Your Environment
+
+Before running any scripts, you need to prepare your PowerShell environment. Start by installing the Microsoft Graph PowerShell module:
+
+```powershell
+# Install Microsoft Graph module
+Install-Module Microsoft.Graph -Scope CurrentUser
+
+# Import the module
+Import-Module Microsoft.Graph
+```
+
+Once installed, you can connect to your tenant using either interactive login or a service principal for automation scenarios.
+
+### Why We Use Invoke-MgGraphRequest
+
+Most scripts in our library use `Invoke-MgGraphRequest` instead of specific cmdlets. This approach gives you direct access to the Microsoft Graph API, the same interface Intune’s portal relies on. It keeps dependencies minimal, makes troubleshooting easier, and ensures your scripts work even when dedicated cmdlets don’t yet exist for certain endpoints.
+
+## Running Your First Scripts
+
+Let’s walk through a few examples from our library.
+
+### Example 1: Export All Devices
+
+This script connects to Graph, retrieves all managed devices, and exports them to a CSV file for analysis.
+
+```powershell
+# Connect to Graph
+Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All"
+
+# Get all devices
+$devices = Invoke-MgGraphRequest -Method GET -Uri "/deviceManagement/managedDevices"
+
+# Export to CSV
+$devices.value | Export-Csv "DeviceInventory.csv" -NoTypeInformation
+```
+
+### Example 2: Check Compliance Status
+
+Our compliance script pulls each device’s compliance state, groups the results, and highlights any non-compliant devices. You can use it to create daily compliance summaries for security teams.
+
+```powershell
+$uri = "/deviceManagement/managedDevices?`$select=deviceName,complianceState,userPrincipalName"
+$devices = Invoke-MgGraphRequest -Method GET -Uri $uri
+
+$devices.value | Group-Object complianceState | Select-Object Name, Count
+```
+
+### Example 3: Monitor App Deployments
+
+You can also track app installation progress by querying deployment statuses. This makes it easy to see which devices successfully installed an app and which are failing.
+
+```powershell
+$appId = "your-app-id"
+$uri = "/deviceManagement/mobileApps/$appId/deviceStatuses"
+$appStatus = Invoke-MgGraphRequest -Method GET -Uri $uri
+
+$appStatus.value | Select-Object deviceName, installState, errorCode
+```
+
+## Scheduling with Azure Automation
+
+Running scripts manually is useful, but automation shines when tasks run automatically. Azure Automation lets you run PowerShell scripts in the cloud, without needing a server or scheduled task.
+
+You can configure **runbooks** to handle reporting or remediation jobs and assign a **Managed Identity** to your automation account so it can securely access Microsoft Graph without storing credentials. Once set up, you can schedule scripts to run daily, weekly, or on-demand, and monitor execution from the Azure portal.
+
+## Next Steps
+
+Now that you’ve run your first IntuneAutomation scripts, it’s time to expand:
+
+- Explore the **full script library** on [IntuneAutomation.com](https://intuneautomation.com)
+- Join the **GitHub community** to share improvements and new use cases
+- Customize existing scripts for your environment
+- Build an **automation roadmap**, starting with reporting, then scaling into remediation and CI/CD-style workflows
+
+## Conclusion
+
+With IntuneAutomation scripts, you can stop repeating manual tasks and start building consistent, scalable workflows. From simple device exports to advanced compliance automation, the library gives you a foundation to transform how you manage Intune. The more you automate, the more time you gain to focus on strategic projects that improve security, compliance, and user experience.

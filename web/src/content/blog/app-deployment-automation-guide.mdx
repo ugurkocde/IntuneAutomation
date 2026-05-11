@@ -1,0 +1,120 @@
+---
+title: "Automating App Deployment and Management in Microsoft Intune"
+description: "Learn how to automate application deployment, track installation status, and manage app lifecycle using PowerShell scripts and Microsoft Graph API."
+tags:
+  [
+    "App Deployment",
+    "PowerShell",
+    "Intune",
+    "Microsoft Graph",
+    "Automation",
+    "Software Management",
+  ]
+published: true
+---
+
+
+## Introduction
+
+Managing applications across thousands of devices can be one of the most repetitive tasks for IT administrators. Every new app version, every department-specific tool, and every licensing requirement adds complexity to the process. With Microsoft Intune, you already have a centralized solution to deploy and manage apps across your environment. But when combined with PowerShell and the Microsoft Graph API, you can turn that centralized platform into a fully automated, self-maintaining system. This article walks you through how to automate app deployment, monitor installation results, and streamline app lifecycle management.
+
+## Understanding Intune App Management
+
+Intune supports different application types, each designed for specific use cases. Win32 apps are traditional desktop applications packaged for Windows devices. Line-of-business apps are internal applications developed by your organization. Microsoft Store apps provide a straightforward way to deploy public or private store apps. Web links are simple shortcuts to SaaS applications, while built-in apps cover the default applications that ship with Windows.
+
+Deployment options are flexible. You can make apps required, so they are automatically installed on targeted devices. Alternatively, you can mark them as available, allowing users to install them on demand via the Company Portal. Apps can also be assigned for uninstallation, ensuring that software is removed if it is no longer needed. Targeting can be done either per user or per device, depending on your scenario.
+
+## Essential App Management Scripts
+
+Once you understand the app types and deployment options, the next step is to automate repetitive tasks. PowerShell and the Microsoft Graph API allow you to script operations that would otherwise require many manual clicks.
+
+For example, the following script retrieves all deployed apps in your Intune tenant:
+
+```powershell
+$uri = "/deviceManagement/mobileApps"
+$apps = Invoke-MgGraphRequest -Method GET -Uri $uri
+
+$appReport = $apps.value | Select @{
+    Name = "AppName"; Expression = {$_.displayName}
+}, @{
+    Name = "Type"; Expression = {$_.['@odata.type']}
+}, @{
+    Name = "Publisher"; Expression = {$_.publisher}
+}
+```
+
+With this output, you quickly get an overview of your deployed applications, their types, and their publishers. Another common task is to track installation status. Instead of manually reviewing Intune reports, you can run a script to pull installation results directly:
+
+```powershell
+$appId = "your-app-id"
+$uri = "/deviceManagement/mobileApps/$appId/deviceStatuses"
+$installStatus = Invoke-MgGraphRequest -Method GET -Uri $uri
+```
+
+This gives you a detailed view of how deployment is progressing across devices.
+
+## Automating App Deployment
+
+App deployment becomes powerful when you scale it across multiple groups. Imagine needing to assign the same app to ten different Azure AD groups. Doing that manually can be error-prone. With PowerShell, you can loop through target groups and assign the app automatically:
+
+```powershell
+foreach ($groupId in $targetGroups) {
+    $assignment = @{
+        "@odata.type" = "#microsoft.graph.mobileAppAssignment"
+        target = @{
+            "@odata.type" = "#microsoft.graph.groupAssignmentTarget"
+            groupId = $groupId
+        }
+        intent = "required"
+    }
+
+    Invoke-MgGraphRequest -Method POST `
+        -Uri "/deviceManagement/mobileApps/$appId/assignments" `
+        -Body ($assignment | ConvertTo-Json -Depth 5)
+}
+```
+
+With this automation in place, you can standardize deployment, reduce human error, and ensure consistency across your organization. Monitoring deployment progress then becomes a matter of pulling real-time installation data, analyzing success and failure rates, and drilling down into device-specific results.
+
+## App Lifecycle Management
+
+Deployment is only the beginning. Over time, apps need to be updated, licenses must be tracked, and sometimes apps must be rolled back. By automating version checks, you can identify outdated installations and push updates without waiting for helpdesk tickets. Similarly, license tracking scripts can help reclaim unused licenses and optimize costs. This is especially valuable in large organizations where software sprawl can easily go unnoticed.
+
+## Creating App Deployment Reports
+
+Automation is not complete without reporting. Administrators need clear insights into success rates and failure reasons. With PowerShell, you can generate quick installation reports:
+
+```powershell
+$total = $installStatus.value.Count
+$report = $installStatus.value | Group-Object installState |
+    Select Name, Count, @{
+        Name = "Percentage"
+        Expression = {[math]::Round(($_.Count / $total) * 100, 2)}
+    }
+```
+
+This gives you a breakdown of success and failure states, along with percentages. Failed installations can be analyzed further to identify recurring issues, such as missing dependencies or network connectivity problems. From there, you can create remediation scripts or configure automated retries.
+
+## Advanced Automation Scenarios
+
+Once the basics are in place, you can expand automation into advanced scenarios. Conditional deployments allow you to target apps based on device compliance, user location, or hardware specifications. You can also create a self-service portal, offering users a catalog of approved apps with built-in approval workflows. These enhancements reduce IT workload while giving users flexibility.
+
+## Integration with CI/CD
+
+For organizations practicing DevOps, app deployment can be integrated into CI/CD pipelines. A new app version can be built, uploaded to Intune, and assigned to a test group automatically. Once validated, the same pipeline can promote the app to production. Both Azure DevOps and GitHub Actions can handle this workflow, ensuring that app updates follow the same rigor as code deployments.
+
+## Monitoring and Alerts
+
+Automation should not end at deployment. By setting up monitoring and alerts, you can stay proactive. Failed installation alerts, license threshold warnings, or version compliance checks can be scripted to notify administrators in real time. Pairing this with Power BI dashboards provides a visual layer, helping you track trends and predict issues before they become critical.
+
+## Best Practices
+
+When automating Intune app deployment, performance and security must be considered. Staged deployments help reduce network impact and limit potential disruptions. Delivery optimization ensures bandwidth is used efficiently. On the security side, applying app protection policies, conditional access, and compliance checks ensures that your automation doesn’t bypass critical safeguards.
+
+## Troubleshooting Common Issues
+
+Even with automation, challenges will arise. Installation failures may result from dependency issues, insufficient storage, or permission errors. Having verbose logging enabled in your scripts allows for quick debugging. Remote diagnostics and automated error collection can further reduce the time it takes to resolve problems.
+
+## Conclusion
+
+Automating app deployment in Intune transforms the way organizations manage software. By starting with simple scripts to deploy and monitor apps, and then expanding into lifecycle management, advanced scenarios, and CI/CD integration, IT teams can move from a reactive to a proactive approach. The result is a system that not only saves time but also improves consistency, compliance, and user satisfaction.

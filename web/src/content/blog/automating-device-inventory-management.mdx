@@ -1,0 +1,77 @@
+---
+title: "Automating Device Inventory Management with PowerShell and Intune"
+description: "Master device inventory automation using PowerShell scripts. Export device data, track hardware details, monitor compliance, and create automated reports."
+tags:
+  [
+    "Device Management",
+    "PowerShell",
+    "Intune",
+    "Inventory",
+    "Reporting",
+    "Microsoft Graph",
+    "Automation",
+  ]
+published: true
+---
+
+
+## Introduction
+
+Keeping an accurate device inventory is one of the most important tasks for IT administrators. Without automation, this usually means pulling static reports from the Intune portal, cleaning them up in Excel, and repeating the process every time you need updated information. This is not only time-consuming but also prone to human error. By using PowerShell and the Microsoft Graph API, you can automate device inventory collection, track hardware changes over time, and generate reports that update on a schedule.
+
+## Why Automate Device Inventory?
+
+Automating inventory provides real-time visibility into your fleet. Instead of working with outdated snapshots, you always know which devices are active, compliant, or out of sync. Automation also helps track hardware lifecycle information, making it easier to identify aging laptops that need replacement or mobile devices nearing the end of support. Compliance monitoring becomes simpler, as non-compliant devices can be flagged automatically. You can even align inventory data with licensing to optimize costs. Most importantly, automation gives you proactive insights, helping you detect issues before they grow into larger problems.
+
+## Essential Device Inventory Scripts
+
+The first step in building an automated inventory workflow is retrieving all managed devices from Intune. The following script collects key details such as device name, operating system, compliance state, last sync time, and hardware manufacturer:
+
+```powershell
+$uri = "/deviceManagement/managedDevices?`$select=deviceName,operatingSystem,complianceState,lastSyncDateTime,model,manufacturer"
+$devices = Invoke-MgGraphRequest -Method GET -Uri $uri
+```
+
+Once you have the raw data, you can filter devices based on specific criteria. For example, you might want to list only non-compliant devices, devices that have not synced in the last 30 days, or break down your fleet by platform (Windows, iOS, Android). You can also separate corporate-owned from personally owned devices to support different governance models.
+
+Exporting device details to a CSV is one of the most common use cases. The following script generates a report that can be shared with stakeholders:
+
+```powershell
+$report = $devices.value | Select-Object @{
+    Name = "DeviceName"; Expression = {$_.deviceName}
+}, @{
+    Name = "OS"; Expression = {$_.operatingSystem}
+}, @{
+    Name = "Compliance"; Expression = {$_.complianceState}
+}, @{
+    Name = "LastSync"; Expression = {$_.lastSyncDateTime}
+}
+
+$report | Export-Csv "DeviceInventory_$(Get-Date -Format 'yyyyMMdd').csv" -NoTypeInformation
+```
+
+This creates a timestamped inventory file that can be archived or ingested into other systems.
+
+## Advanced Inventory Techniques
+
+Beyond basic exports, you can extend your scripts to collect detailed hardware information. This might include serial numbers, storage capacity, memory size, and even battery health where supported. Tracking this data allows you to plan hardware refresh cycles and proactively replace devices before failures impact users. You can also integrate warranty information to ensure devices are covered.
+
+Ownership and assignment data provide another layer of value. By mapping devices to primary users, departments, or cost centers, you can align IT assets with business structures. This makes it easier to perform chargebacks, manage budgets, or allocate resources more effectively. Location tracking can also help with logistics, ensuring that you know where devices are deployed across global offices.
+
+## Creating Automated Reports
+
+Collecting data is useful, but reporting is where automation delivers real value. Daily inventory snapshots allow you to track changes over time. By scheduling scripts in Azure Automation or a similar service, you can automatically capture and archive inventory data each day. This makes it possible to identify new devices as they join the environment, detect devices that are removed, and monitor fleet growth.
+
+For leadership teams, you can generate executive dashboards that summarize device counts by operating system, show compliance percentages, and highlight risk areas. Over time, these dashboards reveal trends, such as how quickly your organization adopts new OS versions or how compliance fluctuates after new policies are deployed.
+
+## Integration Options
+
+Automated inventory data can be pushed into other systems for even greater impact. Power BI dashboards offer interactive views of inventory trends, while integration with ServiceNow or other CMDBs ensures that IT service management tools always have up-to-date asset information. You can also connect scripts to Microsoft Teams notifications, automatically alerting admins when devices stop syncing or when compliance rates fall below a threshold.
+
+## Best Practices
+
+When building automated inventory workflows, efficiency matters. Always optimize your API calls and handle pagination to avoid incomplete results. Implement robust error handling so scripts can recover gracefully when the Graph API is unavailable. Archive historical data in a structured way to allow long-term analysis. Finally, document retention and governance policies to ensure compliance with privacy and security standards.
+
+## Conclusion
+
+Automated device inventory management replaces manual reporting with a proactive, scalable solution. By leveraging PowerShell and Microsoft Graph, you gain real-time visibility, improve compliance monitoring, and reduce administrative overhead. Start by automating simple exports, then expand into advanced hardware tracking, executive dashboards, and integrations with ITSM and BI platforms. Over time, automation will not only save you hours of repetitive work but also give your organization a stronger foundation for security, compliance, and asset management.

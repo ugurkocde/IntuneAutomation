@@ -1,0 +1,188 @@
+---
+title: "Getting Started with Intune Automation using PowerShell"
+description: "Learn the fundamentals of automating Microsoft Intune tasks with PowerShell, including authentication, Graph API basics, and your first automation script."
+tags: ["PowerShell", "Microsoft Graph", "Intune", "Tutorial", "Beginner"]
+published: true
+---
+
+Microsoft Intune automation can significantly reduce administrative overhead and improve consistency in device management. This guide will walk you through the essentials of getting started with PowerShell automation for Intune.
+
+## Why Automate Intune?
+
+Manual management of devices, applications, and policies becomes increasingly challenging as your organization grows. Automation helps you:
+
+- **Save time** on repetitive tasks
+- **Reduce errors** through consistent execution
+- **Scale operations** efficiently
+- **Generate reports** automatically
+- **Implement compliance** checks systematically
+
+## Prerequisites
+
+Before diving into Intune automation, ensure you have:
+
+1. **PowerShell 7+** installed on your workstation
+2. **Microsoft Graph PowerShell SDK** modules
+3. **Appropriate permissions** in your Azure AD tenant
+4. **Basic PowerShell knowledge**
+
+### Installing Required Modules
+
+```powershell
+Install-Module Microsoft.Graph -Scope CurrentUser
+
+# Install specific Graph modules for Intune
+Install-Module Microsoft.Graph.DeviceManagement -Scope CurrentUser
+Install-Module Microsoft.Graph.DeviceManagement.Administration -Scope CurrentUser
+```
+
+## Understanding Microsoft Graph API
+
+Microsoft Graph is the gateway to data and intelligence in Microsoft 365. For Intune automation, we primarily use the `/deviceManagement` endpoint.
+
+### Key Graph Endpoints for Intune
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/deviceManagement/managedDevices` | Retrieve managed devices |
+| `/deviceManagement/deviceConfigurations` | Manage device configurations |
+| `/deviceManagement/deviceCompliancePolicies` | Handle compliance policies |
+| `/deviceManagement/mobileApps` | Manage mobile applications |
+
+## Authentication Methods
+
+### Interactive Authentication
+
+Best for development and testing:
+
+```powershell
+Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All"
+```
+
+### Service Principal Authentication
+
+Ideal for automation and scheduled tasks:
+
+```powershell
+$clientId = "your-app-id"
+$tenantId = "your-tenant-id"
+$clientSecret = ConvertTo-SecureString "your-secret" -AsPlainText -Force
+$credential = New-Object System.Management.Automation.PSCredential($clientId, $clientSecret)
+
+Connect-MgGraph -ClientSecretCredential $credential -TenantId $tenantId
+```
+
+## Your First Automation Script
+
+Let's create a simple script to retrieve all Windows devices and export them to a CSV file:
+
+```powershell
+# Connect to Microsoft Graph
+Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All"
+
+# Get all Windows devices
+$windowsDevices = Get-MgDeviceManagementManagedDevice -Filter "operatingSystem eq 'Windows'" -All
+
+# Select relevant properties
+$deviceReport = $windowsDevices | Select-Object @{
+    Name = "DeviceName"
+    Expression = {$_.DeviceName}
+}, @{
+    Name = "UserPrincipalName"
+    Expression = {$_.UserPrincipalName}
+}, @{
+    Name = "OSVersion"
+    Expression = {$_.OsVersion}
+}, @{
+    Name = "ComplianceState"
+    Expression = {$_.ComplianceState}
+}, @{
+    Name = "LastSyncDateTime"
+    Expression = {$_.LastSyncDateTime}
+}
+
+# Export to CSV
+$deviceReport | Export-Csv -Path "WindowsDevices_$(Get-Date -Format 'yyyyMMdd').csv" -NoTypeInformation
+
+Write-Host "Report exported successfully!" -ForegroundColor Green
+```
+
+## Best Practices
+
+### 1. Error Handling
+
+Always implement proper error handling:
+
+```powershell
+try {
+    # Your code here
+    $devices = Get-MgDeviceManagementManagedDevice -ErrorAction Stop
+}
+catch {
+    Write-Error "Failed to retrieve devices: $_"
+    exit 1
+}
+```
+
+### 2. Pagination
+
+Handle large datasets with pagination:
+
+```powershell
+$allDevices = @()
+$nextLink = $null
+
+do {
+    if ($nextLink) {
+        $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
+    } else {
+        $response = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices" -Method GET
+    }
+
+    $allDevices += $response.value
+    $nextLink = $response.'@odata.nextLink'
+} while ($nextLink)
+```
+
+### 3. Rate Limiting
+
+Respect Microsoft Graph rate limits:
+
+```powershell
+# Add delays between requests when processing many items
+Start-Sleep -Milliseconds 100
+```
+
+## Common Use Cases
+
+Here are some popular automation scenarios:
+
+- **Device Compliance Reporting**: Generate daily compliance status reports
+- **Application Deployment Status**: Track app installation success rates
+- **Stale Device Cleanup**: Identify and remove devices not synced in 90+ days
+- **Policy Assignment Audit**: Verify correct policy assignments
+- **User Onboarding**: Automate device enrollment for new employees
+
+## Troubleshooting Tips
+
+1. **Permission Issues**: Use `Get-MgContext` to verify your current permissions
+2. **API Errors**: Check the error response for detailed messages
+3. **Performance**: Use `-Select` parameter to retrieve only needed properties
+4. **Debugging**: Use `$DebugPreference = "Continue"` for verbose output
+
+## Next Steps
+
+Now that you understand the basics, consider:
+
+- Exploring our [script gallery](/scripts/) for ready-to-use automation scripts
+- Setting up Azure Automation for scheduled tasks
+- Implementing more complex scenarios like conditional access automation
+- Building custom reporting dashboards
+
+## Conclusion
+
+Intune automation with PowerShell opens up powerful possibilities for managing your device fleet efficiently. Start small, test thoroughly, and gradually build your automation toolkit.
+
+Remember to always test scripts in a development environment before running them in production, and maintain proper documentation for your automation processes.
+
+For more advanced scripts and automation examples, check out our [PowerShell Scripts Gallery](/scripts/).

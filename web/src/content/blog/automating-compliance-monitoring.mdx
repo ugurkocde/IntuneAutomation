@@ -1,0 +1,109 @@
+---
+title: "Automating Compliance Monitoring and Reporting in Microsoft Intune"
+description: "Build automated compliance monitoring workflows with PowerShell. Track device compliance, generate reports, and set up automated alerts for non-compliance."
+tags:
+  [
+    "Compliance",
+    "PowerShell",
+    "Intune",
+    "Monitoring",
+    "Reporting",
+    "Microsoft Graph",
+    "Automation",
+  ]
+published: true
+---
+
+
+## Introduction
+
+Keeping track of device compliance is one of the most important aspects of managing modern IT environments. Compliance determines whether devices meet security and configuration baselines, and directly affects conditional access policies. Instead of manually checking reports in the Intune portal, administrators can automate compliance monitoring with PowerShell and Microsoft Graph. This approach not only saves time but also ensures that compliance violations are detected and addressed in real time.
+
+## Understanding Compliance in Intune
+
+Intune assigns a compliance state to every managed device. A device may be fully **compliant**, meaning it satisfies all assigned policies. If one or more requirements are not met, the device becomes **non-compliant**. Sometimes a device may be **in a grace period**, meaning the user has time to fix compliance issues before being fully marked as non-compliant. Other states include **not evaluated**, where compliance hasn’t been assessed yet, and **unknown**, usually seen in new or unresponsive devices.
+
+Key metrics to track include the overall compliance rate, the number of devices failing specific policies, how quickly devices become compliant after enrollment, and the main reasons behind non-compliance. Monitoring grace periods is equally important, as it provides insight into how many devices are at risk of becoming fully non-compliant.
+
+## Essential Compliance Scripts
+
+The following PowerShell snippet retrieves compliance information from Intune and calculates core metrics. This serves as the foundation for dashboards and automated alerts.
+
+```powershell
+$uri = "/deviceManagement/managedDevices?`$select=complianceState,deviceName,userPrincipalName"
+$devices = Invoke-MgGraphRequest -Method GET -Uri $uri
+
+$total = $devices.value.Count
+$compliant = ($devices.value | Where {$_.complianceState -eq "compliant"}).Count
+$nonCompliant = ($devices.value | Where {$_.complianceState -eq "noncompliant"}).Count
+
+$metrics = @{
+    Total = $total
+    Compliant = $compliant
+    NonCompliant = $nonCompliant
+    ComplianceRate = [math]::Round(($compliant / $total) * 100, 2)
+}
+```
+
+To focus on problematic devices, you can extract details for non-compliant endpoints:
+
+```powershell
+$nonCompliant = $devices.value | Where {$_.complianceState -eq "noncompliant"} |
+    Select deviceName, userPrincipalName, lastSyncDateTime, @{
+        Name = "DaysSinceSync"
+        Expression = {(New-TimeSpan -Start $_.lastSyncDateTime).Days}
+    }
+```
+
+This makes it easy to see which devices are non-compliant, who owns them, and when they last synced.
+
+## Building Compliance Reports
+
+Once compliance data is collected, the next step is to generate meaningful reports. A daily dashboard might provide an executive summary with overall compliance rates, while also breaking down statistics by department, platform, or geographic location. More detailed analysis could show which policies are most often violated, which user groups struggle with compliance, and how compliance trends evolve over time. By storing daily snapshots, you can even build historical records for trend analysis.
+
+## Automated Alerting
+
+Automation becomes powerful when paired with real-time notifications. For example, if the overall compliance rate drops below a certain threshold, an automated alert can notify your security team. Here’s a simple example that triggers a Microsoft Teams notification when compliance falls below 90%:
+
+```powershell
+if ($metrics.ComplianceRate -lt 90) {
+    Send-TeamsNotification -Title "Compliance Alert" `
+        -Message "Compliance rate dropped below 90%: $($metrics.ComplianceRate)%" `
+        -Color "red"
+}
+```
+
+In addition to alerts, scheduled reports can be sent daily, weekly, or monthly to different stakeholders. Executives may only need a high-level summary, while IT security teams might require detailed reports with device-level information.
+
+## Advanced Compliance Workflows
+
+Beyond monitoring, compliance automation can handle remediation. Grace periods are a good example. Devices often have a short window to fix non-compliance issues. Scripts can track these periods, notify users before they expire, or even extend grace periods when needed. In more advanced cases, devices that fail to remediate within the grace period could trigger escalation workflows, such as creating a ServiceNow ticket.
+
+Remediation automation can also include forcing device syncs, applying quick fixes, or even resetting problematic devices. These actions ensure that non-compliant states are resolved quickly and consistently.
+
+## Integration Scenarios
+
+Compliance data becomes even more valuable when integrated with other systems. Many organizations export compliance logs to SIEM platforms such as Microsoft Sentinel or Splunk, where they can be correlated with other security events. ServiceNow integration is another common scenario, where non-compliance automatically generates incidents and remediation tasks. This bridges the gap between monitoring and operational response.
+
+## Compliance Trending
+
+Tracking compliance over time provides insight into recurring issues and long-term risk. By exporting daily compliance snapshots, you can build historical datasets:
+
+```powershell
+$snapshot = @{
+    Date = Get-Date
+    Metrics = $metrics
+    Details = $nonCompliant
+}
+$snapshot | Export-Csv "ComplianceHistory.csv" -Append
+```
+
+With historical data in place, predictive analytics can identify patterns, such as departments with recurring issues or platforms that lag in compliance. Risk scoring and proactive interventions then become possible.
+
+## Best Practices
+
+To make compliance monitoring efficient, it’s important to optimize your scripts. Use pagination when querying Graph to avoid hitting API limits, and implement caching for large environments. Always log your results and keep data retention policies in mind, ensuring compliance monitoring itself respects privacy and governance rules. Restrict access to compliance data to authorized personnel only, and maintain audit logs for all automation activities.
+
+## Conclusion
+
+Automating compliance monitoring in Intune ensures that your security posture is visible and actionable at all times. With PowerShell and Microsoft Graph, you can build workflows that track compliance, generate reports, send real-time alerts, and even remediate issues automatically. Start with simple reporting, then expand into integrations and predictive analytics to create a complete compliance monitoring strategy tailored to your organization’s needs.

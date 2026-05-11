@@ -1,0 +1,122 @@
+---
+title: "Mastering Intune Proactive Remediations: Detection and Remediation Script Pairs"
+description: "Complete guide to creating and deploying proactive remediation scripts in Intune. Automate issue detection and resolution before users notice problems."
+tags:
+  [
+    "Proactive Remediations",
+    "PowerShell",
+    "Intune",
+    "Security",
+    "Compliance",
+    "Automation",
+    "Remediation",
+  ]
+published: true
+---
+
+
+## Introduction
+
+Traditional IT support often waits until users report issues before taking action. This reactive approach slows down productivity and increases support tickets. **Proactive Remediations in Microsoft Intune** change this model by allowing you to detect and fix problems automatically before they affect end users. With detection and remediation script pairs, administrators can enforce compliance, optimize performance, and resolve common issues seamlessly. This guide will walk you through how they work, how to build them, and how to deploy them effectively.
+
+## Understanding Proactive Remediations
+
+Proactive Remediations consist of two parts: a detection script and a remediation script. The detection script runs first and evaluates a condition on the device. Based on its exit code, Intune decides whether to execute the remediation script. If the detection script reports that everything is compliant (exit code `0`), no further action is taken. If it reports non-compliance (exit code `1`), Intune immediately runs the remediation script to fix the issue. All executions are logged, and you can monitor results directly in the Intune portal.
+
+### Common Use Cases
+
+Administrators typically use Proactive Remediations to enforce registry keys, manage Windows services, correct configuration drift, apply security hardening, or optimize performance settings. For example, you could detect if BitLocker is disabled and re-enable it, ensure a required service is running, or clean up temporary files when disk space runs low.
+
+## Building Detection Scripts
+
+Detection scripts are lightweight PowerShell scripts that check system state. They must exit with `0` for compliance or `1` for non-compliance. Here’s a simple example that checks if Windows Defender Real-Time Protection is enabled:
+
+```powershell
+<#
+.SYNOPSIS
+    Detect if Windows Defender is disabled
+
+.DESCRIPTION
+    Checks Windows Defender status and reports compliance
+
+.NOTES
+    Exit 0 = Compliant (no remediation needed)
+    Exit 1 = Non-compliant (run remediation)
+#>
+
+try {
+    $defenderStatus = Get-MpComputerStatus
+    if ($defenderStatus.RealTimeProtectionEnabled -eq $false) {
+        Write-Output "Windows Defender is disabled"
+        exit 1
+    }
+    Write-Output "Windows Defender is enabled"
+    exit 0
+}
+catch {
+    Write-Error $_
+    exit 1
+}
+```
+
+This script evaluates a single condition and signals Intune whether remediation is required.
+
+## Creating Remediation Scripts
+
+Remediation scripts should be written with safety in mind. They should fix only what is necessary and fail gracefully if they cannot apply the change. Below is a remediation script that enables Windows Defender Real-Time Protection if disabled:
+
+```powershell
+<#
+.SYNOPSIS
+    Enable Windows Defender Real-Time Protection
+
+.DESCRIPTION
+    Safely enables Windows Defender if disabled
+#>
+
+try {
+    Set-MpPreference -DisableRealtimeMonitoring $false
+    Write-Output "Windows Defender enabled successfully"
+    exit 0
+}
+catch {
+    Write-Error "Failed to enable Windows Defender: $_"
+    exit 1
+}
+```
+
+This script enforces compliance without disrupting other settings on the device.
+
+## Real-World Script Examples
+
+Beyond security, proactive remediation scripts can address a wide range of scenarios:
+
+**Disk Space Management**
+Detection can check free disk space, and remediation can clean up temporary files or clear the Windows Update cache. This prevents performance issues before users experience slowdowns.
+
+**Certificate Management**
+Scripts can detect expiring certificates and automatically renew them or remove expired ones. This avoids application failures due to invalid certificates.
+
+**Performance Optimization**
+You can detect high memory usage or unnecessary startup programs and take corrective actions to keep devices running efficiently.
+
+## Deployment Best Practices
+
+Before deploying scripts broadly, always test in a pilot group. Monitor the results to confirm that detection and remediation work as expected. Review failure logs for accuracy and make adjustments as needed. Once validated, roll out gradually to larger groups.
+Scheduling is another critical factor. Critical security checks may need to run daily, while general maintenance tasks might be scheduled weekly. Urgent fixes can be deployed on demand.
+
+## Advanced Techniques
+
+Proactive Remediations can also handle multi-step workflows. For example, a script might check multiple registry keys, apply fixes conditionally, and track its own state across runs. You can even integrate with other systems—like triggering ServiceNow tickets for unresolved issues or sending Teams notifications when remediation is applied. By combining scripts with monitoring tools, you can create a complete automation pipeline.
+
+## Monitoring and Reporting
+
+Intune provides built-in reporting for Proactive Remediations, including success and failure rates, device status, and execution history. For more advanced analysis, you can query the results with Microsoft Graph or integrate data into Power BI dashboards. Trend analysis helps identify recurring issues, while compliance metrics demonstrate the impact of automation on your security posture.
+
+## Troubleshooting Common Issues
+
+The most frequent challenge is script timeouts. Detection and remediation scripts should be optimized to run quickly, as long-running operations may fail. If you need to handle large workloads, consider breaking them into smaller tasks. Permission errors are another common issue—remember that scripts can run in system or user context, so ensure the correct permissions are used. Finally, validate dependencies like required services or modules to avoid runtime failures.
+
+## Conclusion
+
+Proactive Remediations transform IT support from reactive to proactive. By pairing detection and remediation scripts, you can enforce compliance, optimize performance, and fix problems before users even notice. Start small with simple checks, then expand to more advanced workflows and integrations. Over time, these automations will reduce helpdesk tickets, improve security, and enhance the overall user experience.
