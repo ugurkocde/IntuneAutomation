@@ -39,13 +39,13 @@ export default function HeroSection() {
 
   return (
     <section
-      className="relative isolate overflow-hidden"
+      className="relative isolate overflow-hidden lg:flex lg:min-h-screen lg:items-center"
       aria-label="IntuneAutomation introduction"
     >
       {/* -------- Atmosphere layers (back to front) -------- */}
       <HeroAtmosphere />
 
-      <div className="relative mx-auto max-w-7xl px-4 pt-24 pb-20 sm:px-6 sm:pt-28 sm:pb-28 lg:pt-32 lg:pb-32">
+      <div className="relative mx-auto w-full max-w-7xl px-4 pt-24 pb-20 sm:px-6 sm:pt-28 sm:pb-28 lg:py-24">
         <div className="grid grid-cols-1 items-start gap-14 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
           {/* ============================================== */}
           {/* LEFT — typography + CTAs                       */}
