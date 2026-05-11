@@ -27,20 +27,6 @@ function formatCompactNumber(num: number): string {
   return num.toString();
 }
 
-function formatRelative(iso?: string): string | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return null;
-  const diff = Date.now() - then;
-  const day = 86_400_000;
-  const days = Math.floor(diff / day);
-  if (days < 1) return "today";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
-}
-
 /* --------------------------------- view ---------------------------------- */
 
 export function ScriptListItem({ script, onClick }: ScriptListItemProps) {
@@ -64,8 +50,6 @@ export function ScriptListItem({ script, onClick }: ScriptListItemProps) {
       ? `// ${primaryTag.toUpperCase()}`
       : "// SCRIPT";
 
-  const updatedRel = formatRelative(script.lastUpdated);
-
   // Build mono meta strip.
   const metaParts: string[] = [];
   if (usageStats && usageStats.totalViews > 0) {
@@ -74,7 +58,6 @@ export function ScriptListItem({ script, onClick }: ScriptListItemProps) {
   if (usageStats && usageStats.totalDownloads > 0) {
     metaParts.push(`${formatCompactNumber(usageStats.totalDownloads)} dl`);
   }
-  if (updatedRel) metaParts.push(`updated ${updatedRel}`);
 
   const handleClick = (e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) return; // honor open-in-new-tab

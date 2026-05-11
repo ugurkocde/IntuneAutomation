@@ -299,10 +299,6 @@ export default function ScriptGallery() {
           {lastFetched && !isLoading && !error && (
             <div className="text-muted-foreground flex items-center gap-2 text-xs">
               <Github className="h-3 w-3" />
-              <span>
-                Last updated from GitHub:{" "}
-                {new Date(lastFetched).toLocaleString()}
-              </span>
               <Button
                 variant="ghost"
                 size="sm"

@@ -1,35 +1,14 @@
 "use client";
 
 // "What's new" strip — a return-visit lever. Shows the three most recently
-// updated scripts with relative timestamps. Editorial-technical: hairline
-// dividers, mono kicker, Fraunces section opener, mono relative-time labels.
+// updated scripts. Editorial-technical: hairline dividers, mono kicker,
+// Fraunces section opener.
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
 import type { Script } from "~/lib/scripts";
-
-function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const diff = Date.now() - then;
-  // Negative diff = future date (clock skew / timezone parse / bad data).
-  // Treat as unknown rather than nonsensical "just now".
-  if (diff < 0) return "—";
-  const min = 60_000;
-  const hr = 60 * min;
-  const day = 24 * hr;
-  const week = 7 * day;
-  const month = 30 * day;
-  const year = 365 * day;
-  if (diff < hr) return `${Math.max(1, Math.floor(diff / min))}m ago`;
-  if (diff < day) return `${Math.floor(diff / hr)}h ago`;
-  if (diff < week) return `${Math.floor(diff / day)}d ago`;
-  if (diff < month) return `${Math.floor(diff / week)}w ago`;
-  if (diff < year) return `${Math.floor(diff / month)}mo ago`;
-  return `${Math.floor(diff / year)}y ago`;
-}
 
 function sortByMostRecent(a: Script, b: Script): number {
   const av = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
@@ -104,10 +83,6 @@ export default function WhatsNewStrip() {
                     {script.description}
                   </p>
                 </div>
-
-                <span className="text-muted-foreground font-mono hidden shrink-0 text-[11px] tracking-widest uppercase sm:inline">
-                  {script.lastUpdated ? timeAgo(script.lastUpdated) : ""}
-                </span>
 
                 <ArrowUpRight
                   className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5"

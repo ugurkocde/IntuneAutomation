@@ -108,14 +108,6 @@ function describeFailure(key: string, tier: ScriptTestTier): string | null {
 
 export function QualityChecks({ tests }: QualityChecksProps) {
   const tierConfig = tests.type === "Shell" ? SHELL_TIERS : POWERSHELL_TIERS;
-  const lastTested = new Date(tests.lastTested);
-  const formattedDate = isNaN(lastTested.getTime())
-    ? tests.lastTested
-    : lastTested.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
 
   const overall = tests.overall;
   const overallIcon = statusIcons[overall] ?? statusIcons.skip;
@@ -142,9 +134,6 @@ export function QualityChecks({ tests }: QualityChecksProps) {
                 : "Not tested"}
           </Badge>
         </div>
-        <span className="text-muted-foreground text-xs">
-          Last run {formattedDate}
-        </span>
       </div>
 
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

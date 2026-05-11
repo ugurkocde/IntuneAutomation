@@ -18,7 +18,6 @@ export default function PopularScripts() {
     setIsDetailOpen,
     isLoading,
     error,
-    lastFetched,
     refetchScripts,
     updateScriptStats,
   } = useScripts();
@@ -144,15 +143,7 @@ export default function PopularScripts() {
               ))}
             </motion.div>
 
-            <div className="mt-14 flex items-center justify-between gap-4 border-t border-border/60 pt-8">
-              {lastFetched && !error ? (
-                <p className="text-muted-foreground font-mono text-[11px] tracking-widest uppercase">
-                  Last sync · {new Date(lastFetched).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                </p>
-              ) : (
-                <span />
-              )}
-
+            <div className="mt-14 flex items-center justify-end gap-4 border-t border-border/60 pt-8">
               <Link
                 href="/scripts/"
                 className="text-foreground hover:text-accent-hi font-mono group inline-flex items-center gap-1.5 border-b border-current pb-0.5 text-sm transition-colors"

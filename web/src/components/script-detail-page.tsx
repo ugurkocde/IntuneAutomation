@@ -57,20 +57,6 @@ function formatCompactNumber(num: number): string {
   return num.toString();
 }
 
-function formatRelative(iso?: string): string | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return null;
-  const diff = Date.now() - then;
-  const day = 86_400_000;
-  const days = Math.floor(diff / day);
-  if (days < 1) return "today";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
-}
-
 /* ------------------------- small v4 sub-primitives ----------------------- */
 
 function SectionKicker({ label }: { label: string }) {
@@ -458,7 +444,6 @@ export function ScriptDetailPage({
 
   /* ----------------------------- meta strip ---------------------------- */
 
-  const updatedRel = formatRelative(script.lastUpdated);
   const metaParts: Array<{ key: string; node: React.ReactNode }> = [];
   if (script.usageStats && script.usageStats.totalViews > 0) {
     metaParts.push({
@@ -482,12 +467,6 @@ export function ScriptDetailPage({
           </span>
         </>
       ),
-    });
-  }
-  if (updatedRel) {
-    metaParts.push({
-      key: "updated",
-      node: <span>Updated {updatedRel}</span>,
     });
   }
   if (script.version) {
