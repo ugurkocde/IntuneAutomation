@@ -121,13 +121,20 @@ export async function POST(req: NextRequest) {
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
-    return errorResponse(
+    const res = errorResponse(
       429,
       "rate-limited",
       "You've reached the daily generation limit. Try again later.",
       { resetInSeconds: resetIn },
     );
+    res.headers.set("X-RateLimit-Remaining", "0");
+    res.headers.set("X-RateLimit-Reset", String(ipCheck.reset));
+    return res;
   }
+  const rateLimitHeaders = {
+    "X-RateLimit-Remaining": String(ipCheck.remaining),
+    "X-RateLimit-Reset": String(ipCheck.reset),
+  };
 
   // 5. Reserve daily-cap tokens.
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
@@ -208,5 +215,9 @@ Produce an updated version of the script that incorporates this modification. Ke
     },
   });
 
-  return result.toTextStreamResponse();
+  const response = result.toTextStreamResponse();
+  for (const [k, v] of Object.entries(rateLimitHeaders)) {
+    response.headers.set(k, v);
+  }
+  return response;
 }

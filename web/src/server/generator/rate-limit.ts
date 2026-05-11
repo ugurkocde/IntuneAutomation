@@ -49,6 +49,24 @@ export async function checkPerIp(ipHash: string): Promise<PerIpResult> {
   return { allowed: true, remaining, reset };
 }
 
+export const PER_IP_LIMIT = 5;
+
+// Non-consuming peek at the per-IP quota. Used by the UI to show remaining
+// quota without burning a generation.
+export async function peekPerIp(
+  ipHash: string,
+): Promise<{ remaining: number; limit: number; reset: number }> {
+  if (!perIpLimiter) {
+    return {
+      remaining: PER_IP_LIMIT,
+      limit: PER_IP_LIMIT,
+      reset: Date.now() + 86_400_000,
+    };
+  }
+  const { remaining, reset, limit } = await perIpLimiter.getRemaining(ipHash);
+  return { remaining, limit, reset };
+}
+
 export type ReservationResult =
   | { allowed: true; reservationId: string; usedTokens: number }
   | { allowed: false; usedTokens: number; capTokens: number };

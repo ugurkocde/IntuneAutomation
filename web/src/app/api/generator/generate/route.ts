@@ -115,13 +115,20 @@ export async function POST(req: NextRequest) {
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
-    return errorResponse(
+    const res = errorResponse(
       429,
       "rate-limited",
       "You've reached the daily generation limit. Try again later.",
       { resetInSeconds: resetIn },
     );
+    res.headers.set("X-RateLimit-Remaining", "0");
+    res.headers.set("X-RateLimit-Reset", String(ipCheck.reset));
+    return res;
   }
+  const rateLimitHeaders = {
+    "X-RateLimit-Remaining": String(ipCheck.remaining),
+    "X-RateLimit-Reset": String(ipCheck.reset),
+  };
 
   // 4. Reserve daily-cap budget pessimistically (closes the TOCTOU window).
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
@@ -137,7 +144,7 @@ export async function POST(req: NextRequest) {
   if (!env.ANTHROPIC_API_KEY) {
     // Refund the reservation since we're not actually calling Anthropic.
     await releaseReservation(RESERVED_TOKENS_PER_REQUEST);
-    return mockStreamResponse(cleaned, redactions);
+    return mockStreamResponse(cleaned, redactions, rateLimitHeaders);
   }
 
   // 6. Stream from Anthropic with prompt caching on the system prompt.
@@ -195,6 +202,9 @@ export async function POST(req: NextRequest) {
     "x-generator-redactions",
     encodeRedactions(redactions),
   );
+  for (const [k, v] of Object.entries(rateLimitHeaders)) {
+    response.headers.set(k, v);
+  }
   return response;
 }
 
@@ -202,7 +212,11 @@ function encodeRedactions(redactions: Redaction[]): string {
   return Buffer.from(JSON.stringify(redactions), "utf-8").toString("base64");
 }
 
-function mockStreamResponse(prompt: string, redactions: Redaction[]) {
+function mockStreamResponse(
+  prompt: string,
+  redactions: Redaction[],
+  extraHeaders?: Record<string, string>,
+) {
   const today = new Date().toISOString().slice(0, 10);
   const mock = `\`\`\`powershell
 <#
@@ -271,6 +285,7 @@ Write-Warning "Mock response — set ANTHROPIC_API_KEY to enable the script gene
       "content-type": "text/plain; charset=utf-8",
       "x-generator-redactions": encodeRedactions(redactions),
       "x-generator-mock": "1",
+      ...(extraHeaders ?? {}),
     },
   });
 }

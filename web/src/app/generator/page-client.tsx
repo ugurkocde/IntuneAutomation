@@ -74,10 +74,18 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
   const [lintResult, setLintResult] = useState<LintResult | null>(null);
   const [refinement, setRefinement] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [quota, setQuota] = useState<{
+    remaining: number;
+    limit: number;
+    reset: number;
+  } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const codeRef = useRef<HTMLElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const outputRef = useRef<HTMLDivElement | null>(null);
+  const didScrollForStreamRef = useRef(false);
 
   // Render Turnstile widget once the script loads.
   const renderTurnstile = useCallback(() => {
@@ -105,6 +113,65 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
     }
   }, [turnstileSiteKey, renderTurnstile]);
 
+  // Fetch the current per-IP quota on mount so the counter is accurate before
+  // the user generates anything. Best-effort: failures fall back to no display.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/generator/quota", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          remaining: number | null;
+          limit: number | null;
+          reset: number | null;
+        };
+        if (
+          cancelled ||
+          data.remaining == null ||
+          data.limit == null ||
+          data.reset == null
+        )
+          return;
+        setQuota({
+          remaining: data.remaining,
+          limit: data.limit,
+          reset: data.reset,
+        });
+      } catch {
+        // Non-critical
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Tick once a minute so the "resets in" countdown stays current without
+  // burning CPU on per-second updates.
+  useEffect(() => {
+    if (!quota) return;
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [quota]);
+
+  // When a new stream begins and the output container has rendered with its
+  // first tokens, scroll it into view once — so users see where the result
+  // will appear. Only fires once per stream to avoid fighting manual scroll.
+  useEffect(() => {
+    if (!isStreaming || !output || didScrollForStreamRef.current) return;
+    const el = outputRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const isOffScreen = rect.top > window.innerHeight * 0.6 || rect.bottom < 0;
+    if (isOffScreen) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    didScrollForStreamRef.current = true;
+  }, [isStreaming, output]);
+
   // Highlight the final output once streaming finishes, and run the lint pass.
   useEffect(() => {
     if (isStreaming || !output || !codeRef.current) return;
@@ -130,6 +197,20 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
     };
   }, [isStreaming, output]);
 
+  const absorbQuotaHeaders = useCallback((res: Response) => {
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    const reset = res.headers.get("x-ratelimit-reset");
+    if (remaining == null || reset == null) return;
+    const remainingNum = Number(remaining);
+    const resetNum = Number(reset);
+    if (!Number.isFinite(remainingNum) || !Number.isFinite(resetNum)) return;
+    setQuota((prev) => ({
+      remaining: remainingNum,
+      reset: resetNum,
+      limit: prev?.limit ?? 5,
+    }));
+  }, []);
+
   const isDev = process.env.NODE_ENV === "development";
 
   const canGenerate =
@@ -150,6 +231,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
       setLintResult(null);
       setCopied(false);
       setIsStreaming(true);
+      didScrollForStreamRef.current = false;
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -165,6 +247,8 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
           }),
           signal: controller.signal,
         });
+
+        absorbQuotaHeaders(res);
 
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as {
@@ -207,7 +291,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         }
       }
     },
-    [canGenerate, prompt, turnstileToken],
+    [canGenerate, prompt, turnstileToken, absorbQuotaHeaders],
   );
 
   const onCancel = useCallback(() => {
@@ -242,6 +326,8 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         signal: controller.signal,
       });
 
+      absorbQuotaHeaders(res);
+
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
           message?: string;
@@ -272,7 +358,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         setTurnstileToken(null);
       }
     }
-  }, [refinement, output, prompt, turnstileToken]);
+  }, [refinement, output, prompt, turnstileToken, absorbQuotaHeaders]);
 
   const onFixIssues = useCallback(async () => {
     if (!lintResult || lintResult.failCount + lintResult.warnCount === 0) return;
@@ -299,6 +385,8 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         }),
         signal: controller.signal,
       });
+
+      absorbQuotaHeaders(res);
 
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as {
@@ -329,7 +417,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         setTurnstileToken(null);
       }
     }
-  }, [lintResult, output, prompt, turnstileToken]);
+  }, [lintResult, output, prompt, turnstileToken, absorbQuotaHeaders]);
 
   const onCopy = useCallback(async () => {
     const code = extractPowerShellCode(output) ?? output;
@@ -508,7 +596,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <Button
               type="submit"
-              disabled={!canGenerate}
+              disabled={!canGenerate || quota?.remaining === 0}
               className="bg-accent text-accent-foreground hover:bg-accent/90 inline-flex cursor-pointer items-center gap-2"
             >
               {isStreaming ? (
@@ -544,6 +632,24 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                       : turnstileSiteKey && !turnstileToken && !isDev
                         ? "Complete the verification above to enable."
                         : null}
+              </p>
+            )}
+            {quota && (
+              <p
+                className={cn(
+                  "text-[12px]",
+                  quota.remaining === 0
+                    ? "text-destructive"
+                    : quota.remaining <= 1
+                      ? "text-amber-500"
+                      : "text-muted-foreground",
+                )}
+              >
+                {quota.remaining === 0
+                  ? `Daily limit reached. Resets in ${formatResetIn(quota.reset, now)}.`
+                  : `${quota.remaining} of ${quota.limit} generation${
+                      quota.limit === 1 ? "" : "s"
+                    } left today · resets in ${formatResetIn(quota.reset, now)}`}
               </p>
             )}
           </div>
@@ -591,7 +697,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
 
         {/* Output */}
         {output && !lintResult?.hardReject && (
-          <div className="mt-8">
+          <div ref={outputRef} className="mt-8 scroll-mt-24">
             <div className="mb-3 flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-[13px]">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
               <span className="text-muted-foreground">
@@ -704,8 +810,8 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         {/* Inline credit */}
         <div className="border-border/70 text-muted-foreground mt-12 border-t pt-6 text-[12px]">
           <p>
-            Powered by Claude Haiku 4.5. Limited to 5 generations per IP per
-            day. Free for everyone — please use responsibly so it stays free.
+            Powered by Claude Haiku 4.5. Free for everyone — please use
+            responsibly so it stays free.
           </p>
         </div>
       </div>
@@ -714,6 +820,18 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
     </div>
     </ScriptsProvider>
   );
+}
+
+function formatResetIn(resetMs: number, nowMs: number): string {
+  const diff = Math.max(0, resetMs - nowMs);
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "less than a minute";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remMin = minutes % 60;
+  if (hours < 24) return remMin ? `${hours}h ${remMin}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
 }
 
 function extractPowerShellCode(text: string): string | null {
