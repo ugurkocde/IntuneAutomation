@@ -83,6 +83,9 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
   const [lintResult, setLintResult] = useState<LintResult | null>(null);
   const [refinement, setRefinement] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileStatus, setTurnstileStatus] = useState<
+    "idle" | "loading" | "ready" | "expired" | "failed"
+  >("idle");
   const [quota, setQuota] = useState<{
     remaining: number;
     limit: number;
@@ -91,6 +94,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
+  const turnstileRetriesRef = useRef(0);
   const codeRef = useRef<HTMLElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef<HTMLDivElement | null>(null);
@@ -103,16 +107,44 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
     if (!window.turnstile) return;
     if (turnstileWidgetIdRef.current) return;
 
-    turnstileWidgetIdRef.current = window.turnstile.render(
-      turnstileContainerRef.current,
-      {
-        sitekey: turnstileSiteKey,
-        theme: "auto",
-        callback: (token) => setTurnstileToken(token),
-        "expired-callback": () => setTurnstileToken(null),
-        "error-callback": () => setTurnstileToken(null),
-      },
-    );
+    setTurnstileStatus("loading");
+    try {
+      turnstileWidgetIdRef.current = window.turnstile.render(
+        turnstileContainerRef.current,
+        {
+          sitekey: turnstileSiteKey,
+          theme: "auto",
+          callback: (token) => {
+            setTurnstileToken(token);
+            setTurnstileStatus("ready");
+            turnstileRetriesRef.current = 0;
+          },
+          "expired-callback": () => {
+            setTurnstileToken(null);
+            setTurnstileStatus("expired");
+          },
+          "error-callback": () => {
+            setTurnstileToken(null);
+            // Auto-retry a few times before giving up — Turnstile doesn't
+            // self-recover after a transient challenge failure.
+            const id = turnstileWidgetIdRef.current;
+            if (
+              turnstileRetriesRef.current < 3 &&
+              id &&
+              window.turnstile
+            ) {
+              turnstileRetriesRef.current++;
+              window.turnstile.reset(id);
+              setTurnstileStatus("loading");
+            } else {
+              setTurnstileStatus("failed");
+            }
+          },
+        },
+      );
+    } catch {
+      setTurnstileStatus("failed");
+    }
   }, [turnstileSiteKey]);
 
   // If the script loaded before the container mounted, try again on mount.
@@ -121,6 +153,49 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
       renderTurnstile();
     }
   }, [turnstileSiteKey, renderTurnstile]);
+
+  // Polling fallback: covers two failure modes — (a) api.js loads before the
+  // container mounts so renderTurnstile bails early, and (b) api.js is
+  // blocked by an ad/privacy blocker and never fires onLoad. Retry every
+  // 500ms for up to 12s, then surface a clear error so users can recover.
+  useEffect(() => {
+    if (!turnstileSiteKey) return;
+    if (turnstileWidgetIdRef.current) return;
+    let elapsed = 0;
+    const interval = window.setInterval(() => {
+      elapsed += 500;
+      if (turnstileWidgetIdRef.current) {
+        window.clearInterval(interval);
+        return;
+      }
+      if (window.turnstile) {
+        renderTurnstile();
+      }
+      if (elapsed >= 12_000) {
+        window.clearInterval(interval);
+        if (!turnstileWidgetIdRef.current) {
+          setTurnstileStatus("failed");
+        }
+      }
+    }, 500);
+    return () => window.clearInterval(interval);
+  }, [turnstileSiteKey, renderTurnstile]);
+
+  // Unmount cleanup: remove the widget so a re-mount doesn't orphan it and
+  // leave the form stuck because of the cached widget-id guard.
+  useEffect(() => {
+    return () => {
+      const id = turnstileWidgetIdRef.current;
+      if (id && window.turnstile) {
+        try {
+          window.turnstile.remove(id);
+        } catch {
+          // Ignore — widget may already be gone.
+        }
+      }
+      turnstileWidgetIdRef.current = null;
+    };
+  }, []);
 
   // Fetch the current per-IP quota on mount so the counter is accurate before
   // the user generates anything. Best-effort: failures fall back to no display.
@@ -567,7 +642,27 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
 
           {/* Turnstile widget */}
           {turnstileSiteKey && (
-            <div ref={turnstileContainerRef} className="min-h-[65px]" />
+            <div>
+              <div ref={turnstileContainerRef} className="min-h-[65px]" />
+              {turnstileStatus === "failed" && (
+                <p className="text-destructive text-[13px] leading-relaxed">
+                  Bot verification couldn&apos;t load. This is usually caused
+                  by an ad blocker or privacy extension blocking{" "}
+                  <code className="font-mono text-[12px]">
+                    challenges.cloudflare.com
+                  </code>
+                  . Allow it for this site or try a different browser, then
+                  reload the page.
+                </p>
+              )}
+              {(turnstileStatus === "idle" ||
+                turnstileStatus === "loading") &&
+                !turnstileToken && (
+                  <p className="text-muted-foreground text-[12px]">
+                    Loading bot verification…
+                  </p>
+                )}
+            </div>
           )}
 
           {/* Terms checkbox */}
