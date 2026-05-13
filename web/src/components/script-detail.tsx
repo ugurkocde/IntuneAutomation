@@ -537,25 +537,6 @@ export function ScriptDetail({
 
             {/* Action buttons */}
             <div className="flex shrink-0 items-center gap-1">
-              {isDesktop && (
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  className="text-muted-foreground hover:text-foreground focus-visible:ring-accent hidden h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:inline-flex"
-                  aria-label={
-                    isSidebarCollapsed ? "Show details panel" : "Hide details panel"
-                  }
-                  title={
-                    isSidebarCollapsed ? "Show details" : "Hide details"
-                  }
-                >
-                  {isSidebarCollapsed ? (
-                    <PanelLeftOpen className="h-4 w-4" strokeWidth={2} />
-                  ) : (
-                    <PanelLeftClose className="h-4 w-4" strokeWidth={2} />
-                  )}
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1038,6 +1019,47 @@ export function ScriptDetail({
               }}
             >
               <div className="flex items-center gap-3">
+                {isDesktop && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsSidebarCollapsed(!isSidebarCollapsed)
+                      }
+                      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      aria-label={
+                        isSidebarCollapsed
+                          ? "Show details panel"
+                          : "Hide details panel"
+                      }
+                    >
+                      {isSidebarCollapsed ? (
+                        <>
+                          <PanelLeftOpen
+                            className="h-3 w-3"
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+                          <span>Show details</span>
+                        </>
+                      ) : (
+                        <>
+                          <PanelLeftClose
+                            className="h-3 w-3"
+                            strokeWidth={2}
+                            aria-hidden="true"
+                          />
+                          <span>Hide details</span>
+                        </>
+                      )}
+                    </button>
+                    <span
+                      aria-hidden="true"
+                      className="h-3 w-px"
+                      style={{ backgroundColor: "var(--brand-rule)" }}
+                    />
+                  </>
+                )}
                 <Code
                   className="text-muted-foreground h-3.5 w-3.5"
                   strokeWidth={2}
