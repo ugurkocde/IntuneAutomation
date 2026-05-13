@@ -13,6 +13,7 @@ import {
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
 import { checkOnTopic } from "~/server/generator/topic-filter";
+import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,11 +104,16 @@ export async function POST(req: NextRequest) {
   const { cleaned, redactions } = scrubPrompt(prompt.trim());
   const topic = checkOnTopic(cleaned);
   if (!topic.onTopic) {
-    return errorResponse(
-      400,
-      "off-topic",
-      "This generator only writes PowerShell scripts for Microsoft Intune, Microsoft Graph, and Windows/macOS device management. Please rephrase your request to describe a script for those domains.",
-    );
+    // Keyword filter said no. Escalate to a cheap LLM classifier so natural
+    // prompts like "block USB drives on company laptops" aren't bounced.
+    const llmSaysOnTopic = await classifyOnTopicWithLLM(cleaned);
+    if (!llmSaysOnTopic) {
+      return errorResponse(
+        400,
+        "off-topic",
+        "This generator only writes PowerShell scripts for Microsoft Intune, Microsoft Graph, and Windows/macOS device management. Please rephrase your request to describe a script for those domains.",
+      );
+    }
   }
 
   // 3. Per-IP rate limit

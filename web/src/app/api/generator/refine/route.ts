@@ -13,6 +13,7 @@ import {
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
 import { checkOnTopic } from "~/server/generator/topic-filter";
+import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -109,11 +110,14 @@ export async function POST(req: NextRequest) {
   // be domain-relevant; "now write a poem instead" would be rejected here.
   const topic = checkOnTopic(cleanedRefinement);
   if (!topic.onTopic) {
-    return errorResponse(
-      400,
-      "off-topic",
-      "Refinements must describe Intune / Microsoft Graph / Windows scripting changes. Please rephrase.",
-    );
+    const llmSaysOnTopic = await classifyOnTopicWithLLM(cleanedRefinement);
+    if (!llmSaysOnTopic) {
+      return errorResponse(
+        400,
+        "off-topic",
+        "Refinements must describe Intune / Microsoft Graph / Windows scripting changes. Please rephrase.",
+      );
+    }
   }
 
   // 4. Per-IP rate limit (refinements count as generations).

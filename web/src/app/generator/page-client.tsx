@@ -216,7 +216,7 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
     setQuota((prev) => ({
       remaining: remainingNum,
       reset: resetNum,
-      limit: prev?.limit ?? 5,
+      limit: prev?.limit ?? 20,
     }));
   }, []);
 

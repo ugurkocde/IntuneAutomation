@@ -12,11 +12,11 @@ const redis =
       })
     : null;
 
-// 5 generations / IP / 24h. Sliding window so traffic spreads out.
+// 20 generations / IP / 24h. Sliding window so traffic spreads out.
 const perIpLimiter = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(5, "24 h"),
+      limiter: Ratelimit.slidingWindow(20, "24 h"),
       analytics: false,
       prefix: "gen:ip",
     })
@@ -49,7 +49,7 @@ export async function checkPerIp(ipHash: string): Promise<PerIpResult> {
   return { allowed: true, remaining, reset };
 }
 
-export const PER_IP_LIMIT = 5;
+export const PER_IP_LIMIT = 20;
 
 // Non-consuming peek at the per-IP quota. Used by the UI to show remaining
 // quota without burning a generation.
