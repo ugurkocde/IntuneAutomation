@@ -69,26 +69,36 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
         variantStyles[headerVariant],
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 cursor-pointer items-center gap-2 text-left text-[13px]"
-          aria-expanded={expanded}
-        >
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
+        className="focus-visible:ring-ring/50 flex cursor-pointer items-center justify-between gap-2 px-3 py-2 select-none focus:outline-none focus-visible:ring-2"
+      >
+        <div className="flex flex-1 items-center gap-2 text-left text-[13px]">
           {headerIcon}
           <span className="text-foreground font-medium">{headerText}</span>
           <span className="text-muted-foreground text-[12px]">
             {result.passCount} pass · {result.warnCount} warn ·{" "}
             {result.failCount} fail
           </span>
-        </button>
+        </div>
         <div className="flex items-center gap-1.5">
           {showFixButton && (
             <Button
               size="sm"
               variant="outline"
-              onClick={onFix}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFix?.();
+              }}
               disabled={fixDisabled}
               className="border-border/70 h-7 cursor-pointer gap-1.5 text-xs"
               title="Send the issues back to the AI for correction"
@@ -97,19 +107,13 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
               Fix with AI
             </Button>
           )}
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? "Collapse" : "Expand"}
-            className="text-muted-foreground cursor-pointer rounded-md p-1.5"
-          >
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 transition-transform",
-                expanded && "rotate-180",
-              )}
-            />
-          </button>
+          <ChevronDown
+            className={cn(
+              "text-muted-foreground h-3.5 w-3.5 transition-transform",
+              expanded && "rotate-180",
+            )}
+            aria-hidden="true"
+          />
         </div>
       </div>
 
