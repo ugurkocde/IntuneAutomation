@@ -197,9 +197,9 @@ function GeneratorSeoContent() {
       <p className="text-muted-foreground max-w-2xl text-[14.5px] leading-relaxed sm:text-[15px]">
         The IntuneAutomation Script Generator is a free, browser-based AI tool
         that turns plain-English requests into production-ready PowerShell
-        scripts for Microsoft Intune and Microsoft Graph. No sign-in, no
-        installation — your prompt is sent to Anthropic for processing and is
-        never stored on our servers.
+        scripts for Microsoft Intune and Microsoft Graph. No sign-in and no
+        installation required. Your prompt is sent to Anthropic for processing
+        and is never stored on our servers.
       </p>
     </header>
   );
