@@ -547,24 +547,33 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
       <Navbar />
       <SearchDialog />
 
-      <div className="container mx-auto max-w-4xl px-4 py-10 sm:py-16">
+      {/* Atmospheric backdrop — soft phosphor halo + faint blueprint grid,
+          consistent with hero/how-it-works sections. Sits behind content. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[520px] overflow-hidden"
+      >
+        <div className="bg-blueprint-soft absolute inset-0 opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent_85%)]" />
+        <div className="bg-glow-accent animate-drift absolute -top-32 left-1/2 h-[520px] w-[820px] -translate-x-1/2 opacity-70" />
+      </div>
+
+      <div className="relative container mx-auto max-w-4xl px-4 py-12 sm:py-20">
         {/* Header */}
-        <div className="mb-10">
-          <div className="text-muted-foreground mb-3 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase">
-            <Sparkles className="h-3 w-3" />
+        <div className="mb-10 sm:mb-12">
+          <div className="text-muted-foreground mb-5 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase">
+            <Sparkles className="text-accent h-3 w-3" />
             Script Generator
-            <span className="border-accent/40 text-accent rounded border px-1.5 py-0.5 text-[10px] tracking-normal normal-case">
+            <span className="bg-accent-soft text-accent rounded-sm px-1.5 py-0.5 text-[10px] font-medium tracking-normal normal-case">
               Beta
             </span>
           </div>
-          <h1 className="mb-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Describe what you need.
-            <br />
+          <h1 className="font-display mb-5 text-[28px] leading-[1.1] tracking-tight sm:text-[44px]">
+            Describe what you need.{" "}
             <span className="text-muted-foreground">
               We&apos;ll write the PowerShell.
             </span>
           </h1>
-          <p className="text-muted-foreground max-w-2xl text-[15px] leading-relaxed">
+          <p className="text-muted-foreground max-w-2xl text-[15px] leading-relaxed sm:text-[16px]">
             Production-quality Intune scripts generated from plain English.
             Free, no sign-in. Your prompt is sent to Anthropic for processing
             and is never stored on our servers.
@@ -572,27 +581,29 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         </div>
 
         {/* Form */}
-        <form onSubmit={onSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} className="space-y-6">
           {/* Security notice */}
-          <div className="border-accent/30 bg-accent/5 flex gap-3 rounded-md border p-3 text-sm">
+          <div className="border-accent/25 bg-accent-soft/70 flex gap-3 rounded-lg border p-4 text-sm backdrop-blur-sm">
             <ShieldCheck className="text-accent mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
               <div className="font-medium">
                 Don&apos;t paste secrets, credentials, or tenant IDs.
               </div>
-              <div className="text-muted-foreground mt-0.5 text-[13px]">
+              <div className="text-muted-foreground mt-0.5 text-[13px] leading-relaxed">
                 We scrub obvious patterns (GUIDs, tokens, keys, emails) before
                 sending — but you&apos;re the first line of defense.
               </div>
             </div>
           </div>
 
-          {/* Prompt */}
-          <div>
+          {/* Prompt — the hero input. Surfaces as a distinct card with
+              elevated treatment so it reads as the primary action zone. */}
+          <div className="border-border/70 bg-card/80 rounded-xl border p-4 shadow-sm backdrop-blur-sm sm:p-5">
             <label
               htmlFor="prompt"
-              className="text-foreground mb-2 block text-sm font-medium"
+              className="text-muted-foreground mb-3 flex items-center gap-2 font-mono text-[11px] tracking-[0.16em] uppercase"
             >
+              <span className="bg-accent h-1.5 w-1.5 rounded-full" aria-hidden="true" />
               What should the script do?
             </label>
             <textarea
@@ -602,41 +613,48 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
               placeholder="e.g. List all Intune-enrolled devices that haven't checked in for 60 days and export the results to CSV."
               rows={5}
               maxLength={MAX_PROMPT_LENGTH}
-              className="border-border/70 bg-card text-foreground placeholder:text-muted-foreground/70 focus:border-accent/50 focus:ring-accent/30 w-full resize-y rounded-md border px-3 py-2.5 text-[14px] leading-relaxed focus:ring-1 focus:outline-none"
+              className="border-border/60 bg-background/60 text-foreground placeholder:text-muted-foreground/55 focus-visible:border-accent/60 focus-visible:ring-accent/25 w-full resize-y rounded-md border px-4 py-3 text-[14.5px] leading-relaxed shadow-xs transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
             />
-            <div className="text-muted-foreground mt-1.5 flex items-center justify-between text-[11px]">
-              <span>
+            <div className="text-muted-foreground mt-2.5 flex items-center justify-between text-[11px]">
+              <span
+                className={cn(
+                  "font-mono tabular-nums transition-colors",
+                  prompt.length > MAX_PROMPT_LENGTH * 0.9 && "text-amber-500",
+                  prompt.length >= MAX_PROMPT_LENGTH && "text-destructive",
+                )}
+              >
                 {prompt.length} / {MAX_PROMPT_LENGTH}
               </span>
               <button
                 type="button"
-                className="hover:text-foreground cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className="hover:text-foreground focus-visible:ring-ring/50 cursor-pointer rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => setPrompt("")}
                 disabled={!prompt}
               >
                 Clear
               </button>
             </div>
-          </div>
 
-          {/* Examples */}
-          <div>
-            <div className="text-muted-foreground mb-2 font-mono text-[11px] tracking-[0.14em] uppercase">
-              Try
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLE_PROMPTS.map((example) => (
-                <button
-                  key={example}
-                  type="button"
-                  onClick={() => setPrompt(example)}
-                  className="border-border/70 hover:border-accent/40 hover:bg-card text-muted-foreground hover:text-foreground cursor-pointer rounded-md border px-2.5 py-1 text-[12px] transition-colors"
-                >
-                  {example.length > 60
-                    ? example.slice(0, 60) + "…"
-                    : example}
-                </button>
-              ))}
+            {/* Examples — placed inside the prompt card so suggestions feel
+                like extensions of the input, not a separate concept. */}
+            <div className="border-border/40 mt-4 border-t pt-4">
+              <div className="text-muted-foreground mb-2.5 font-mono text-[10.5px] tracking-[0.18em] uppercase">
+                Try one of these
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLE_PROMPTS.map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => setPrompt(example)}
+                    className="border-border/60 hover:border-accent/50 hover:bg-accent-soft text-muted-foreground hover:text-foreground focus-visible:ring-accent/40 group cursor-pointer rounded-md border bg-background/40 px-2.5 py-1.5 text-[12px] leading-snug transition-all duration-150 hover:-translate-y-px focus-visible:ring-2 focus-visible:outline-none"
+                  >
+                    {example.length > 60
+                      ? example.slice(0, 60) + "…"
+                      : example}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -697,64 +715,94 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
           </label>
 
           {/* Submit */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Button
-              type="submit"
-              disabled={!canGenerate || quota?.remaining === 0}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 inline-flex cursor-pointer items-center gap-2"
-            >
-              {isStreaming ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-3.5 w-3.5" />
-                  Generate script
-                </>
-              )}
-            </Button>
-            {isStreaming && (
+          <div className="space-y-3 pt-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                className="border-border/70 cursor-pointer"
+                type="submit"
+                size="lg"
+                disabled={!canGenerate || quota?.remaining === 0}
+                className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-11 cursor-pointer items-center gap-2 px-6 text-[14px] font-medium shadow-[0_10px_28px_-12px_color-mix(in_oklab,var(--brand-accent)_70%,transparent)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-12px_color-mix(in_oklab,var(--brand-accent)_80%,transparent)] active:translate-y-0 disabled:translate-y-0 disabled:shadow-none"
               >
-                Cancel
-              </Button>
-            )}
-            {!isStreaming && !canGenerate && (
-              <p className="text-muted-foreground text-[12px]">
-                {prompt.trim().length === 0
-                  ? "Describe what the script should do to enable."
-                  : prompt.length > MAX_PROMPT_LENGTH
-                    ? `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters).`
-                    : !accepted
-                      ? "Accept the Terms above to enable."
-                      : turnstileSiteKey && !turnstileToken && !isDev
-                        ? "Complete the verification above to enable."
-                        : null}
-              </p>
-            )}
-            {quota && (
-              <p
-                className={cn(
-                  "text-[12px]",
-                  quota.remaining === 0
-                    ? "text-destructive"
-                    : quota.remaining <= 1
-                      ? "text-amber-500"
-                      : "text-muted-foreground",
+                {isStreaming ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Generating…
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3.5 w-3.5" />
+                    Generate script
+                  </>
                 )}
-              >
-                {quota.remaining === 0
-                  ? `Daily limit reached. Resets in ${formatResetIn(quota.reset, now)}.`
-                  : `${quota.remaining} of ${quota.limit} generation${
-                      quota.limit === 1 ? "" : "s"
-                    } left today · resets in ${formatResetIn(quota.reset, now)}`}
-              </p>
+              </Button>
+              {isStreaming && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={onCancel}
+                  className="border-border/70 h-11 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              )}
+              {!isStreaming && !canGenerate && (
+                <p className="text-muted-foreground text-[12px]">
+                  {prompt.trim().length === 0
+                    ? "Describe what the script should do to enable."
+                    : prompt.length > MAX_PROMPT_LENGTH
+                      ? `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters).`
+                      : !accepted
+                        ? "Accept the Terms above to enable."
+                        : turnstileSiteKey && !turnstileToken && !isDev
+                          ? "Complete the verification above to enable."
+                          : null}
+                </p>
+              )}
+            </div>
+            {quota && (
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="bg-border/60 h-1 w-24 overflow-hidden rounded-full"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={quota.limit}
+                  aria-valuenow={quota.remaining}
+                  aria-label="Daily generations remaining"
+                >
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      quota.remaining === 0
+                        ? "bg-destructive"
+                        : quota.remaining <= 1
+                          ? "bg-amber-500"
+                          : "bg-accent",
+                    )}
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (quota.remaining / quota.limit) * 100))}%`,
+                      backgroundColor:
+                        quota.remaining > 1
+                          ? "var(--brand-accent)"
+                          : undefined,
+                    }}
+                  />
+                </div>
+                <p
+                  className={cn(
+                    "text-[12px] tabular-nums",
+                    quota.remaining === 0
+                      ? "text-destructive"
+                      : quota.remaining <= 1
+                        ? "text-amber-500"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {quota.remaining === 0
+                    ? `Daily limit reached · resets in ${formatResetIn(quota.reset, now)}`
+                    : `${quota.remaining} of ${quota.limit} left today · resets in ${formatResetIn(quota.reset, now)}`}
+                </p>
+              </div>
             )}
           </div>
         </form>
@@ -801,10 +849,10 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
 
         {/* Output */}
         {output && !lintResult?.hardReject && (
-          <div ref={outputRef} className="mt-8 scroll-mt-24">
-            <div className="mb-3 flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-[13px]">
+          <div ref={outputRef} className="mt-10 scroll-mt-24">
+            <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3.5 text-[13px]">
               <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground leading-relaxed">
                 <span className="text-foreground font-medium">
                   AI-generated.
                 </span>{" "}
@@ -813,35 +861,59 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
               </span>
             </div>
 
-            <div className="border-border/70 bg-card overflow-hidden rounded-md border">
-              <div className="border-border/70 flex items-center justify-between border-b px-3 py-2">
-                <div className="text-muted-foreground font-mono text-[10px] tracking-[0.16em] uppercase">
-                  Output {isStreaming && "· streaming"}
+            <div className="border-border/70 bg-card overflow-hidden rounded-xl border shadow-md ring-1 ring-black/[0.02] dark:ring-white/[0.02]">
+              <div className="border-border/70 bg-background/60 flex items-center justify-between gap-3 border-b px-3.5 py-2.5 backdrop-blur-sm">
+                <div className="text-muted-foreground flex items-center gap-2.5 font-mono text-[10.5px] tracking-[0.18em] uppercase">
+                  {/* Faux window dots — gives the code block a familiar
+                      "editor window" feel without being toy-like. */}
+                  <span className="hidden items-center gap-1 sm:inline-flex" aria-hidden="true">
+                    <span className="bg-border/70 h-2 w-2 rounded-full" />
+                    <span className="bg-border/70 h-2 w-2 rounded-full" />
+                    <span className="bg-border/70 h-2 w-2 rounded-full" />
+                  </span>
+                  <span className="border-accent/30 bg-accent-soft text-accent rounded border px-1.5 py-0.5 font-mono text-[10px] tracking-[0.14em]">
+                    .ps1
+                  </span>
+                  <span className="hidden sm:inline">Output</span>
+                  {isStreaming && (
+                    <span className="text-accent inline-flex items-center gap-1.5 tracking-normal normal-case">
+                      <span
+                        className="h-1.5 w-1.5 animate-pulse rounded-full"
+                        style={{ backgroundColor: "var(--brand-accent)" }}
+                        aria-hidden="true"
+                      />
+                      Streaming
+                    </span>
+                  )}
                 </div>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1">
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={onCopy}
                     disabled={isStreaming || !output}
-                    className="h-7 cursor-pointer gap-1.5 text-xs"
+                    className="h-8 cursor-pointer gap-1.5 text-xs"
                   >
                     {copied ? (
-                      <Check className="h-3 w-3" />
+                      <Check className="h-3.5 w-3.5 text-emerald-500" />
                     ) : (
-                      <Copy className="h-3 w-3" />
+                      <Copy className="h-3.5 w-3.5" />
                     )}
                     {copied ? "Copied" : "Copy"}
                   </Button>
+                  <span
+                    className="bg-border/60 mx-0.5 h-4 w-px"
+                    aria-hidden="true"
+                  />
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={onDownload}
                     disabled={isStreaming || !output}
-                    className="h-7 cursor-pointer gap-1.5 text-xs"
+                    className="h-8 cursor-pointer gap-1.5 text-xs"
                   >
-                    <Download className="h-3 w-3" />
-                    Download .ps1
+                    <Download className="h-3.5 w-3.5" />
+                    Download
                   </Button>
                 </div>
               </div>
@@ -856,6 +928,12 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
                 >
                   {code}
                 </code>
+                {isStreaming && (
+                  <span
+                    className="bg-accent ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse align-baseline"
+                    aria-hidden="true"
+                  />
+                )}
               </pre>
             </div>
 
@@ -870,41 +948,53 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
             {/* Refine — iterative follow-up. Each refinement counts toward
                 the daily quota. */}
             {!isStreaming && !lintResult?.hardReject && (
-              <div className="border-border/70 mt-3 rounded-md border p-3">
-                <div className="text-muted-foreground mb-2 font-mono text-[10px] tracking-[0.16em] uppercase">
+              <div className="border-border/70 bg-card/60 mt-3 rounded-xl border p-4 backdrop-blur-sm">
+                <div className="text-muted-foreground mb-2.5 flex items-center gap-2 font-mono text-[10.5px] tracking-[0.18em] uppercase">
+                  <span className="bg-accent h-1.5 w-1.5 rounded-full" aria-hidden="true" />
                   Refine
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={refinement}
-                    onChange={(e) => setRefinement(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        refinement.trim()
-                      ) {
-                        e.preventDefault();
-                        void onRefine();
-                      }
-                    }}
-                    placeholder="e.g. Also export to CSV. Or: switch authentication to Managed Identity only."
-                    maxLength={1500}
-                    className="border-border/70 bg-background text-foreground placeholder:text-muted-foreground/70 focus:border-accent/50 focus:ring-accent/30 flex-1 rounded-md border px-3 py-2 text-[13px] focus:ring-1 focus:outline-none"
-                  />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="focus-within:border-accent/60 focus-within:ring-accent/25 border-border/60 bg-background/70 flex flex-1 items-center gap-2 rounded-md border px-3 transition-colors focus-within:ring-[3px]">
+                    <SendHorizontal
+                      className="text-muted-foreground/60 h-3.5 w-3.5 flex-shrink-0"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="text"
+                      value={refinement}
+                      onChange={(e) => setRefinement(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          !e.shiftKey &&
+                          refinement.trim()
+                        ) {
+                          e.preventDefault();
+                          void onRefine();
+                        }
+                      }}
+                      placeholder="e.g. Also export to CSV. Or: switch to Managed Identity auth."
+                      maxLength={1500}
+                      className="text-foreground placeholder:text-muted-foreground/60 h-10 flex-1 bg-transparent text-[13.5px] focus:outline-none"
+                    />
+                  </div>
                   <Button
+                    variant="outline"
                     onClick={() => void onRefine()}
                     disabled={!refinement.trim() || isStreaming}
-                    className="bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer gap-1.5"
+                    className="border-border/70 hover:border-accent/50 hover:bg-accent-soft h-10 cursor-pointer gap-1.5"
                   >
-                    <SendHorizontal className="h-3.5 w-3.5" />
+                    <SendHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                     Refine
                   </Button>
                 </div>
-                <div className="text-muted-foreground mt-1.5 text-[11px]">
-                  Describe a change; we&apos;ll update the script. Each
-                  refinement counts as one generation.
+                <div className="text-muted-foreground mt-2.5 text-[11.5px] leading-relaxed">
+                  Describe a change and we&apos;ll update the script. Each
+                  refinement counts as one generation. Press{" "}
+                  <kbd className="border-border/60 bg-background/70 text-muted-foreground rounded border px-1 py-px font-mono text-[10px]">
+                    Enter
+                  </kbd>{" "}
+                  to send.
                 </div>
               </div>
             )}
@@ -912,11 +1002,21 @@ export default function GeneratorClient({ turnstileSiteKey }: Props) {
         )}
 
         {/* Inline credit */}
-        <div className="border-border/70 text-muted-foreground mt-12 border-t pt-6 text-[12px]">
-          <p>
-            Powered by Claude Haiku 4.5. Free for everyone — please use
-            responsibly so it stays free.
+        <div className="border-border/40 mt-16 flex flex-wrap items-center justify-between gap-3 border-t pt-6 text-[12px] leading-relaxed">
+          <p className="text-muted-foreground">
+            Powered by{" "}
+            <span className="text-foreground font-medium">
+              Claude Haiku 4.5
+            </span>
+            . Free for everyone — please use responsibly so it stays free.
           </p>
+          <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] tracking-[0.14em] uppercase">
+            <span
+              className="bg-accent h-1.5 w-1.5 rounded-full"
+              aria-hidden="true"
+            />
+            No prompt storage
+          </span>
         </div>
       </div>
 

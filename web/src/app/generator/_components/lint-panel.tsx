@@ -38,9 +38,15 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
         : "ok";
 
   const variantStyles = {
-    ok: "border-emerald-500/30 bg-emerald-500/5",
-    warn: "border-amber-500/30 bg-amber-500/5",
-    fail: "border-destructive/40 bg-destructive/5",
+    ok: "border-emerald-500/25 bg-emerald-500/[0.04]",
+    warn: "border-amber-500/25 bg-amber-500/[0.04]",
+    fail: "border-destructive/35 bg-destructive/[0.04]",
+  };
+
+  const variantAccent = {
+    ok: "bg-emerald-500",
+    warn: "bg-amber-500",
+    fail: "bg-destructive",
   };
 
   const headerIcon =
@@ -65,10 +71,19 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
   return (
     <div
       className={cn(
-        "mt-3 overflow-hidden rounded-md border",
+        "relative mt-3 overflow-hidden rounded-xl border backdrop-blur-sm",
         variantStyles[headerVariant],
       )}
     >
+      {/* Left accent rail — color-codes severity at a glance from a distance. */}
+      <span
+        className={cn(
+          "absolute inset-y-0 left-0 w-[3px]",
+          variantAccent[headerVariant],
+          headerVariant === "ok" ? "opacity-50" : "opacity-70",
+        )}
+        aria-hidden="true"
+      />
       <div
         role="button"
         tabIndex={0}
@@ -80,14 +95,30 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
             setExpanded((v) => !v);
           }
         }}
-        className="focus-visible:ring-ring/50 flex cursor-pointer items-center justify-between gap-2 px-3 py-2 select-none focus:outline-none focus-visible:ring-2"
+        className="focus-visible:ring-ring/50 hover:bg-foreground/[0.02] flex cursor-pointer items-center justify-between gap-2 px-3.5 py-2.5 pl-4 transition-colors select-none focus:outline-none focus-visible:ring-2"
       >
-        <div className="flex flex-1 items-center gap-2 text-left text-[13px]">
+        <div className="flex flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 text-left text-[13px]">
           {headerIcon}
           <span className="text-foreground font-medium">{headerText}</span>
-          <span className="text-muted-foreground text-[12px]">
-            {result.passCount} pass · {result.warnCount} warn ·{" "}
-            {result.failCount} fail
+          <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-wider uppercase tabular-nums">
+            {result.passCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-sm border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-500">
+                <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                {result.passCount} pass
+              </span>
+            )}
+            {result.warnCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-sm border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-amber-500">
+                <span className="h-1 w-1 rounded-full bg-amber-500" />
+                {result.warnCount} warn
+              </span>
+            )}
+            {result.failCount > 0 && (
+              <span className="border-destructive/40 bg-destructive/10 text-destructive inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5">
+                <span className="bg-destructive h-1 w-1 rounded-full" />
+                {result.failCount} fail
+              </span>
+            )}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -118,11 +149,11 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
       </div>
 
       {expanded && (
-        <ul className="border-border/40 divide-y divide-current/10 border-t">
+        <ul className="border-border/40 divide-border/40 divide-y border-t">
           {result.findings.map((f) => (
             <li
               key={f.id}
-              className="flex gap-2.5 px-3 py-2 text-[12.5px] leading-relaxed"
+              className="hover:bg-foreground/[0.015] flex gap-2.5 px-3.5 py-2.5 pl-4 text-[12.5px] leading-relaxed transition-colors"
             >
               <div className="mt-0.5 flex-shrink-0">
                 {f.severity === "pass" ? (
@@ -135,13 +166,13 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
               </div>
               <div className="flex-1">
                 <div className="text-foreground">
-                  <span className="text-muted-foreground mr-1.5 font-mono text-[10px] tracking-wider uppercase">
+                  <span className="text-muted-foreground/80 mr-1.5 font-mono text-[10px] tracking-[0.14em] uppercase">
                     {categoryLabel[f.category]}
                   </span>
                   {f.message}
                 </div>
                 {f.detail && (
-                  <div className="text-muted-foreground mt-0.5 text-[12px]">
+                  <div className="text-muted-foreground mt-0.5 text-[12px] leading-relaxed">
                     {f.detail}
                   </div>
                 )}
