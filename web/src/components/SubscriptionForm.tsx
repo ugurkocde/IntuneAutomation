@@ -118,13 +118,13 @@ export default function SubscriptionForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={loading}
-            className="bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-accent flex-1 rounded-md border px-4 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-60"
+            className="bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-accent focus-visible:ring-offset-background flex-1 rounded-md border px-4 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
             style={{ borderColor: "var(--brand-rule)" }}
           />
           <button
             type="submit"
             disabled={loading}
-            className="bg-foreground text-background ring-accent inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+            className="bg-foreground text-background ring-accent focus-visible:ring-offset-background inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {loading ? "Subscribing..." : "Subscribe"}
           </button>
@@ -134,9 +134,7 @@ export default function SubscriptionForm() {
           <p
             className="mt-4 font-mono text-[11px] tracking-[0.14em] uppercase"
             style={{
-              color: isError
-                ? "var(--destructive)"
-                : "var(--brand-accent-hi)",
+              color: isError ? "var(--destructive)" : "var(--brand-accent-hi)",
             }}
           >
             {status}

@@ -88,8 +88,7 @@ const CMDLET_PITFALLS: Array<{
   {
     id: "tpm-encryption",
     pattern: /\bGet-Tpm\b[\s\S]{0,100}(?:ProtectionStatus|Encrypted)/i,
-    message:
-      "`Get-Tpm` reports TPM state, not BitLocker encryption status.",
+    message: "`Get-Tpm` reports TPM state, not BitLocker encryption status.",
     suggestion:
       "Use `Get-BitLockerVolume -MountPoint 'C:'` and inspect `.ProtectionStatus`.",
   },
@@ -283,7 +282,10 @@ export function lintScript(code: string): LintResult {
   // Strip comment-based help block and inline comments before scanning URLs,
   // so we don't flag URLs inside .EXAMPLE or .NOTES.
   const codeWithoutHelpBlock = code.replace(/<#[\s\S]*?#>/g, "");
-  const codeWithoutComments = codeWithoutHelpBlock.replace(/(^|\s)#[^\n]*/g, "");
+  const codeWithoutComments = codeWithoutHelpBlock.replace(
+    /(^|\s)#[^\n]*/g,
+    "",
+  );
   const urlMatches = Array.from(
     codeWithoutComments.matchAll(/https?:\/\/[^\s"'`)]+/g),
   );

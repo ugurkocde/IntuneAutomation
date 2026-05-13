@@ -118,9 +118,7 @@ export function NotificationScriptCard({
 
           {/* Mono attribute strip */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
-            {isMacOS && (
-              <MetaPill icon={Apple} label="macOS" />
-            )}
+            {isMacOS && <MetaPill icon={Apple} label="macOS" />}
             {isNotification && (
               <MetaPill
                 icon={CloudLightning}

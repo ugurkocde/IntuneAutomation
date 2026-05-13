@@ -161,10 +161,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         className="my-8 w-full overflow-x-auto rounded-md border"
         style={{ borderColor: "var(--brand-rule)" }}
       >
-        <table
-          {...props}
-          className="w-full border-collapse text-left text-sm"
-        >
+        <table {...props} className="w-full border-collapse text-left text-sm">
           {children}
         </table>
       </div>
@@ -186,7 +183,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     th: ({ children, ...props }) => (
       <th
         {...props}
-        className="px-4 py-3 font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground [&[align=center]]:text-center [&[align=right]]:text-right"
+        className="text-muted-foreground px-4 py-3 font-mono text-[11px] tracking-[0.14em] uppercase [&[align=center]]:text-center [&[align=right]]:text-right"
       >
         {children}
       </th>

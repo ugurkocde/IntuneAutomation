@@ -73,8 +73,7 @@ const RULES: Array<{
   {
     kind: "email",
     label: "Email address",
-    pattern:
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+    pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
     replacement: "[REDACTED_EMAIL]",
   },
   // Public IPv4 addresses (skip rfc1918/loopback)

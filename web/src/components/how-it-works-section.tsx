@@ -15,12 +15,12 @@ export default function HowItWorksSection() {
     <section
       id="how-it-works"
       aria-labelledby="how-it-works-heading"
-      className="bg-blueprint-soft relative overflow-hidden border-y border-border/60 py-20 sm:py-24 md:py-32"
+      className="bg-blueprint-soft border-border/60 relative overflow-hidden border-y py-20 sm:py-24 md:py-32"
     >
       {/* Atmospheric edge fade so the grid feels printed, not tiled */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-transparent to-background"
+        className="from-background to-background pointer-events-none absolute inset-0 bg-gradient-to-b via-transparent"
       />
 
       {/* Subtle accent glow anchored behind the convergence node (right side)
@@ -47,14 +47,12 @@ export default function HowItWorksSection() {
         <div className="grid grid-cols-1 items-end gap-6 sm:grid-cols-[auto_1fr] sm:gap-10">
           <p
             aria-hidden="true"
-            className="font-display text-foreground/15 leading-[0.8] tracking-[-0.05em] text-[clamp(7rem,18vw,16rem)] dark:text-foreground/10"
+            className="font-display text-foreground/15 dark:text-foreground/10 text-[clamp(7rem,18vw,16rem)] leading-[0.8] tracking-[-0.05em]"
           >
             02
           </p>
           <div className="pb-2 sm:pb-6">
-            <p className="font-mono-label text-accent-hi">
-              // How it works
-            </p>
+            <p className="font-mono-label text-accent-hi">// How it works</p>
             <h2
               id="how-it-works-heading"
               className="font-display text-foreground mt-4 text-3xl leading-[1.05] tracking-[-0.02em] sm:text-4xl md:text-[2.75rem]"
@@ -62,9 +60,9 @@ export default function HowItWorksSection() {
               Two paths. One outcome.
             </h2>
             <p className="text-muted-foreground mt-4 max-w-xl text-base leading-relaxed sm:text-lg">
-              The same PowerShell script runs ad-hoc from your terminal or on
-              a schedule as an Azure Automation runbook. Same script. Same
-              tenant. Different operational cadence.
+              The same PowerShell script runs ad-hoc from your terminal or on a
+              schedule as an Azure Automation runbook. Same script. Same tenant.
+              Different operational cadence.
             </p>
           </div>
         </div>
@@ -79,8 +77,8 @@ export default function HowItWorksSection() {
             Microsoft Graph using your own credentials.
           </li>
           <li>
-            Path B — Cloud: deploy it once as an Azure Automation runbook;
-            it then runs on a schedule using a managed identity.
+            Path B — Cloud: deploy it once as an Azure Automation runbook; it
+            then runs on a schedule using a managed identity.
           </li>
           <li>
             Both paths converge on the same outcome: changes applied to your
@@ -98,7 +96,7 @@ export default function HowItWorksSection() {
         <div className="mt-16 flex flex-col items-center gap-2 text-center sm:mt-20">
           <Link
             href="/scripts/"
-            className="group inline-flex items-center gap-2 text-base font-medium text-foreground underline decoration-[color:var(--brand-accent)] decoration-2 underline-offset-[6px] transition hover:decoration-[color:var(--brand-accent-hi)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+            className="group text-foreground focus-visible:ring-offset-background inline-flex items-center gap-2 text-base font-medium underline decoration-[color:var(--brand-accent)] decoration-2 underline-offset-[6px] transition hover:decoration-[color:var(--brand-accent-hi)] focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-4 focus-visible:outline-none"
           >
             Browse scripts
             <span
@@ -108,7 +106,7 @@ export default function HowItWorksSection() {
               →
             </span>
           </Link>
-          <p className="font-mono text-[11px] tracking-wider text-muted-foreground uppercase">
+          <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
             All scripts ship both paths. No selection required.
           </p>
         </div>
@@ -141,7 +139,9 @@ function DesktopPipeline({ reducedMotion }: { reducedMotion: boolean }) {
   // end exactly at the left edge of the tenant card (x=770), bending up
   // and down to pass through the middle-card row.
   const DASH = 1200;
-  const initial = reducedMotion ? { strokeDashoffset: 0 } : { strokeDashoffset: DASH };
+  const initial = reducedMotion
+    ? { strokeDashoffset: 0 }
+    : { strokeDashoffset: DASH };
   const animate = { strokeDashoffset: 0 };
 
   return (
@@ -468,7 +468,7 @@ function NodeCardStatic({
 
 function CardLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[11px] font-medium tracking-[0.14em] text-foreground uppercase">
+    <p className="text-foreground font-mono text-[11px] font-medium tracking-[0.14em] uppercase">
       {children}
     </p>
   );
@@ -476,7 +476,7 @@ function CardLabel({ children }: { children: React.ReactNode }) {
 
 function CardSub({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground">
+    <p className="text-muted-foreground mt-1.5 text-[13px] leading-snug">
       {children}
     </p>
   );
@@ -484,7 +484,7 @@ function CardSub({ children }: { children: React.ReactNode }) {
 
 function CardMeta({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-3 flex flex-col gap-0.5 border-t border-border/60 pt-2 font-mono text-[10.5px] leading-relaxed text-muted-foreground/90">
+    <div className="border-border/60 text-muted-foreground/90 mt-3 flex flex-col gap-0.5 border-t pt-2 font-mono text-[10.5px] leading-relaxed">
       {children}
     </div>
   );
@@ -492,7 +492,7 @@ function CardMeta({ children }: { children: React.ReactNode }) {
 
 function CardIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute top-3 right-3 inline-flex h-5 w-5 items-center justify-center text-muted-foreground/80">
+    <div className="text-muted-foreground/80 absolute top-3 right-3 inline-flex h-5 w-5 items-center justify-center">
       {children}
     </div>
   );
@@ -501,7 +501,7 @@ function CardIcon({ children }: { children: React.ReactNode }) {
 function ArrowDown() {
   return (
     <div className="flex justify-center" aria-hidden="true">
-      <span className="font-mono text-base leading-none text-accent">▼</span>
+      <span className="text-accent font-mono text-base leading-none">▼</span>
     </div>
   );
 }

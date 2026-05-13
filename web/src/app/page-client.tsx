@@ -61,34 +61,34 @@ export default function Home() {
     <MotionConfig reducedMotion="user">
       <AnalyticsProvider>
         <ScriptsProvider>
-        <div className="bg-background flex min-h-screen flex-col">
-          <Navbar />
-          <main className="flex-1">
-            <HeroSection />
-            <PopularScripts />
-            <Suspense fallback={<div className="h-40" />}>
-              <WhatsNewStrip />
-            </Suspense>
-            <Suspense fallback={<div className="h-64" />}>
-              <HowItWorksSection />
-            </Suspense>
-            {/* FAQSection lives inside main because the navbar scrolls to its
-             * id anchor. Give it its own Suspense with min-height so the page
-             * doesn't collapse while the chunk loads. */}
-            <Suspense fallback={<div className="min-h-[400px]" />}>
-              <FAQSection />
-            </Suspense>
-            <Suspense fallback={<div className="min-h-[300px]" />}>
-              <EcosystemSection />
-            </Suspense>
-          </main>
+          <div className="bg-background flex min-h-screen flex-col">
+            <Navbar />
+            <main className="flex-1">
+              <HeroSection />
+              <PopularScripts />
+              <Suspense fallback={<div className="h-40" />}>
+                <WhatsNewStrip />
+              </Suspense>
+              <Suspense fallback={<div className="h-64" />}>
+                <HowItWorksSection />
+              </Suspense>
+              {/* FAQSection lives inside main because the navbar scrolls to its
+               * id anchor. Give it its own Suspense with min-height so the page
+               * doesn't collapse while the chunk loads. */}
+              <Suspense fallback={<div className="min-h-[400px]" />}>
+                <FAQSection />
+              </Suspense>
+              <Suspense fallback={<div className="min-h-[300px]" />}>
+                <EcosystemSection />
+              </Suspense>
+            </main>
 
-          <Suspense fallback={<div className="h-0" />}>
-            <SearchDialog />
-            <Footer />
-          </Suspense>
-          <FloatingSubscriptionCTA />
-        </div>
+            <Suspense fallback={<div className="h-0" />}>
+              <SearchDialog />
+              <Footer />
+            </Suspense>
+            <FloatingSubscriptionCTA />
+          </div>
           <HomeScriptDetail />
         </ScriptsProvider>
       </AnalyticsProvider>

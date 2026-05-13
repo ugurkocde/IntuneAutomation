@@ -81,7 +81,9 @@ export default function EcosystemSection() {
   const prefersReducedMotion = useReducedMotion();
 
   const reveal = (index: number) => ({
-    initial: prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 },
+    initial: prefersReducedMotion
+      ? { opacity: 1, y: 0 }
+      : { opacity: 0, y: 12 },
     whileInView: { opacity: 1, y: 0 },
     viewport: { once: true, margin: "-80px" } as const,
     transition: {
@@ -130,18 +132,15 @@ export default function EcosystemSection() {
             </h2>
           </div>
           <p className="text-muted-foreground max-w-sm text-sm leading-relaxed sm:text-right">
-            Three open-source tools that pair with IntuneAutomation —
-            packaging, deployment, and tenant backup.
+            Three open-source tools that pair with IntuneAutomation — packaging,
+            deployment, and tenant backup.
           </p>
         </div>
 
         {/* Bento grid — compact: smaller min-heights, no forced aspect ratio */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:grid-rows-2">
           {/* Flagship — IntuneBrew, spans 2 cols × 2 rows */}
-          <motion.div
-            {...reveal(0)}
-            className="md:col-span-2 md:row-span-2"
-          >
+          <motion.div {...reveal(0)} className="md:col-span-2 md:row-span-2">
             <BentoCard project={PROJECTS.brew} flagship>
               <BrewMonogram />
               <TerminalChrome />
@@ -218,10 +217,10 @@ function BentoCard({
       onClick={() => trackProjectClick(project)}
       aria-label={`${project.name} — ${project.ariaSummary} (opens in new tab)`}
       className={[
-        "bento-card group relative flex h-full w-full flex-col overflow-hidden rounded-lg border bg-card/40 backdrop-blur-md",
+        "bento-card group bg-card/40 relative flex h-full w-full flex-col overflow-hidden rounded-lg border backdrop-blur-md",
         "transition-[transform,border-color,background-color] duration-150 ease-out",
-        "hover:-translate-y-0.5 hover:bg-card/60",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "hover:bg-card/60 hover:-translate-y-0.5",
+        "focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:outline-none",
         flagship
           ? "min-h-[280px] md:min-h-[320px]"
           : "min-h-[150px] md:min-h-[156px]",
@@ -259,7 +258,7 @@ function BentoCard({
           </div>
 
           <ArrowUpRight
-            className="text-foreground/70 h-5 w-5 opacity-50 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
+            className="text-foreground/70 h-5 w-5 opacity-50 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
             aria-hidden="true"
             strokeWidth={1.5}
           />
@@ -271,7 +270,7 @@ function BentoCard({
         {/* Title block */}
         <div className="mt-6 flex flex-col gap-2">
           <span
-            className="font-mono text-accent text-[11px] tracking-[0.18em]"
+            className="text-accent font-mono text-[11px] tracking-[0.18em]"
             aria-hidden="true"
           >
             {project.id}
@@ -430,7 +429,7 @@ function TerminalChrome() {
             }}
           />
         </div>
-        <span className="font-mono text-muted-foreground/80 truncate text-[11px] tracking-tight">
+        <span className="text-muted-foreground/80 truncate font-mono text-[11px] tracking-tight">
           ~/intunebrew · brew install
         </span>
       </div>
@@ -467,7 +466,7 @@ function WindowsChrome() {
         className="flex items-center justify-between border-b px-3 py-1.5"
         style={{ borderColor: "var(--brand-rule)" }}
       >
-        <span className="font-mono text-muted-foreground/85 truncate text-[10.5px] tracking-tight">
+        <span className="text-muted-foreground/85 truncate font-mono text-[10.5px] tracking-tight">
           intuneget.exe
         </span>
         <div className="text-muted-foreground/70 flex items-center gap-2 font-mono text-[11px] leading-none">
@@ -482,12 +481,8 @@ function WindowsChrome() {
         <span className="text-muted-foreground/70">
           PS C:\fleet&gt; intuneget pack vlc
         </span>
-        <span className="text-foreground/85">
-          packaging vlc-3.0.20.msi …
-        </span>
-        <span className="text-accent">
-          ✓ uploaded · ready to assign
-        </span>
+        <span className="text-foreground/85">packaging vlc-3.0.20.msi …</span>
+        <span className="text-accent">✓ uploaded · ready to assign</span>
       </div>
     </div>
   );
@@ -497,8 +492,18 @@ function VaultChrome() {
   // Snapshot timeline — vertical list of tenant backup entries with timestamps
   // and sizes, reading as a real backup history. The latest snapshot is
   // accented; older ones decay in opacity.
-  const snapshots: Array<{ when: string; label: string; size: string; live?: boolean }> = [
-    { when: "TODAY 02:00", label: "policies + apps", size: "184 MB", live: true },
+  const snapshots: Array<{
+    when: string;
+    label: string;
+    size: string;
+    live?: boolean;
+  }> = [
+    {
+      when: "TODAY 02:00",
+      label: "policies + apps",
+      size: "184 MB",
+      live: true,
+    },
     { when: "YESTERDAY", label: "config profiles", size: "127 MB" },
     { when: "5 DAYS AGO", label: "full tenant", size: "412 MB" },
   ];
@@ -506,10 +511,10 @@ function VaultChrome() {
   return (
     <div className="flex h-full flex-col justify-center gap-2 px-4 pt-3 pb-4">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[9.5px] tracking-[0.16em] text-muted-foreground uppercase">
+        <span className="text-muted-foreground font-mono text-[9.5px] tracking-[0.16em] uppercase">
           ↻ Snapshots
         </span>
-        <span className="font-mono text-[9.5px] tracking-[0.16em] text-muted-foreground uppercase">
+        <span className="text-muted-foreground font-mono text-[9.5px] tracking-[0.16em] uppercase">
           tenant · contoso
         </span>
       </div>
@@ -541,7 +546,7 @@ function VaultChrome() {
         ))}
       </ul>
 
-      <p className="text-accent font-mono mt-1 text-[9.5px] tracking-[0.16em] uppercase">
+      <p className="text-accent mt-1 font-mono text-[9.5px] tracking-[0.16em] uppercase">
         ✓ restore point available
       </p>
     </div>

@@ -35,7 +35,7 @@ export default function WhatsNewStrip() {
   return (
     <section
       aria-labelledby="whats-new-heading"
-      className="border-t border-border/60 px-4 py-20 sm:py-24"
+      className="border-border/60 border-t px-4 py-20 sm:py-24"
     >
       <div className="mx-auto max-w-7xl">
         <div className="mb-10">
@@ -60,7 +60,7 @@ export default function WhatsNewStrip() {
                 delay: prefersReducedMotion ? 0 : index * 0.08,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="border-t hover:bg-card/60 group/row transition-colors duration-200"
+              className="hover:bg-card/60 group/row border-t transition-colors duration-200"
               style={{ borderColor: "var(--brand-rule)" }}
             >
               <Link
@@ -70,13 +70,13 @@ export default function WhatsNewStrip() {
               >
                 <span
                   aria-hidden="true"
-                  className="font-mono text-accent-hi w-12 shrink-0 text-xs tracking-widest sm:text-sm"
+                  className="text-accent-hi w-12 shrink-0 font-mono text-xs tracking-widest sm:text-sm"
                 >
                   {String(index + 1).padStart(2, "0")}
                 </span>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-foreground group-hover/row:text-accent-hi text-sm font-medium leading-tight transition-colors sm:text-base">
+                  <p className="text-foreground group-hover/row:text-accent-hi text-sm leading-tight font-medium transition-colors sm:text-base">
                     {script.title}
                   </p>
                   <p className="text-muted-foreground mt-1 line-clamp-1 text-xs sm:text-sm">
@@ -85,7 +85,7 @@ export default function WhatsNewStrip() {
                 </div>
 
                 <ArrowUpRight
-                  className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5"
+                  className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:translate-x-0.5 group-hover/row:-translate-y-0.5"
                   aria-hidden="true"
                 />
               </Link>

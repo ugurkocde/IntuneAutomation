@@ -60,14 +60,12 @@ export default function Home() {
         "First, check that you have all required prerequisites and Graph permissions, and that you're using the latest version of the script and the Microsoft.Graph.Authentication module. Then open the GitHub repository and search existing issues — if your problem hasn't been reported, file a new issue with the error message, PowerShell version, and a minimal reproduction case.",
     },
     {
-      question:
-        "Can I modify these scripts for my organization's needs?",
+      question: "Can I modify these scripts for my organization's needs?",
       answer:
         "Yes. All scripts are licensed under the MIT License, so you can copy, modify, redistribute, and use them in commercial settings. We recommend forking the repository so you can track your modifications and pull in upstream improvements when they're released.",
     },
     {
-      question:
-        "Should I use the v1.0 or beta Microsoft Graph API endpoints?",
+      question: "Should I use the v1.0 or beta Microsoft Graph API endpoints?",
       answer:
         "Scripts default to v1.0 endpoints whenever the required functionality is available there, because v1.0 is stable and supported. Some Intune capabilities are only exposed through the beta endpoint — in those cases the script uses beta and clearly documents it in the header. Be aware that Microsoft can change beta endpoints without notice.",
     },
@@ -85,7 +83,10 @@ export default function Home() {
       <WebSiteSchema baseUrl={baseUrl} />
       <PersonSchema baseUrl={baseUrl} />
       <HowToSchema baseUrl={baseUrl} />
-      <BreadcrumbSchema baseUrl={baseUrl} items={[{ name: "Home", url: "/" }]} />
+      <BreadcrumbSchema
+        baseUrl={baseUrl}
+        items={[{ name: "Home", url: "/" }]}
+      />
       <FAQSchema faqs={faqs} />
       <HomeClient />
     </>

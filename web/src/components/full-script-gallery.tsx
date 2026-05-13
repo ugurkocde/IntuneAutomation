@@ -98,7 +98,9 @@ export default function FullScriptGallery() {
     copy.sort((a, b) => {
       switch (sortBy) {
         case "views":
-          return (b.usageStats?.totalViews ?? 0) - (a.usageStats?.totalViews ?? 0);
+          return (
+            (b.usageStats?.totalViews ?? 0) - (a.usageStats?.totalViews ?? 0)
+          );
         case "downloads":
           return (
             (b.usageStats?.totalDownloads ?? 0) -
@@ -119,7 +121,10 @@ export default function FullScriptGallery() {
     return copy;
   }, [filteredScripts, sortBy]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedScripts.length / SCRIPTS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedScripts.length / SCRIPTS_PER_PAGE),
+  );
   const currentScripts = sortedScripts.slice(
     currentPage * SCRIPTS_PER_PAGE,
     (currentPage + 1) * SCRIPTS_PER_PAGE,
@@ -204,7 +209,7 @@ export default function FullScriptGallery() {
       typeof window !== "undefined" ? navigator.userAgent : undefined;
     const sessionId =
       typeof window !== "undefined"
-        ? sessionStorage.getItem("session_id") ?? undefined
+        ? (sessionStorage.getItem("session_id") ?? undefined)
         : undefined;
 
     void AnalyticsService.trackScriptView(script.id, script.title, {
@@ -250,8 +255,8 @@ export default function FullScriptGallery() {
         </h1>
         <p className="text-muted-foreground mt-5 max-w-2xl text-base leading-relaxed sm:text-lg">
           The complete catalog of open-source PowerShell scripts for Microsoft
-          Intune — run locally or deploy as Azure Automation runbooks. Filter
-          by tag, search, sort.
+          Intune — run locally or deploy as Azure Automation runbooks. Filter by
+          tag, search, sort.
         </p>
 
         {/* Status row — surfaced inline rather than centered to keep the
@@ -353,7 +358,7 @@ export default function FullScriptGallery() {
         {/* Sort + filter-summary row */}
         <div className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+            <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
               {filtersActive ? (
                 <>
                   {selectedTags.length > 0 && (
@@ -379,7 +384,7 @@ export default function FullScriptGallery() {
                   setSelectedTags([]);
                   handleSearchChange("");
                 }}
-                className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+                className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
               >
                 Clear
                 <X className="h-3 w-3" aria-hidden="true" />
@@ -539,7 +544,7 @@ function TagPill({
       aria-pressed={active}
       data-tag={tag}
       className={
-        "focus-visible:ring-accent inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none " +
+        "focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-none " +
         (active
           ? "border-accent bg-accent-soft text-foreground"
           : "text-accent-hi hover:bg-accent-soft hover:text-foreground")
@@ -569,7 +574,7 @@ function LoadingState() {
         className="text-muted-foreground h-6 w-6 animate-spin"
         aria-hidden="true"
       />
-      <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+      <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
         Loading scripts from GitHub...
       </p>
     </div>
@@ -582,13 +587,13 @@ function EmptyState({ onClear }: { onClear: () => void }) {
       className="bg-card/40 flex flex-col items-center gap-4 rounded-md border py-16 text-center backdrop-blur-md"
       style={{ borderColor: "var(--brand-rule)" }}
     >
-      <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+      <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
         No scripts match your filters
       </p>
       <button
         type="button"
         onClick={onClear}
-        className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+        className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
       >
         Clear filters
         <span aria-hidden="true">→</span>
@@ -633,16 +638,12 @@ function Pagination({
               onClick={() => onChange(i)}
               aria-current={active ? "page" : undefined}
               aria-label={`Page ${i + 1}`}
-              className={`focus-visible:ring-accent inline-flex h-9 w-9 items-center justify-center rounded-md border font-mono text-[11px] tabular-nums tracking-wide transition-colors focus-visible:ring-1 focus-visible:outline-none ${
+              className={`focus-visible:ring-accent inline-flex h-9 w-9 items-center justify-center rounded-md border font-mono text-[11px] tracking-wide tabular-nums transition-colors focus-visible:ring-1 focus-visible:outline-none ${
                 active
                   ? "text-foreground border-accent bg-accent-soft"
                   : "text-muted-foreground hover:text-foreground hover:border-accent/40 border-border/70"
               }`}
-              style={
-                active
-                  ? undefined
-                  : { borderColor: "var(--brand-rule)" }
-              }
+              style={active ? undefined : { borderColor: "var(--brand-rule)" }}
             >
               {i + 1}
             </button>

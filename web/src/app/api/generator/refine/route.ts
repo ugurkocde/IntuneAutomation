@@ -47,13 +47,13 @@ export async function POST(req: NextRequest) {
     return errorResponse(400, "bad-request", "Invalid JSON body.");
   }
 
-  const { originalPrompt, currentScript, refinement, turnstileToken } =
-    (body ?? {}) as {
-      originalPrompt?: unknown;
-      currentScript?: unknown;
-      refinement?: unknown;
-      turnstileToken?: unknown;
-    };
+  const { originalPrompt, currentScript, refinement, turnstileToken } = (body ??
+    {}) as {
+    originalPrompt?: unknown;
+    currentScript?: unknown;
+    refinement?: unknown;
+    turnstileToken?: unknown;
+  };
 
   if (typeof originalPrompt !== "string" || originalPrompt.length === 0) {
     return errorResponse(400, "bad-request", "Original prompt missing.");

@@ -56,7 +56,7 @@ export default function BlogPageClient() {
 
   return (
     <ScriptsProvider>
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="bg-background flex min-h-screen flex-col">
         <Navbar />
         <main className="flex-1 pt-20">
           <section
@@ -74,8 +74,8 @@ export default function BlogPageClient() {
                   Notes from the library.
                 </h1>
                 <p className="text-muted-foreground max-w-xl text-base leading-relaxed sm:text-lg">
-                  Writing about Microsoft Intune automation — guides,
-                  tutorials, and the technical choices behind the scripts.
+                  Writing about Microsoft Intune automation — guides, tutorials,
+                  and the technical choices behind the scripts.
                 </p>
               </header>
 
@@ -111,18 +111,18 @@ function PostManifest({ posts }: { posts: BlogPost[] }) {
         return (
           <li
             key={post.slug}
-            className="group/row border-t transition-colors duration-200 hover:bg-card/60"
+            className="group/row hover:bg-card/60 border-t transition-colors duration-200"
             style={{ borderColor: "var(--brand-rule)" }}
           >
             <Link
               href={`/blog/${post.slug}/`}
-              className="flex items-baseline gap-5 px-2 py-7 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-8"
+              className="focus-visible:ring-offset-background flex items-baseline gap-5 px-2 py-7 focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:outline-none sm:gap-8"
               aria-label={`Read ${post.title}`}
             >
               {/* Index marker */}
               <span
                 aria-hidden="true"
-                className="font-mono text-accent-hi w-10 shrink-0 text-xs tracking-widest sm:w-12 sm:text-sm"
+                className="text-accent-hi w-10 shrink-0 font-mono text-xs tracking-widest sm:w-12 sm:text-sm"
               >
                 {num}
               </span>
@@ -162,7 +162,7 @@ function PostManifest({ posts }: { posts: BlogPost[] }) {
 
               {/* Affordance */}
               <ArrowUpRight
-                className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5"
+                className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:translate-x-0.5 group-hover/row:-translate-y-0.5"
                 aria-hidden="true"
               />
             </Link>
@@ -180,7 +180,7 @@ function PostManifest({ posts }: { posts: BlogPost[] }) {
 function SkeletonList() {
   return (
     <ul
-      className="border-b animate-pulse"
+      className="animate-pulse border-b"
       style={{ borderColor: "var(--brand-rule)" }}
       aria-hidden="true"
     >
@@ -192,14 +192,14 @@ function SkeletonList() {
         >
           <div className="flex items-baseline gap-5 px-2 py-7 sm:gap-8">
             <span className="w-10 shrink-0 sm:w-12">
-              <span className="block h-3 w-6 rounded bg-muted" />
+              <span className="bg-muted block h-3 w-6 rounded" />
             </span>
             <div className="min-w-0 flex-1 space-y-3">
-              <span className="block h-6 w-3/4 rounded bg-muted" />
-              <span className="block h-4 w-full rounded bg-muted" />
-              <span className="block h-3 w-1/3 rounded bg-muted" />
+              <span className="bg-muted block h-6 w-3/4 rounded" />
+              <span className="bg-muted block h-4 w-full rounded" />
+              <span className="bg-muted block h-3 w-1/3 rounded" />
             </div>
-            <span className="block h-4 w-4 shrink-0 rounded bg-muted" />
+            <span className="bg-muted block h-4 w-4 shrink-0 rounded" />
           </div>
         </li>
       ))}
@@ -214,7 +214,7 @@ function SkeletonList() {
 function EmptyState() {
   return (
     <div
-      className="rounded-md border bg-card/40 px-6 py-16 text-center backdrop-blur-md"
+      className="bg-card/40 rounded-md border px-6 py-16 text-center backdrop-blur-md"
       style={{ borderColor: "var(--brand-rule)" }}
     >
       <p className="font-mono-label text-accent-hi mb-3">// NO POSTS YET</p>

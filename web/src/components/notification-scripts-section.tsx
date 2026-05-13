@@ -145,7 +145,11 @@ export function NotificationScriptsSection() {
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-1.5">
-            <MetaPill icon={CloudLightning} label="Azure Automation" accent="azure" />
+            <MetaPill
+              icon={CloudLightning}
+              label="Azure Automation"
+              accent="azure"
+            />
             <MetaPill icon={Mail} label="Email notifications" />
             <MetaPill icon={Calendar} label="Scheduled" />
             <MetaPill icon={AlertTriangle} label="Threshold-based" />
@@ -222,7 +226,7 @@ export function NotificationScriptsSection() {
                   >
                     <Link
                       href={`/script/${feature.script}/`}
-                      className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+                      className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
                     >
                       View script
                       <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
@@ -242,9 +246,7 @@ export function NotificationScriptsSection() {
           transition={{ duration: 0.5, ease }}
           className="mt-20"
         >
-          <p className="font-mono-label text-muted-foreground mb-6">
-            // Setup
-          </p>
+          <p className="font-mono-label text-muted-foreground mb-6">// Setup</p>
           <h3 className="font-display text-foreground text-2xl leading-tight tracking-[-0.02em] sm:text-3xl">
             Four steps to live monitoring.
           </h3>
@@ -267,7 +269,7 @@ export function NotificationScriptsSection() {
                   style={{ borderColor: "var(--brand-rule)" }}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-mono text-accent-hi text-[11px] tracking-[0.18em] uppercase">
+                    <p className="text-accent-hi font-mono text-[11px] tracking-[0.18em] uppercase">
                       {step.number}
                     </p>
                     <Icon
@@ -315,7 +317,7 @@ export function NotificationScriptsSection() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Link
                 href="/scripts/notification/"
-                className="ring-accent inline-flex h-11 items-center justify-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="ring-accent bg-foreground text-background focus-visible:ring-offset-background inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-medium transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 Browse notification scripts
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -324,7 +326,7 @@ export function NotificationScriptsSection() {
                 href="https://github.com/ugurkocde/intuneautomation/tree/main/scripts/notification"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="border-border/70 hover:border-accent/40 hover:text-foreground text-muted-foreground focus-visible:ring-accent inline-flex h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="border-border/70 hover:border-accent/40 hover:text-foreground text-muted-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-11 items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 style={{ borderColor: "var(--brand-rule)" }}
               >
                 View documentation

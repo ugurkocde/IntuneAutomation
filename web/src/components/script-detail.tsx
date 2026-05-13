@@ -109,7 +109,7 @@ function TagPill({ tag }: { tag: ScriptTag }) {
   const TagIcon = tagIcons[tag];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase whitespace-nowrap"
+      className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] whitespace-nowrap uppercase"
       style={{
         borderColor:
           "color-mix(in oklab, var(--brand-accent-hi) 45%, transparent)",
@@ -494,7 +494,7 @@ export function ScriptDetail({
         duration: prefersReducedMotion ? 0 : 0.2,
         ease: [0.22, 1, 0.36, 1],
       }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-background/60 p-4 pt-8 pb-4 backdrop-blur-sm sm:items-center sm:p-4"
+      className="bg-background/60 fixed inset-0 z-50 flex items-end justify-center p-4 pt-8 pb-4 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <motion.div
@@ -543,7 +543,7 @@ export function ScriptDetail({
                   const url = `/script/${script.slug || script.id}/`;
                   window.open(url, "_blank");
                 }}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 aria-label="Open in new tab"
                 title="Open in new tab"
               >
@@ -552,7 +552,7 @@ export function ScriptDetail({
               <button
                 type="button"
                 onClick={onClose}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" strokeWidth={2} />
@@ -700,7 +700,8 @@ export function ScriptDetail({
                                     />
                                   )}
                                   <span>
-                                    Platform · {script.testedPlatforms.join(", ")}
+                                    Platform ·{" "}
+                                    {script.testedPlatforms.join(", ")}
                                   </span>
                                 </li>
                               )}
@@ -750,10 +751,13 @@ export function ScriptDetail({
                               strokeWidth={2}
                               aria-hidden="true"
                             />
-                            <SectionKicker>// REQUIRED PERMISSIONS</SectionKicker>
+                            <SectionKicker>
+                              // REQUIRED PERMISSIONS
+                            </SectionKicker>
                           </div>
                           <ul className="space-y-1">
-                            {(script.permissions && script.permissions.length > 0
+                            {(script.permissions &&
+                            script.permissions.length > 0
                               ? script.permissions
                               : ["DeviceManagement.Read.All"]
                             ).map((perm) => (
@@ -808,7 +812,7 @@ export function ScriptDetail({
                                 type="button"
                                 onClick={handleDeployToAzure}
                                 disabled={isDeployingToAzure}
-                                className="focus-visible:ring-accent inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border text-xs font-medium tracking-wide uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-9"
+                                className="focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border text-xs font-medium tracking-wide uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:h-9"
                                 style={{
                                   borderColor:
                                     "color-mix(in oklab, var(--brand-azure) 55%, transparent)",
@@ -858,7 +862,9 @@ export function ScriptDetail({
                                     color: "var(--brand-accent-hi)",
                                   }}
                                 />
-                                <span style={{ color: "var(--brand-accent-hi)" }}>
+                                <span
+                                  style={{ color: "var(--brand-accent-hi)" }}
+                                >
                                   {script.scriptType === "remediation"
                                     ? "Downloaded both"
                                     : "Downloaded"}
@@ -946,7 +952,9 @@ export function ScriptDetail({
                                   strokeWidth={2}
                                   aria-hidden="true"
                                 />
-                                <span>Tested {script.testResult.timestamp}</span>
+                                <span>
+                                  Tested {script.testResult.timestamp}
+                                </span>
                               </div>
                             </div>
                           )
@@ -1023,10 +1031,8 @@ export function ScriptDetail({
                   <>
                     <button
                       type="button"
-                      onClick={() =>
-                        setIsSidebarCollapsed(!isSidebarCollapsed)
-                      }
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                       aria-label={
                         isSidebarCollapsed
                           ? "Show details panel"
@@ -1076,7 +1082,7 @@ export function ScriptDetail({
                 type="button"
                 onClick={handleCopyScript}
                 disabled={copied === "script"}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:cursor-default"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-default"
                 aria-label={
                   copied === "script"
                     ? "Script copied"
@@ -1166,10 +1172,7 @@ export function ScriptDetail({
                 </TabsContent>
               </Tabs>
             ) : (
-              <div
-                className="flex-1 overflow-auto"
-                style={codeSurfaceStyle}
-              >
+              <div className="flex-1 overflow-auto" style={codeSurfaceStyle}>
                 <pre
                   className={`${script.githubPath?.endsWith(".sh") ? "language-bash" : "language-powershell"} h-full p-6 font-mono text-[12.5px] leading-relaxed`}
                   ref={codeRef}
@@ -1195,7 +1198,11 @@ export function ScriptDetail({
               className="h-10 w-full gap-2 rounded-md text-xs font-medium tracking-wide uppercase"
               onClick={() => setShowDetails(!showDetails)}
             >
-              <Code className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+              <Code
+                className="h-3.5 w-3.5"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
               <span>{showDetails ? "Hide script" : "View script"}</span>
               {showDetails ? (
                 <ChevronUp className="h-3.5 w-3.5" strokeWidth={2} />
@@ -1241,7 +1248,7 @@ export function ScriptDetail({
                     type="button"
                     onClick={handleCopyScript}
                     disabled={copied === "script"}
-                    className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:cursor-default"
+                    className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-default"
                     aria-label={
                       copied === "script"
                         ? "Script copied"

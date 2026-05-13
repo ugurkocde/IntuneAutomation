@@ -552,7 +552,7 @@ export function ScriptDetailPage({
 
               {metaParts.length > 0 && (
                 <div
-                  className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-5 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase"
+                  className="text-muted-foreground mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-5 font-mono text-[11px] tracking-[0.14em] uppercase"
                   style={{ borderColor: "var(--brand-rule)" }}
                 >
                   {metaParts.map((part, i) => (
@@ -563,7 +563,7 @@ export function ScriptDetailPage({
                       {i > 0 && (
                         <span
                           aria-hidden="true"
-                          className="text-muted-foreground/40 -ml-3 mr-2"
+                          className="text-muted-foreground/40 mr-2 -ml-3"
                         >
                           ·
                         </span>
@@ -587,7 +587,7 @@ export function ScriptDetailPage({
                       type="button"
                       onClick={handleDeployToAzure}
                       disabled={isDeployingToAzure}
-                      className="focus-visible:ring-accent group flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-azure)_8%,transparent)] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      className="focus-visible:ring-accent group focus-visible:ring-offset-background flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-azure)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                       style={{ color: "var(--brand-azure)" }}
                     >
                       <Cloud
@@ -611,7 +611,7 @@ export function ScriptDetailPage({
               <button
                 type="button"
                 onClick={handleCopyScript}
-                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground focus-visible:ring-offset-background flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 {copied ? (
                   <>
@@ -646,7 +646,7 @@ export function ScriptDetailPage({
               <button
                 type="button"
                 onClick={handleDownload}
-                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground focus-visible:ring-offset-background flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 <span>
@@ -667,7 +667,7 @@ export function ScriptDetailPage({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleGithubView}
-                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground flex flex-1 items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground focus-visible:ring-offset-background flex flex-1 items-center justify-center gap-2 rounded-sm px-4 py-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_6%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <Github className="h-4 w-4" aria-hidden="true" />
                 <span>View on GitHub</span>
@@ -836,7 +836,7 @@ export function ScriptDetailPage({
                           "color-mix(in oklab, var(--brand-accent) 55%, transparent)",
                       }}
                     >
-                      <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+                      <p className="text-muted-foreground font-mono text-[10.5px] tracking-[0.18em] uppercase">
                         Entry · {String(i + 1).padStart(2, "0")}
                       </p>
                       <p className="text-foreground mt-1.5 text-sm leading-relaxed">
@@ -885,7 +885,7 @@ export function ScriptDetailPage({
                       className="inline-block h-2 w-2 rounded-full"
                       style={{ backgroundColor: "var(--brand-accent)" }}
                     />
-                    <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">
+                    <span className="text-muted-foreground font-mono text-[11px] tracking-[0.14em] uppercase">
                       {script.id}.
                       {script.githubPath?.endsWith(".sh") ? "sh" : "ps1"}
                     </span>
@@ -894,7 +894,7 @@ export function ScriptDetailPage({
                     <button
                       type="button"
                       onClick={handleCopyScript}
-                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                       aria-label={copied ? "Copied" : "Copy code"}
                     >
                       {copied ? (
@@ -919,7 +919,7 @@ export function ScriptDetailPage({
                     <button
                       type="button"
                       onClick={handleFullscreen}
-                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                      className="focus-visible:ring-accent text-muted-foreground hover:text-foreground focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                       aria-label={
                         isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
                       }
@@ -953,7 +953,7 @@ export function ScriptDetailPage({
                         type="button"
                         aria-selected={activeRemediationTab === "detection"}
                         onClick={() => setActiveRemediationTab("detection")}
-                        className="focus-visible:ring-accent group relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
+                        className="focus-visible:ring-accent group relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
                         style={{
                           color:
                             activeRemediationTab === "detection"
@@ -975,7 +975,7 @@ export function ScriptDetailPage({
                         type="button"
                         aria-selected={activeRemediationTab === "remediation"}
                         onClick={() => setActiveRemediationTab("remediation")}
-                        className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:outline-none"
+                        className="focus-visible:ring-accent group text-muted-foreground hover:text-foreground relative cursor-pointer px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
                         style={{
                           color:
                             activeRemediationTab === "remediation"

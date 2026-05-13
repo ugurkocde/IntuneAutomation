@@ -250,7 +250,7 @@ export default function FloatingSubscriptionCTA({
             // Slim cyan-outlined pill with a sibling dismiss button (avoids
             // nested interactive content — keeps tab order to two stops).
             <div
-              className="bg-background/90 inline-flex items-center gap-1 rounded-full border pl-4 pr-1 py-1 text-sm shadow-lg backdrop-blur-xl sm:pl-5"
+              className="bg-background/90 inline-flex items-center gap-1 rounded-full border py-1 pr-1 pl-4 text-sm shadow-lg backdrop-blur-xl sm:pl-5"
               style={{ borderColor: "var(--brand-rule)" }}
             >
               <button
@@ -386,7 +386,7 @@ export default function FloatingSubscriptionCTA({
                         <Button
                           type="submit"
                           disabled={isSubscribing}
-                          className="ring-accent flex-1 h-10 rounded-md text-sm font-medium focus-visible:ring-2 focus-visible:ring-offset-2"
+                          className="ring-accent h-10 flex-1 rounded-md text-sm font-medium focus-visible:ring-2 focus-visible:ring-offset-2"
                         >
                           {isSubscribing ? (
                             <motion.div

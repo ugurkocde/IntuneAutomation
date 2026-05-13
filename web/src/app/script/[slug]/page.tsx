@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ScriptDetailPageWrapper } from "~/components/script-detail-page-wrapper";
-import { ScriptStructuredData, BreadcrumbStructuredData } from "~/components/script-structured-data";
+import {
+  ScriptStructuredData,
+  BreadcrumbStructuredData,
+} from "~/components/script-structured-data";
 import type { Script } from "~/lib/scripts";
 import { githubService } from "~/lib/github";
 
@@ -24,13 +27,15 @@ export async function generateMetadata({
 
     if (!script) {
       return {
-        title: "Script Not Found - IntuneAutomation.com",
+        title: "Script Not Found",
         description: "The requested script could not be found.",
+        robots: { index: false, follow: false },
       };
     }
 
     return {
-      title: `${script.title} - IntuneAutomation.com`,
+      // Short title — root layout's title template appends "| IntuneAutomation".
+      title: script.title,
       description:
         script.description ||
         `PowerShell script for ${script.title}. Automate Microsoft Intune tasks efficiently.`,
@@ -43,27 +48,28 @@ export async function generateMetadata({
         ...script.tags,
       ].join(", "),
       openGraph: {
-        title: `${script.title} - IntuneAutomation.com`,
+        title: `${script.title} | IntuneAutomation`,
         description:
           script.description || `PowerShell script for ${script.title}`,
         type: "article",
-        url: `https://intuneautomation.com/script/${slug}`,
-        siteName: "IntuneAutomation.com",
+        url: `https://intuneautomation.com/script/${slug}/`,
+        siteName: "IntuneAutomation",
       },
       twitter: {
         card: "summary",
-        title: `${script.title} - IntuneAutomation.com`,
+        title: `${script.title} | IntuneAutomation`,
         description:
           script.description || `PowerShell script for ${script.title}`,
       },
       alternates: {
-        canonical: `https://intuneautomation.com/script/${slug}`,
+        canonical: `/script/${slug}/`,
       },
     };
   } catch (error) {
     return {
-      title: "Error Loading Script - IntuneAutomation.com",
+      title: "Error Loading Script",
       description: "An error occurred while loading the script.",
+      robots: { index: false, follow: false },
     };
   }
 }
@@ -89,7 +95,7 @@ export default async function ScriptPage({ params }: PageProps) {
     const breadcrumbItems = [
       { name: "Home", url: "https://intuneautomation.com/" },
       { name: "Scripts", url: "https://intuneautomation.com/scripts/" },
-      { name: script.title }
+      { name: script.title },
     ];
 
     // Pass script data and permissions as JSON to avoid serialization issues

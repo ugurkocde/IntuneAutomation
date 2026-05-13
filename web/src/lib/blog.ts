@@ -54,67 +54,75 @@ export const getAllPosts = cache(async (): Promise<BlogPost[]> => {
       };
     })
     .filter((post) => post.published)
-    .sort((a, b) => (new Date(b.date).getTime() - new Date(a.date).getTime()));
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return allPosts;
 });
 
-export const getPostBySlug = cache(async (slug: string): Promise<BlogPostWithContent | null> => {
-  ensurePostsDirectory();
+export const getPostBySlug = cache(
+  async (slug: string): Promise<BlogPostWithContent | null> => {
+    ensurePostsDirectory();
 
-  const fullPath = path.join(postsDirectory, `${slug}.mdx`);
+    const fullPath = path.join(postsDirectory, `${slug}.mdx`);
 
-  if (!fs.existsSync(fullPath)) {
-    return null;
-  }
+    if (!fs.existsSync(fullPath)) {
+      return null;
+    }
 
-  const fileContents = fs.readFileSync(fullPath, "utf8");
-  const { data, content } = matter(fileContents);
+    const fileContents = fs.readFileSync(fullPath, "utf8");
+    const { data, content } = matter(fileContents);
 
-  return {
-    slug,
-    title: data.title || slug,
-    description: data.description || "",
-    date: data.date || new Date().toISOString(),
-    author: data.author || "IntuneAutomation Team",
-    tags: data.tags || [],
-    category: data.category || "general",
-    readingTime: data.readingTime,
-    image: data.image,
-    published: data.published !== false,
-    content,
-  };
-});
+    return {
+      slug,
+      title: data.title || slug,
+      description: data.description || "",
+      date: data.date || new Date().toISOString(),
+      author: data.author || "IntuneAutomation Team",
+      tags: data.tags || [],
+      category: data.category || "general",
+      readingTime: data.readingTime,
+      image: data.image,
+      published: data.published !== false,
+      content,
+    };
+  },
+);
 
-export const getPostsByCategory = cache(async (category: string): Promise<BlogPost[]> => {
-  const allPosts = await getAllPosts();
-  return allPosts.filter((post) => post.category === category);
-});
+export const getPostsByCategory = cache(
+  async (category: string): Promise<BlogPost[]> => {
+    const allPosts = await getAllPosts();
+    return allPosts.filter((post) => post.category === category);
+  },
+);
 
 export const getPostsByTag = cache(async (tag: string): Promise<BlogPost[]> => {
   const allPosts = await getAllPosts();
   return allPosts.filter((post) => post.tags.includes(tag));
 });
 
-export const getRelatedPosts = cache(async (slug: string, limit = 3): Promise<BlogPost[]> => {
-  const allPosts = await getAllPosts();
-  const currentPost = allPosts.find((post) => post.slug === slug);
+export const getRelatedPosts = cache(
+  async (slug: string, limit = 3): Promise<BlogPost[]> => {
+    const allPosts = await getAllPosts();
+    const currentPost = allPosts.find((post) => post.slug === slug);
 
-  if (!currentPost) return [];
+    if (!currentPost) return [];
 
-  const relatedPosts = allPosts
-    .filter((post) => post.slug !== slug)
-    .map((post) => {
-      const commonTags = post.tags.filter((tag) => currentPost.tags.includes(tag));
-      const sameCategory = post.category === currentPost.category;
-      const score = commonTags.length * 2 + (sameCategory ? 1 : 0);
-      return { ...post, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+    const relatedPosts = allPosts
+      .filter((post) => post.slug !== slug)
+      .map((post) => {
+        const commonTags = post.tags.filter((tag) =>
+          currentPost.tags.includes(tag),
+        );
+        const sameCategory = post.category === currentPost.category;
+        const score = commonTags.length * 2 + (sameCategory ? 1 : 0);
+        return { ...post, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
 
-  return relatedPosts;
-});
+    return relatedPosts;
+  },
+);
 
 export const getAllTags = cache(async (): Promise<string[]> => {
   const allPosts = await getAllPosts();

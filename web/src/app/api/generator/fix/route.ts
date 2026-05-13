@@ -56,10 +56,13 @@ export async function POST(req: NextRequest) {
   } catch {
     return errorResponse(400, "bad-request", "Invalid JSON body.");
   }
-  const { originalPrompt, currentScript, findings, turnstileToken } =
-    (body ?? {}) as FixBody;
+  const { originalPrompt, currentScript, findings, turnstileToken } = (body ??
+    {}) as FixBody;
 
-  if (typeof originalPrompt !== "string" || originalPrompt.trim().length === 0) {
+  if (
+    typeof originalPrompt !== "string" ||
+    originalPrompt.trim().length === 0
+  ) {
     return errorResponse(400, "bad-request", "Original prompt missing.");
   }
   if (typeof currentScript !== "string" || currentScript.length === 0) {

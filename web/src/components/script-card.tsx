@@ -199,7 +199,7 @@ export function ScriptCard({ script, onClick }: ScriptCardProps) {
           </p>
 
           {/* Title */}
-          <h3 className="font-display text-foreground mt-3 line-clamp-2 text-[1.375rem] leading-tight tracking-[-0.02em] transition-colors duration-200 group-hover:text-foreground">
+          <h3 className="font-display text-foreground group-hover:text-foreground mt-3 line-clamp-2 text-[1.375rem] leading-tight tracking-[-0.02em] transition-colors duration-200">
             {script.title}
           </h3>
 
@@ -227,7 +227,9 @@ export function ScriptCard({ script, onClick }: ScriptCardProps) {
             <div className="flex items-center gap-3">
               <ActionButton
                 onClick={handleCopyScript}
-                ariaLabel={copied ? "Script copied" : "Copy script to clipboard"}
+                ariaLabel={
+                  copied ? "Script copied" : "Copy script to clipboard"
+                }
               >
                 {copied ? (
                   <>
@@ -260,11 +262,7 @@ export function ScriptCard({ script, onClick }: ScriptCardProps) {
                 ariaLabel="Deploy to Azure Automation"
                 accent="azure"
               >
-                <Cloud
-                  className="h-3 w-3"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                />
+                <Cloud className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
                 <span>Deploy</span>
               </ActionButton>
 
@@ -320,7 +318,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent group/btn inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-wide uppercase transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-accent group/btn focus-visible:ring-offset-background inline-flex cursor-pointer items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-wide uppercase transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       style={
         {
           // CSS var consumed by hover style below. We rely on the Tailwind

@@ -32,10 +32,12 @@ export const metadata: Metadata = {
     "mobile device management",
     "compliance reporting",
   ],
-  authors: [{ name: "Ugur Koc", url: "https://www.linkedin.com/in/ugurkocde/" }],
+  authors: [
+    { name: "Ugur Koc", url: "https://www.linkedin.com/in/ugurkocde/" },
+  ],
   creator: "Ugur Koc",
   publisher: SITE_NAME,
-  category: "Technology",
+  category: "DevOps",
   formatDetection: {
     email: false,
     address: false,
@@ -148,17 +150,17 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        <link rel="dns-prefetch" href="https://plausible.io" />
-        <link rel="dns-prefetch" href="https://opengraph.b-cdn.net" />
+        {/* Resource hints — preconnect implies dns-prefetch, so we use preconnect
+            alone for hosts we'll definitely contact (no need to duplicate). */}
         <link rel="preconnect" href="https://plausible.io" />
-        <link rel="dns-prefetch" href="https://api.github.com" />
         <link rel="preconnect" href="https://api.github.com" />
-        <link rel="dns-prefetch" href="https://raw.githubusercontent.com" />
         <link rel="preconnect" href="https://raw.githubusercontent.com" />
+        <link rel="dns-prefetch" href="https://opengraph.b-cdn.net" />
 
         {/* Geist font is self-hosted via next/font with its own preload tags */}
 
         <script
+          async
           defer
           data-domain="intuneautomation.com"
           src="https://plausible.io/js/script.file-downloads.outbound-links.tagged-events.js"

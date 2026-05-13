@@ -31,7 +31,11 @@ export function ScriptDetailPageWrapper({
     <>
       <BreadcrumbSchema baseUrl={baseUrl} items={breadcrumbItems} />
       <SoftwareSourceCodeSchema script={script} baseUrl={baseUrl} />
-      <ScriptDetailPage script={script} allScripts={allScripts} permissionsData={permissionsData} />
+      <ScriptDetailPage
+        script={script}
+        allScripts={allScripts}
+        permissionsData={permissionsData}
+      />
     </>
   );
 }

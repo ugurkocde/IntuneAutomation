@@ -67,7 +67,7 @@ export default function PopularScripts() {
     <section
       id="popular-scripts-section"
       aria-labelledby="popular-heading"
-      className="border-t border-border/60 px-4 py-24 sm:py-32"
+      className="border-border/60 border-t px-4 py-24 sm:py-32"
     >
       <div className="mx-auto max-w-7xl">
         <div className="mb-14">
@@ -110,7 +110,7 @@ export default function PopularScripts() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="bg-card/40 h-56 animate-pulse rounded-md border border-border/40"
+                className="bg-card/40 border-border/40 h-56 animate-pulse rounded-md border"
               />
             ))}
           </div>
@@ -143,10 +143,10 @@ export default function PopularScripts() {
               ))}
             </motion.div>
 
-            <div className="mt-14 flex items-center justify-end gap-4 border-t border-border/60 pt-8">
+            <div className="border-border/60 mt-14 flex items-center justify-end gap-4 border-t pt-8">
               <Link
                 href="/scripts/"
-                className="text-foreground hover:text-accent-hi font-mono group inline-flex items-center gap-1.5 border-b border-current pb-0.5 text-sm transition-colors"
+                className="text-foreground hover:text-accent-hi group inline-flex items-center gap-1.5 border-b border-current pb-0.5 font-mono text-sm transition-colors"
               >
                 Browse all scripts
                 <ArrowRight

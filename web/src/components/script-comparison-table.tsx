@@ -58,7 +58,11 @@ const comparisonData: ComparisonRow[] = [
     operational: "Read-only for specific resources",
     notification: "Read + Mail.Send",
   },
-  { feature: "Local Execution Support", operational: true, notification: false },
+  {
+    feature: "Local Execution Support",
+    operational: true,
+    notification: false,
+  },
   { feature: "Email Alerts", operational: false, notification: true },
 ];
 
@@ -135,7 +139,7 @@ export function ScriptComparisonTable() {
                 style={{ borderColor: "var(--brand-rule)" }}
               >
                 <th className="w-1/3 px-5 py-4 align-bottom">
-                  <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+                  <p className="text-muted-foreground font-mono text-[10.5px] tracking-[0.18em] uppercase">
                     // FEATURE
                   </p>
                 </th>
@@ -192,9 +196,7 @@ export function ScriptComparisonTable() {
                 <tr
                   key={row.feature}
                   className={
-                    index === comparisonData.length - 1
-                      ? ""
-                      : "border-b"
+                    index === comparisonData.length - 1 ? "" : "border-b"
                   }
                   style={
                     index === comparisonData.length - 1
@@ -233,7 +235,7 @@ export function ScriptComparisonTable() {
               className="bg-card/40 rounded-md border p-4 backdrop-blur-sm"
               style={{ borderColor: "var(--brand-rule)" }}
             >
-              <p className="font-mono text-[10.5px] tracking-[0.18em] uppercase text-muted-foreground">
+              <p className="text-muted-foreground font-mono text-[10.5px] tracking-[0.18em] uppercase">
                 {row.feature}
               </p>
               <dl className="mt-3 space-y-2">
@@ -352,7 +354,7 @@ export function ScriptComparisonTable() {
 
             <Link
               href="/scripts/notification/"
-              className="focus-visible:ring-accent group mt-6 inline-flex w-full items-center justify-between rounded-sm border px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+              className="focus-visible:ring-accent group focus-visible:ring-offset-background mt-6 inline-flex w-full items-center justify-between rounded-sm border px-4 py-2.5 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               style={{ borderColor: "var(--brand-rule)" }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor =

@@ -188,8 +188,7 @@ export async function POST(req: NextRequest) {
       },
     ],
     onFinish: async ({ usage }) => {
-      const total =
-        (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+      const total = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
       await reconcile(total);
     },
     onAbort: async () => {
@@ -204,10 +203,7 @@ export async function POST(req: NextRequest) {
   });
 
   const response = result.toTextStreamResponse();
-  response.headers.set(
-    "x-generator-redactions",
-    encodeRedactions(redactions),
-  );
+  response.headers.set("x-generator-redactions", encodeRedactions(redactions));
   for (const [k, v] of Object.entries(rateLimitHeaders)) {
     response.headers.set(k, v);
   }

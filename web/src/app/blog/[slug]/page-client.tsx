@@ -97,8 +97,9 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
   const [post, setPost] = useState<BlogPostWithContent | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mdxSource, setMdxSource] =
-    useState<MDXRemoteSerializeResult | null>(null);
+  const [mdxSource, setMdxSource] = useState<MDXRemoteSerializeResult | null>(
+    null,
+  );
   const components = useMDXComponents({});
 
   useEffect(() => {
@@ -139,20 +140,20 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
   if (loading) {
     return (
       <ScriptsProvider>
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="bg-background flex min-h-screen flex-col">
           <Navbar />
           <main className="flex-1 pt-20">
             <article className="px-4 py-16 sm:py-20">
               <div className="mx-auto max-w-4xl">
                 <div className="animate-pulse" aria-hidden="true">
-                  <div className="mb-10 h-3 w-32 rounded bg-muted" />
-                  <div className="mb-6 h-3 w-24 rounded bg-muted" />
-                  <div className="mb-4 h-12 w-3/4 rounded bg-muted" />
-                  <div className="mb-8 h-6 w-full rounded bg-muted" />
-                  <div className="mb-10 h-3 w-1/2 rounded bg-muted" />
+                  <div className="bg-muted mb-10 h-3 w-32 rounded" />
+                  <div className="bg-muted mb-6 h-3 w-24 rounded" />
+                  <div className="bg-muted mb-4 h-12 w-3/4 rounded" />
+                  <div className="bg-muted mb-8 h-6 w-full rounded" />
+                  <div className="bg-muted mb-10 h-3 w-1/2 rounded" />
                   <div className="space-y-4">
                     {[0, 1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-4 w-full rounded bg-muted" />
+                      <div key={i} className="bg-muted h-4 w-full rounded" />
                     ))}
                   </div>
                 </div>
@@ -176,7 +177,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
 
   return (
     <ScriptsProvider>
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="bg-background flex min-h-screen flex-col">
         <Navbar />
         <main className="flex-1 pt-20">
           <ArticleStructuredData post={post} />
@@ -186,7 +187,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
               {/* Breadcrumb */}
               <Link
                 href="/blog/"
-                className="group mb-12 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground transition-colors hover:text-accent-hi focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="group text-muted-foreground hover:text-accent-hi focus-visible:ring-offset-background mb-12 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <ArrowLeft
                   className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
@@ -213,7 +214,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                 )}
 
                 {/* Metadata strip */}
-                <div className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-2 font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground/90">
+                <div className="text-muted-foreground/90 mt-8 flex flex-wrap items-center gap-x-1 gap-y-2 font-mono text-[11px] tracking-[0.14em] uppercase">
                   <time dateTime={new Date(post.date).toISOString()}>
                     {formatDateMono(post.date)}
                   </time>
@@ -247,14 +248,12 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                   className="mx-auto mt-16 max-w-prose border-t pt-8"
                   style={{ borderColor: "var(--brand-rule)" }}
                 >
-                  <p className="font-mono-label text-accent-hi mb-4">
-                    // TAGS
-                  </p>
+                  <p className="font-mono-label text-accent-hi mb-4">// TAGS</p>
                   <ul className="flex flex-wrap gap-2">
                     {post.tags.map((tag) => (
                       <li key={tag}>
                         <span
-                          className="inline-block rounded-md border px-2.5 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase text-muted-foreground"
+                          className="text-muted-foreground inline-block rounded-md border px-2.5 py-1 font-mono text-[10.5px] tracking-[0.14em] uppercase"
                           style={{ borderColor: "var(--brand-rule)" }}
                         >
                           {tag}
@@ -316,17 +315,17 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                       return (
                         <li
                           key={relatedPost.slug}
-                          className="group/row border-t transition-colors duration-200 hover:bg-card/60"
+                          className="group/row hover:bg-card/60 border-t transition-colors duration-200"
                           style={{ borderColor: "var(--brand-rule)" }}
                         >
                           <Link
                             href={`/blog/${relatedPost.slug}/`}
-                            className="flex items-baseline gap-5 px-2 py-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-8"
+                            className="focus-visible:ring-offset-background flex items-baseline gap-5 px-2 py-6 focus-visible:ring-2 focus-visible:ring-[color:var(--brand-accent)] focus-visible:ring-offset-2 focus-visible:outline-none sm:gap-8"
                             aria-label={`Read ${relatedPost.title}`}
                           >
                             <span
                               aria-hidden="true"
-                              className="font-mono text-accent-hi w-10 shrink-0 text-xs tracking-widest sm:w-12 sm:text-sm"
+                              className="text-accent-hi w-10 shrink-0 font-mono text-xs tracking-widest sm:w-12 sm:text-sm"
                             >
                               {num}
                             </span>
@@ -341,7 +340,7 @@ export default function BlogPostClient({ slug }: BlogPostClientProps) {
                               )}
                             </div>
                             <ArrowUpRight
-                              className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:-translate-y-0.5 group-hover/row:translate-x-0.5"
+                              className="text-muted-foreground group-hover/row:text-accent-hi h-4 w-4 shrink-0 transition-all group-hover/row:translate-x-0.5 group-hover/row:-translate-y-0.5"
                               aria-hidden="true"
                             />
                           </Link>

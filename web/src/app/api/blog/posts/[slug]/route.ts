@@ -3,7 +3,7 @@ import { getPostBySlug } from "~/lib/blog";
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> },
 ) {
   try {
     const { slug } = await context.params;
@@ -18,7 +18,7 @@ export async function GET(
     console.error("Error fetching blog post:", error);
     return NextResponse.json(
       { error: "Failed to fetch post" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -117,7 +117,7 @@ export default function SearchDialog() {
         typeof window !== "undefined" ? navigator.userAgent : undefined;
       const sessionId =
         typeof window !== "undefined"
-          ? sessionStorage.getItem("session_id") ?? undefined
+          ? (sessionStorage.getItem("session_id") ?? undefined)
           : undefined;
 
       // Fire-and-forget — analytics must never block UX.
@@ -168,7 +168,9 @@ export default function SearchDialog() {
           <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh] sm:pt-[16vh]">
             <motion.div
               initial={
-                prefersReducedMotion ? false : { opacity: 0, y: -8, scale: 0.98 }
+                prefersReducedMotion
+                  ? false
+                  : { opacity: 0, y: -8, scale: 0.98 }
               }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.98 }}
@@ -177,7 +179,7 @@ export default function SearchDialog() {
               aria-modal="true"
               aria-label="Search scripts"
               onClick={(e) => e.stopPropagation()}
-              className="bg-card/40 relative w-full max-w-2xl overflow-hidden rounded-lg border backdrop-blur-md shadow-[0_24px_60px_-24px_color-mix(in_oklab,black_60%,transparent)]"
+              className="bg-card/40 relative w-full max-w-2xl overflow-hidden rounded-lg border shadow-[0_24px_60px_-24px_color-mix(in_oklab,black_60%,transparent)] backdrop-blur-md"
               style={{ borderColor: "var(--brand-rule)" }}
             >
               <Command
@@ -193,13 +195,13 @@ export default function SearchDialog() {
                   className="flex items-center justify-between border-b px-5 py-3"
                   style={{ borderColor: "var(--brand-rule)" }}
                 >
-                  <p className="font-mono text-accent-hi text-[11px] font-medium tracking-[0.18em] uppercase">
+                  <p className="text-accent-hi font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
                     // Search · {totalCount > 0 ? totalCount : "—"} scripts
                   </p>
                   <button
                     type="button"
                     onClick={() => setSearchOpen(false)}
-                    className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none rounded-sm"
+                    className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background inline-flex items-center gap-1.5 rounded-sm font-mono text-[10px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-none"
                     aria-label="Close search"
                   >
                     <kbd className="border-border/70 text-muted-foreground inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] tracking-normal select-none">
@@ -286,7 +288,7 @@ export default function SearchDialog() {
                       key={script.id}
                       value={script.id}
                       onSelect={handleSelect}
-                      className="group mx-2 flex cursor-pointer items-center gap-4 rounded-sm px-3 py-2.5 text-sm transition-colors aria-selected:bg-accent-soft"
+                      className="group aria-selected:bg-accent-soft mx-2 flex cursor-pointer items-center gap-4 rounded-sm px-3 py-2.5 text-sm transition-colors"
                     >
                       {/* Left — mono filename. The catalog identity of the row. */}
                       <span
@@ -376,7 +378,7 @@ function TagPill({
       onClick={onClick}
       aria-pressed={active}
       className={
-        "focus-visible:ring-accent inline-flex h-6 shrink-0 items-center rounded-sm border px-2 font-mono text-[10px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none " +
+        "focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-6 shrink-0 items-center rounded-sm border px-2 font-mono text-[10px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-none " +
         (active
           ? "border-accent bg-accent-soft text-foreground"
           : "text-accent-hi hover:bg-accent-soft hover:text-foreground")

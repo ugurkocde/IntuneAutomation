@@ -3,7 +3,7 @@ import { getRelatedPosts } from "~/lib/blog";
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> },
 ) {
   try {
     const { slug } = await context.params;

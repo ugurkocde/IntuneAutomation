@@ -112,7 +112,9 @@ export default function TagScriptGallery({
     copy.sort((a, b) => {
       switch (sortBy) {
         case "views":
-          return (b.usageStats?.totalViews ?? 0) - (a.usageStats?.totalViews ?? 0);
+          return (
+            (b.usageStats?.totalViews ?? 0) - (a.usageStats?.totalViews ?? 0)
+          );
         case "downloads":
           return (
             (b.usageStats?.totalDownloads ?? 0) -
@@ -133,7 +135,10 @@ export default function TagScriptGallery({
     return copy;
   }, [filteredScripts, sortBy]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedScripts.length / SCRIPTS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedScripts.length / SCRIPTS_PER_PAGE),
+  );
   const currentScripts = sortedScripts.slice(
     currentPage * SCRIPTS_PER_PAGE,
     (currentPage + 1) * SCRIPTS_PER_PAGE,
@@ -162,7 +167,7 @@ export default function TagScriptGallery({
       typeof window !== "undefined" ? navigator.userAgent : undefined;
     const sessionId =
       typeof window !== "undefined"
-        ? sessionStorage.getItem("session_id") ?? undefined
+        ? (sessionStorage.getItem("session_id") ?? undefined)
         : undefined;
 
     void AnalyticsService.trackScriptView(script.id, script.title, {
@@ -185,7 +190,7 @@ export default function TagScriptGallery({
       {/* ─────────────── Page header ─────────────── */}
       <header className="mb-12">
         {/* Filesystem-style breadcrumb echoes the hero CategoryMap */}
-        <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+        <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
           <Link
             href="/scripts/"
             className="hover:text-accent-hi transition-colors"
@@ -214,7 +219,7 @@ export default function TagScriptGallery({
         <div className="mt-6">
           <Link
             href="/scripts/"
-            className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+            className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
           >
             <ArrowLeft className="h-3 w-3" aria-hidden="true" />
             All scripts
@@ -300,12 +305,7 @@ export default function TagScriptGallery({
               const active = t === tag;
               const count = tagCounts.get(t) ?? 0;
               return (
-                <TagSwitch
-                  key={t}
-                  tag={t}
-                  count={count}
-                  active={active}
-                />
+                <TagSwitch key={t} tag={t} count={count} active={active} />
               );
             })}
           </div>
@@ -313,13 +313,12 @@ export default function TagScriptGallery({
 
         {/* Result count + sort */}
         <div className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+          <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
             {sortedScripts.length} result{sortedScripts.length === 1 ? "" : "s"}
             {localSearch && (
               <>
                 {" · "}
-                search:{" "}
-                <span className="text-foreground">"{localSearch}"</span>
+                search: <span className="text-foreground">"{localSearch}"</span>
               </>
             )}
           </p>
@@ -469,7 +468,7 @@ function TagSwitch({
     return (
       <span
         aria-current="page"
-        className="inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border bg-accent-soft border-accent text-foreground px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase"
+        className="bg-accent-soft border-accent text-foreground inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase"
       >
         <span>{tag}</span>
         <span className="text-muted-foreground/70 tabular-nums">{count}</span>
@@ -479,10 +478,9 @@ function TagSwitch({
   return (
     <Link
       href={`/scripts/${slug}/`}
-      className="focus-visible:ring-accent inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase transition-colors text-accent-hi hover:bg-accent-soft hover:text-foreground focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+      className="focus-visible:ring-accent text-accent-hi hover:bg-accent-soft hover:text-foreground focus-visible:ring-offset-background inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-mono text-[10.5px] font-medium tracking-[0.14em] uppercase transition-colors focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-none"
       style={{
-        borderColor:
-          "color-mix(in oklab, var(--brand-rule) 80%, transparent)",
+        borderColor: "color-mix(in oklab, var(--brand-rule) 80%, transparent)",
       }}
     >
       <span>{tag}</span>
@@ -501,7 +499,7 @@ function LoadingState({ tag }: { tag: ScriptTag }) {
         className="text-muted-foreground h-6 w-6 animate-spin"
         aria-hidden="true"
       />
-      <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+      <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
         Loading {tag} scripts...
       </p>
     </div>
@@ -525,7 +523,7 @@ function EmptyState({
         <button
           type="button"
           onClick={onClear}
-          className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none rounded-sm"
+          className="focus-visible:ring-accent text-muted-foreground hover:text-accent-hi inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           Clear search
           <span aria-hidden="true">→</span>
@@ -561,7 +559,7 @@ function Pagination({
         Prev
       </button>
 
-      <span className="font-mono text-muted-foreground inline-flex h-9 items-center px-2 text-[11px] tabular-nums tracking-[0.18em] uppercase">
+      <span className="text-muted-foreground inline-flex h-9 items-center px-2 font-mono text-[11px] tracking-[0.18em] uppercase tabular-nums">
         {currentPage + 1} / {totalPages}
       </span>
 

@@ -77,25 +77,19 @@ export function RelatedScripts({
           return (
             <li
               key={script.id}
-              className={
-                index === 0
-                  ? ""
-                  : "border-t"
-              }
+              className={index === 0 ? "" : "border-t"}
               style={
-                index === 0
-                  ? undefined
-                  : { borderColor: "var(--brand-rule)" }
+                index === 0 ? undefined : { borderColor: "var(--brand-rule)" }
               }
             >
               <Link
                 href={`/script/${script.slug}/`}
-                className="group focus-visible:ring-accent grid grid-cols-[auto_1fr_auto] items-start gap-x-5 gap-y-2 px-5 py-5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_5%,transparent)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none sm:px-6 sm:py-6"
+                className="group focus-visible:ring-accent grid grid-cols-[auto_1fr_auto] items-start gap-x-5 gap-y-2 px-5 py-5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_5%,transparent)] focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset sm:px-6 sm:py-6"
               >
                 {/* Numeric index — mono tabular */}
                 <span
                   aria-hidden="true"
-                  className="text-muted-foreground/60 mt-1.5 font-mono text-[11px] tabular-nums tracking-widest"
+                  className="text-muted-foreground/60 mt-1.5 font-mono text-[11px] tracking-widest tabular-nums"
                 >
                   {String(index + 1).padStart(2, "0")}
                 </span>
@@ -127,7 +121,7 @@ export function RelatedScripts({
                 {/* Affordance arrow — slides on hover */}
                 <span
                   aria-hidden="true"
-                  className="text-muted-foreground/60 group-hover:text-accent-hi mt-1.5 inline-flex shrink-0 items-center justify-center transition-all duration-200 group-hover:-translate-y-px group-hover:translate-x-0.5"
+                  className="text-muted-foreground/60 group-hover:text-accent-hi mt-1.5 inline-flex shrink-0 items-center justify-center transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-px"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </span>
@@ -141,11 +135,11 @@ export function RelatedScripts({
       <div className="mt-6 flex justify-center">
         <Link
           href="/scripts/"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-accent group inline-flex items-center gap-2 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-accent group focus-visible:ring-offset-background inline-flex items-center gap-2 rounded-sm font-mono text-[11px] tracking-[0.18em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Browse all scripts
           <ArrowUpRight
-            className="h-3 w-3 transition-transform group-hover:-translate-y-px group-hover:translate-x-0.5"
+            className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-px"
             aria-hidden="true"
           />
         </Link>

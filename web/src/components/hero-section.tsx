@@ -16,7 +16,6 @@ import { ArrowRight, ArrowUpRight, Search, Sparkles } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
 import type { ScriptTag } from "~/lib/scripts";
 
-
 export default function HeroSection() {
   const { setSearchOpen, allScripts } = useScripts();
   const prefersReducedMotion = useReducedMotion();
@@ -51,7 +50,6 @@ export default function HeroSection() {
           {/* LEFT — typography + CTAs                       */}
           {/* ============================================== */}
           <div className="min-w-0">
-
             {/* Launch pill — announces the AI Script Generator above the
              * headline. Fades in just before the H1 reveal cascades. Uses
              * the existing v2 mono-uppercase kicker pattern with a cyan
@@ -65,7 +63,7 @@ export default function HeroSection() {
               <Link
                 href="/generator/"
                 aria-label="Try the new Script Generator — beta"
-                className="border-border/70 hover:border-accent/50 hover:bg-card/60 focus-visible:ring-accent group inline-flex items-center gap-2.5 rounded-full border bg-card/40 py-1.5 pl-3 pr-2.5 text-[11px] font-mono tracking-[0.16em] uppercase text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="border-border/70 hover:border-accent/50 hover:bg-card/60 focus-visible:ring-accent group bg-card/40 text-muted-foreground focus-visible:ring-offset-background inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-2.5 pl-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full"
@@ -137,7 +135,7 @@ export default function HeroSection() {
             >
               <Link
                 href="/scripts/"
-                className="group ring-accent inline-flex h-12 items-center gap-2 rounded-md bg-foreground px-5 text-sm font-medium text-background shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent),0_8px_22px_-12px_color-mix(in_oklab,var(--brand-accent)_60%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:translate-y-0"
+                className="group ring-accent bg-foreground text-background focus-visible:ring-offset-background inline-flex h-12 items-center gap-2 rounded-md px-5 text-sm font-medium shadow-[inset_0_1px_0_color-mix(in_oklab,white_18%,transparent),0_8px_22px_-12px_color-mix(in_oklab,var(--brand-accent)_60%,transparent)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
               >
                 Browse scripts
                 <span
@@ -151,7 +149,7 @@ export default function HeroSection() {
 
               <a
                 href="#how-it-works"
-                className="border-border/70 hover:border-accent/40 group focus-visible:ring-accent inline-flex h-12 items-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                className="border-border/70 hover:border-accent/40 group focus-visible:ring-accent focus-visible:ring-offset-background inline-flex h-12 items-center gap-2 rounded-md border bg-transparent px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <span>See how it works</span>
                 <span
@@ -168,7 +166,7 @@ export default function HeroSection() {
               <button
                 type="button"
                 onClick={handleSearchClick}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent hidden h-12 items-center gap-2 rounded-md px-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none sm:inline-flex"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-accent focus-visible:ring-offset-background hidden h-12 items-center gap-2 rounded-md px-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:inline-flex"
               >
                 <Search className="h-3.5 w-3.5" strokeWidth={2} />
                 <span>Search</span>
@@ -345,18 +343,27 @@ function ScrollCue() {
       <div className="flex flex-col items-center gap-[3px]">
         <span
           className="pulse-cue h-px w-6"
-          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0s" }}
+          style={{
+            backgroundColor: "var(--brand-accent)",
+            animationDelay: "0s",
+          }}
         />
         <span
           className="pulse-cue h-px w-6"
-          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0.4s" }}
+          style={{
+            backgroundColor: "var(--brand-accent)",
+            animationDelay: "0.4s",
+          }}
         />
         <span
           className="pulse-cue h-px w-6"
-          style={{ backgroundColor: "var(--brand-accent)", animationDelay: "0.8s" }}
+          style={{
+            backgroundColor: "var(--brand-accent)",
+            animationDelay: "0.8s",
+          }}
         />
       </div>
-      <span className="font-mono text-[10px] tracking-[0.22em] text-muted-foreground uppercase">
+      <span className="text-muted-foreground font-mono text-[10px] tracking-[0.22em] uppercase">
         Scroll
       </span>
     </div>
@@ -426,12 +433,12 @@ function CategoryMap() {
         className="flex items-center justify-between border-b px-5 py-3"
         style={{ borderColor: "var(--brand-rule)" }}
       >
-        <p className="font-mono text-muted-foreground text-[11px] tracking-[0.18em] uppercase">
+        <p className="text-muted-foreground font-mono text-[11px] tracking-[0.18em] uppercase">
           // Library · {totalLabel} scripts
         </p>
         <Link
           href="/scripts/"
-          className="text-muted-foreground hover:text-foreground font-mono inline-flex items-center gap-1 text-[10px] tracking-[0.18em] uppercase transition-colors"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors"
         >
           All
           <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
@@ -459,10 +466,7 @@ function CategoryMap() {
               count={counts.get(entry.tag) ?? null}
             />
           ))}
-          <BrowseAllBranch
-            connector="└──"
-            moreCount={moreCategoriesCount}
-          />
+          <BrowseAllBranch connector="└──" moreCount={moreCategoriesCount} />
         </ul>
 
         {/* Full tree — visible at lg+ */}
@@ -497,7 +501,7 @@ function CatalogRow({
     <li>
       <Link
         href={`/scripts/${entry.slug}/`}
-        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none"
+        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
         aria-label={`Browse ${entry.tag} scripts`}
       >
         <span
@@ -537,7 +541,7 @@ function BrowseAllBranch({
     <li>
       <Link
         href="/scripts/"
-        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:ring-inset focus-visible:outline-none"
+        className="group focus-visible:ring-accent flex items-baseline gap-2 rounded-sm py-0.5 transition-colors hover:bg-[color-mix(in_oklab,var(--brand-accent)_8%,transparent)] focus-visible:ring-1 focus-visible:outline-none focus-visible:ring-inset"
       >
         <span
           aria-hidden="true"
@@ -565,4 +569,3 @@ function BrowseAllBranch({
     </li>
   );
 }
-

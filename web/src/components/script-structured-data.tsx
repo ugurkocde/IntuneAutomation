@@ -5,7 +5,10 @@ interface ScriptStructuredDataProps {
   url: string;
 }
 
-export function ScriptStructuredData({ script, url }: ScriptStructuredDataProps) {
+export function ScriptStructuredData({
+  script,
+  url,
+}: ScriptStructuredDataProps) {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -27,22 +30,31 @@ export function ScriptStructuredData({ script, url }: ScriptStructuredDataProps)
     },
     url,
     downloadUrl: script.githubUrl || url,
-    softwareRequirements: "PowerShell 5.1 or later, Microsoft Graph PowerShell SDK",
-    keywords: [...script.tags, "PowerShell", "Microsoft Intune", "Automation", "Script"].join(", "),
+    softwareRequirements:
+      "PowerShell 5.1 or later, Microsoft Graph PowerShell SDK",
+    keywords: [
+      ...script.tags,
+      "PowerShell",
+      "Microsoft Intune",
+      "Automation",
+      "Script",
+    ].join(", "),
     datePublished: script.lastUpdated || new Date().toISOString(),
     dateModified: script.lastUpdated || new Date().toISOString(),
-    interactionStatistic: script.usageStats ? [
-      {
-        "@type": "InteractionCounter",
-        interactionType: "https://schema.org/ViewAction",
-        userInteractionCount: script.usageStats.totalViews || 0,
-      },
-      {
-        "@type": "InteractionCounter",
-        interactionType: "https://schema.org/DownloadAction",
-        userInteractionCount: script.usageStats.totalDownloads || 0,
-      },
-    ] : undefined,
+    interactionStatistic: script.usageStats
+      ? [
+          {
+            "@type": "InteractionCounter",
+            interactionType: "https://schema.org/ViewAction",
+            userInteractionCount: script.usageStats.totalViews || 0,
+          },
+          {
+            "@type": "InteractionCounter",
+            interactionType: "https://schema.org/DownloadAction",
+            userInteractionCount: script.usageStats.totalDownloads || 0,
+          },
+        ]
+      : undefined,
     softwareHelp: {
       "@type": "WebPage",
       url: "https://intuneautomation.com/blog/",
@@ -61,7 +73,11 @@ export function ScriptStructuredData({ script, url }: ScriptStructuredDataProps)
   );
 }
 
-export function BreadcrumbStructuredData({ items }: { items: Array<{ name: string; url?: string }> }) {
+export function BreadcrumbStructuredData({
+  items,
+}: {
+  items: Array<{ name: string; url?: string }>;
+}) {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",

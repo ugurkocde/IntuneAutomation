@@ -63,9 +63,7 @@ const config = {
 const withMDX = createMDX({
   options: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [
-      rehypeSlug,
-    ],
+    rehypePlugins: [rehypeSlug],
   },
 });
 

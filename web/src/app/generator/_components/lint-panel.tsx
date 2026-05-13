@@ -31,11 +31,7 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
   const [expanded, setExpanded] = useState(result.failCount > 0);
 
   const headerVariant: "ok" | "warn" | "fail" =
-    result.failCount > 0
-      ? "fail"
-      : result.warnCount > 0
-        ? "warn"
-        : "ok";
+    result.failCount > 0 ? "fail" : result.warnCount > 0 ? "warn" : "ok";
 
   const variantStyles = {
     ok: "border-emerald-500/25 bg-emerald-500/[0.04]",
@@ -51,7 +47,7 @@ export function LintPanel({ result, onFix, fixDisabled }: Props) {
 
   const headerIcon =
     headerVariant === "ok" ? (
-      <ShieldCheck className="text-emerald-500 h-4 w-4" />
+      <ShieldCheck className="h-4 w-4 text-emerald-500" />
     ) : headerVariant === "warn" ? (
       <AlertTriangle className="h-4 w-4 text-amber-500" />
     ) : (

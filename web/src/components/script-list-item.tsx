@@ -150,7 +150,7 @@ export function ScriptListItem({ script, onClick }: ScriptListItemProps) {
           <div className="flex items-start justify-end pt-1">
             <ArrowUpRight
               aria-hidden="true"
-              className="text-muted-foreground/60 group-hover:text-accent-hi h-4 w-4 shrink-0 transition-all duration-200 group-hover:-translate-y-px group-hover:translate-x-0.5"
+              className="text-muted-foreground/60 group-hover:text-accent-hi h-4 w-4 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-px"
             />
           </div>
         </article>

@@ -16,7 +16,10 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className={cn("flex items-center space-x-1 text-sm text-muted-foreground", className)}
+      className={cn(
+        "text-muted-foreground flex items-center space-x-1 text-sm",
+        className,
+      )}
     >
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
@@ -28,21 +31,21 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
               <ChevronRight className="mx-2 h-4 w-4 flex-shrink-0" />
             )}
             {isLast ? (
-              <span className="font-medium text-foreground truncate max-w-[200px]">
-                {isFirst && <Home className="mr-1 h-4 w-4 inline" />}
+              <span className="text-foreground max-w-[200px] truncate font-medium">
+                {isFirst && <Home className="mr-1 inline h-4 w-4" />}
                 {item.name}
               </span>
             ) : item.href ? (
               <Link
                 href={item.href}
-                className="hover:text-foreground transition-colors truncate max-w-[150px]"
+                className="hover:text-foreground max-w-[150px] truncate transition-colors"
               >
-                {isFirst && <Home className="mr-1 h-4 w-4 inline" />}
+                {isFirst && <Home className="mr-1 inline h-4 w-4" />}
                 {item.name}
               </Link>
             ) : (
-              <span className="truncate max-w-[150px]">
-                {isFirst && <Home className="mr-1 h-4 w-4 inline" />}
+              <span className="max-w-[150px] truncate">
+                {isFirst && <Home className="mr-1 inline h-4 w-4" />}
                 {item.name}
               </span>
             )}

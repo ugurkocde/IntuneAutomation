@@ -42,7 +42,11 @@ const COLUMNS: FooterColumn[] = [
     title: "BUILT BY",
     links: [
       { label: "UgurLabs", href: UGURLABS_URL, external: true },
-      { label: "Ugur Koc — LinkedIn", href: MAINTAINER_LINKEDIN, external: true },
+      {
+        label: "Ugur Koc — LinkedIn",
+        href: MAINTAINER_LINKEDIN,
+        external: true,
+      },
     ],
   },
 ];
@@ -56,7 +60,7 @@ export default function Footer() {
 
   return (
     <footer
-      className="relative isolate overflow-hidden border-t border-border/60"
+      className="border-border/60 relative isolate overflow-hidden border-t"
       aria-labelledby="footer-heading"
     >
       <h2 id="footer-heading" className="sr-only">
@@ -139,7 +143,7 @@ export default function Footer() {
               style={{ backgroundColor: "var(--brand-accent)" }}
             />
             <p
-              className="font-mono text-foreground/85 text-[2.25rem] leading-none tracking-[-0.03em] sm:text-[3.5rem] md:text-[5rem] lg:text-[6.5rem]"
+              className="text-foreground/85 font-mono text-[2.25rem] leading-none tracking-[-0.03em] sm:text-[3.5rem] md:text-[5rem] lg:text-[6.5rem]"
               aria-hidden="true"
             >
               IntuneAutomation
@@ -155,10 +159,7 @@ export default function Footer() {
               <p className="text-muted-foreground font-mono tracking-[0.18em] uppercase">
                 © {year} · MIT License
               </p>
-              <span
-                aria-hidden="true"
-                className="text-muted-foreground/40"
-              >
+              <span aria-hidden="true" className="text-muted-foreground/40">
                 ·
               </span>
               <p className="text-muted-foreground font-mono tracking-[0.18em] uppercase">
@@ -179,7 +180,7 @@ export default function Footer() {
                 href={UGURLABS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="border-border/70 hover:border-accent/40 text-muted-foreground hover:text-foreground font-mono inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[10px] tracking-[0.14em] uppercase transition-colors"
+                className="border-border/70 hover:border-accent/40 text-muted-foreground hover:text-foreground inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] tracking-[0.14em] uppercase transition-colors"
               >
                 UgurLabs
                 <ArrowUpRight className="h-3 w-3" aria-hidden="true" />

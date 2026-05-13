@@ -1,7 +1,13 @@
 import { type Metadata } from "next";
 import { notFound } from "next/navigation";
+import {
+  BlogPostingSchema,
+  BreadcrumbSchema,
+} from "~/components/structured-data";
 import { getAllPosts, getPostBySlug } from "~/lib/blog";
 import BlogPostClient from "./page-client";
+
+const BASE_URL = "https://intuneautomation.com";
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -14,27 +20,36 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
   if (!post) {
     return {
       title: "Post Not Found",
+      robots: { index: false, follow: false },
     };
   }
 
   const publishedTime = new Date(post.date).toISOString();
+  const url = `${BASE_URL}/blog/${slug}/`;
 
   return {
-    title: `${post.title} - IntuneAutomation.com`,
+    // Short title — root layout's title template appends "| IntuneAutomation".
+    title: post.title,
     description: post.description,
     authors: [{ name: post.author }],
+    alternates: { canonical: `/blog/${slug}/` },
     openGraph: {
       title: post.title,
       description: post.description,
       type: "article",
+      url,
+      siteName: "IntuneAutomation",
       publishedTime,
+      modifiedTime: publishedTime,
       authors: [post.author],
       tags: post.tags,
       images: post.image
@@ -63,5 +78,27 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
-  return <BlogPostClient slug={slug} />;
+  return (
+    <>
+      <BreadcrumbSchema
+        baseUrl={BASE_URL}
+        items={[
+          { name: "Home", url: "/" },
+          { name: "Blog", url: "/blog/" },
+          { name: post.title },
+        ]}
+      />
+      <BlogPostingSchema
+        baseUrl={BASE_URL}
+        slug={slug}
+        title={post.title}
+        description={post.description}
+        date={post.date}
+        author={post.author}
+        image={post.image}
+        tags={post.tags}
+      />
+      <BlogPostClient slug={slug} />
+    </>
+  );
 }

@@ -21,7 +21,7 @@ const faqData: FAQItem[] = [
         </p>
         <ul className="ml-2 space-y-2 sm:ml-4">
           <li className="flex items-start gap-2">
-            <span className="mt-1 flex-shrink-0 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1 flex-shrink-0">•</span>
             <div>
               <strong>Browser Network Inspection:</strong> When you browse the
               Intune Portal in your browser, you can use the developer tools
@@ -31,7 +31,7 @@ const faqData: FAQItem[] = [
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Minimal Dependencies:</strong> Using Invoke-MgGraphRequest
               only requires the Microsoft.Graph.Authentication module, rather
@@ -39,7 +39,7 @@ const faqData: FAQItem[] = [
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Direct API Access:</strong> You get direct access to the
               raw Microsoft Graph REST API, giving you more control and
@@ -47,7 +47,7 @@ const faqData: FAQItem[] = [
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Easier Troubleshooting:</strong> You can easily replicate
               and test the same API calls that the Intune Portal uses, making
@@ -67,27 +67,33 @@ const faqData: FAQItem[] = [
           with its own advantages:
         </p>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-3 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-3 font-semibold">
             Local Execution
           </h4>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Interactive authentication:</strong> Uses your personal
                 credentials with Connect-MgGraph
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Manual execution:</strong> Run scripts on-demand from
                 PowerShell ISE, VS Code, or terminal
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Best for:</strong> Testing, one-time operations, and
                 development
@@ -96,27 +102,33 @@ const faqData: FAQItem[] = [
           </ul>
         </div>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-3 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-3 font-semibold">
             Azure Automation Runbooks
           </h4>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Managed Identity authentication:</strong> Uses
                 system-assigned managed identity (no credentials needed)
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Scheduled execution:</strong> Run scripts automatically
                 on a schedule
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Best for:</strong> Production environments, recurring
                 tasks, and unattended operations
@@ -125,7 +137,10 @@ const faqData: FAQItem[] = [
           </ul>
         </div>
 
-        <div className="border-l-2 pl-4" style={{ borderColor: "var(--brand-accent-hi)" }}>
+        <div
+          className="border-l-2 pl-4"
+          style={{ borderColor: "var(--brand-accent-hi)" }}
+        >
           <p className="text-sm">
             <strong>Environment Detection:</strong> Our scripts automatically
             detect the execution environment using{" "}
@@ -150,13 +165,25 @@ const faqData: FAQItem[] = [
           deployment to Azure Automation. Here's how it works:
         </p>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-3 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-3 font-semibold">
             One-Click Deployment Process
           </h4>
           <ol className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+              <span
+                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
+                style={{
+                  backgroundColor: "var(--brand-accent-hi)",
+                  color: "var(--background)",
+                }}
+              >
                 1
               </span>
               <div>
@@ -165,7 +192,13 @@ const faqData: FAQItem[] = [
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+              <span
+                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
+                style={{
+                  backgroundColor: "var(--brand-accent-hi)",
+                  color: "var(--background)",
+                }}
+              >
                 2
               </span>
               <div>
@@ -173,7 +206,13 @@ const faqData: FAQItem[] = [
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+              <span
+                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
+                style={{
+                  backgroundColor: "var(--brand-accent-hi)",
+                  color: "var(--background)",
+                }}
+              >
                 3
               </span>
               <div>
@@ -182,7 +221,13 @@ const faqData: FAQItem[] = [
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+              <span
+                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
+                style={{
+                  backgroundColor: "var(--brand-accent-hi)",
+                  color: "var(--background)",
+                }}
+              >
                 4
               </span>
               <div>
@@ -193,8 +238,14 @@ const faqData: FAQItem[] = [
           </ol>
         </div>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-3 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-3 font-semibold">
             System-Assigned Managed Identity Setup
           </h4>
           <p className="mb-3">
@@ -203,21 +254,21 @@ const faqData: FAQItem[] = [
           </p>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>No stored credentials:</strong> The managed identity
                 eliminates the need to store usernames and passwords
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Automatic permissions:</strong> The deployment template
                 assigns the necessary Microsoft Graph permissions
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Azure-managed security:</strong> Azure handles identity
                 lifecycle and credential rotation
@@ -226,28 +277,34 @@ const faqData: FAQItem[] = [
           </ul>
         </div>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-3 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-3 font-semibold">
             Post-Deployment Configuration
           </h4>
           <p className="mb-3">After deployment, you may need to:</p>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Grant admin consent:</strong> Approve the Graph API
                 permissions in Azure AD
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Configure schedules:</strong> Set up recurring execution
                 schedules if needed
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Test the runbook:</strong> Run a test execution to
                 verify everything works correctly
@@ -256,7 +313,10 @@ const faqData: FAQItem[] = [
           </ul>
         </div>
 
-        <div className="border-l-2 pl-4" style={{ borderColor: "var(--brand-accent-hi)" }}>
+        <div
+          className="border-l-2 pl-4"
+          style={{ borderColor: "var(--brand-accent-hi)" }}
+        >
           <p className="text-sm">
             <strong>Learn more:</strong> For detailed information about managed
             identities in Azure Automation, visit{" "}
@@ -281,14 +341,14 @@ const faqData: FAQItem[] = [
         <p>To run the Intune automation scripts, you'll need:</p>
         <ul className="ml-4 space-y-2">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>PowerShell 5.1 or PowerShell 7+</strong> installed on your
               system
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Microsoft.Graph.Authentication module</strong> - Install
               with:{" "}
@@ -298,21 +358,21 @@ const faqData: FAQItem[] = [
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Appropriate Azure AD permissions</strong> for your user
               account or app registration
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Microsoft Intune license</strong> and access to the Intune
               portal
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Global Administrator or Intune Administrator role</strong>{" "}
               (depending on the script's requirements)
@@ -356,40 +416,40 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
         </p>
         <ul className="ml-4 space-y-2">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Always test in a non-production environment first</strong>
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Review the script code</strong> to understand what changes
               it will make
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Backup your current configurations</strong> before running
               any scripts
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Start with a small test group</strong> of devices or users
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Monitor the results</strong> and verify the expected
               outcomes
             </div>
           </li>
         </ul>
-        <p className="font-medium text-accent-hi">
+        <p className="text-accent-hi font-medium">
           Remember: automation scripts can make widespread changes quickly, so
           proceed with caution.
         </p>
@@ -405,7 +465,7 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
         </p>
         <ul className="ml-4 space-y-2">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Functional testing:</strong> Scripts are tested with a
               demo tenant to verify all Graph API endpoints work correctly and
@@ -413,14 +473,14 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>PSScriptAnalyzer:</strong> PowerShell scripts are
               automatically validated for best practices and potential issues
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>ShellCheck:</strong> Shell scripts are tested using
               ShellCheck for common bugs and code quality
@@ -440,27 +500,27 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
         </p>
         <ul className="ml-4 space-y-2">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Fork the repository</strong> to create your own version
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Modify variables and parameters</strong> to match your
               environment
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Add additional logic</strong> for your specific
               requirements
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Contribute improvements</strong> back to the community via
               pull requests
@@ -481,28 +541,28 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
         <p>The scripts are regularly maintained and updated:</p>
         <ul className="ml-4 space-y-2">
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Bug fixes</strong> are applied as soon as issues are
               identified
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>New features</strong> are added based on community
               feedback and Microsoft Intune updates
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>API changes</strong> are incorporated when Microsoft
               updates the Graph API
             </div>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-1 text-accent-hi">•</span>
+            <span className="text-accent-hi mt-1">•</span>
             <div>
               <strong>Community contributions</strong> are reviewed and merged
               regularly
@@ -523,7 +583,13 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
         <p>If you encounter issues with a script:</p>
         <ol className="ml-2 space-y-2 sm:ml-4">
           <li className="flex items-start gap-2 sm:gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm"
+              style={{
+                backgroundColor: "var(--brand-accent-hi)",
+                color: "var(--background)",
+              }}
+            >
               1
             </span>
             <div>
@@ -532,7 +598,13 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
             </div>
           </li>
           <li className="flex items-start gap-2 sm:gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm"
+              style={{
+                backgroundColor: "var(--brand-accent-hi)",
+                color: "var(--background)",
+              }}
+            >
               2
             </span>
             <div>
@@ -541,7 +613,13 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
             </div>
           </li>
           <li className="flex items-start gap-2 sm:gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm"
+              style={{
+                backgroundColor: "var(--brand-accent-hi)",
+                color: "var(--background)",
+              }}
+            >
               3
             </span>
             <div>
@@ -550,7 +628,13 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
             </div>
           </li>
           <li className="flex items-start gap-2 sm:gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm"
+              style={{
+                backgroundColor: "var(--brand-accent-hi)",
+                color: "var(--background)",
+              }}
+            >
               4
             </span>
             <div>
@@ -559,7 +643,13 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
             </div>
           </li>
           <li className="flex items-start gap-2 sm:gap-3">
-            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm" style={{ backgroundColor: "var(--brand-accent-hi)", color: "var(--background)" }}>
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium sm:h-6 sm:w-6 sm:text-sm"
+              style={{
+                backgroundColor: "var(--brand-accent-hi)",
+                color: "var(--background)",
+              }}
+            >
               5
             </span>
             <div>
@@ -580,27 +670,33 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
           For Intune automation, we generally recommend using the{" "}
           <strong>beta</strong> endpoints:
         </p>
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-2 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-2 font-semibold">
             Why Beta is Better for Automation:
           </h4>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Richer response data:</strong> Beta endpoints provide
                 more detailed information and additional properties
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Latest features:</strong> New Intune capabilities are
                 available in beta before being promoted to v1.0
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Better for complex automation:</strong> More
                 comprehensive data means fewer API calls needed
@@ -609,27 +705,33 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
           </ul>
         </div>
 
-        <div className="border-l-2 pl-5 py-2" style={{ borderColor: "color-mix(in oklab, var(--brand-accent) 35%, transparent)" }}>
-          <h4 className="mb-2 font-semibold text-foreground">
+        <div
+          className="border-l-2 py-2 pl-5"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
+          }}
+        >
+          <h4 className="text-foreground mb-2 font-semibold">
             Important Considerations:
           </h4>
           <ul className="ml-4 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Response structure may change:</strong> Beta endpoints
                 can have breaking changes between versions
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Already stable in practice:</strong> Most beta Intune
                 endpoints are very stable and widely used
               </div>
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-1 text-accent-hi">•</span>
+              <span className="text-accent-hi mt-1">•</span>
               <div>
                 <strong>Monitor for changes:</strong> Subscribe to Microsoft
                 Graph changelog for any breaking changes
@@ -638,7 +740,10 @@ Connect-MgGraph -ClientId "your-app-id" -TenantId "your-tenant-id"`}</code>
           </ul>
         </div>
 
-        <div className="border-l-2 pl-4" style={{ borderColor: "var(--brand-accent-hi)" }}>
+        <div
+          className="border-l-2 pl-4"
+          style={{ borderColor: "var(--brand-accent-hi)" }}
+        >
           <p className="text-muted-foreground text-sm">
             <strong>Our recommendation:</strong> Use beta endpoints for
             automation scripts, as the benefits (richer data, latest features)
@@ -671,7 +776,7 @@ export default function FAQSection() {
     <section
       id="faq-section"
       aria-labelledby="faq-heading"
-      className="border-t border-border/60 px-4 py-24 sm:py-32"
+      className="border-border/60 border-t px-4 py-24 sm:py-32"
     >
       <div className="mx-auto max-w-3xl">
         {/* Opener */}
@@ -708,7 +813,7 @@ export default function FAQSection() {
                   className="group flex w-full items-baseline gap-5 py-6 text-left transition-colors"
                 >
                   <span
-                    className="font-mono text-accent w-8 shrink-0 text-xs tracking-widest sm:text-sm"
+                    className="text-accent w-8 shrink-0 font-mono text-xs tracking-widest sm:text-sm"
                     aria-hidden="true"
                   >
                     {num}
