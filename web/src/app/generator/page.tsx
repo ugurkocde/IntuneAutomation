@@ -419,8 +419,9 @@ function GeneratorSeoFooter() {
 
       {/* Quality checks — explains what every category in the inspector
           panel actually verifies. Server-rendered so the explanation is
-          crawlable and a stable on-page reference for Security vs Safety. */}
-      <div>
+          crawlable and a stable on-page reference for Security vs Safety.
+          The id is the scroll target for the Inspector "?" button. */}
+      <div id="quality-checks" className="scroll-mt-24">
         <div className="text-muted-foreground mb-4 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase">
           <ShieldCheck className="text-accent h-3 w-3" aria-hidden="true" />
           Quality checks

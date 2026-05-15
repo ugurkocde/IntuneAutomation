@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  HelpCircle,
   Loader2,
   Wand2,
   X,
@@ -131,6 +132,19 @@ export function Inspector({
         <span className="text-foreground text-[12.5px] font-medium">
           Inspector
         </span>
+        <button
+          type="button"
+          onClick={() => {
+            document
+              .getElementById("quality-checks")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          title="What do these checks do?"
+          aria-label="What do these checks do?"
+          className="text-muted-foreground/70 hover:text-foreground hover:bg-foreground/[0.04] -ml-1 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full transition-colors"
+        >
+          <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
         {(isStreaming || isAutoFixing) && (
           <span className="text-muted-foreground ml-auto inline-flex items-center gap-1 text-[11px]">
             <span
