@@ -107,9 +107,9 @@ function extractUsages(body) {
     /["']https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/[^"'\s]*["']/g;
   for (const m of body.matchAll(re)) {
     const raw = m[0].slice(1, -1);
-    if (raw.includes("$")) continue;
     const url = stripQueryAndFragment(raw);
     const path = url.replace(/^https:\/\/graph\.microsoft\.com/, "");
+    if (path.includes("$")) continue;
     const idx = m.index ?? 0;
     const lineStart = body.lastIndexOf("\n", idx - 1) + 1;
     const nextNL = body.indexOf("\n", idx);
@@ -123,10 +123,11 @@ function extractUsages(body) {
 }
 
 const scriptSample = `
-Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?\`$select=id,deviceName"
 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/deviceManagement/notARealThing" -Method POST
-Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/users?\$select=id,displayName"
+Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/users?\`$select=id,displayName"
 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/groups/abc-123/members"
+Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/users/\$id"
 `;
 const usages = extractUsages(scriptSample);
 console.log(`\nIntegration: extracted ${usages.length} URIs from sample script`);

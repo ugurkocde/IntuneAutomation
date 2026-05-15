@@ -37,7 +37,11 @@ const ScriptDetail = dynamic(
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { lintScript, type LintResult } from "~/lib/generator-lint";
-import { LintPanel } from "./_components/lint-panel";
+import {
+  extractGraphEndpointUsages,
+  isKnownGraphEndpoint,
+} from "~/lib/generator-graph-endpoints";
+import { Inspector } from "./_components/inspector";
 
 type Redaction = {
   kind: string;
@@ -99,6 +103,11 @@ export default function GeneratorClient({
   // lint panel during this window so users see "Polishing..." instead of an
   // intermediate panel + fix-button click sequence.
   const [isAutoFixing, setIsAutoFixing] = useState(false);
+  // Live Graph endpoint verification visible during streaming. Each entry is
+  // a unique (method, path) pair extracted from the streamed output so far.
+  const [endpointChecks, setEndpointChecks] = useState<
+    { method: string; path: string; known: boolean }[]
+  >([]);
   const [refinement, setRefinement] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatus, setTurnstileStatus] = useState<
@@ -293,6 +302,39 @@ export default function GeneratorClient({
     if (!el || !followStreamRef.current) return;
     el.scrollTop = el.scrollHeight;
   }, [isStreaming, output]);
+
+  // Live Graph endpoint verification — re-runs on every output chunk so the
+  // admin can see in real time that detected URIs are being checked against
+  // the published Microsoft Graph catalog. Cheap: regex + Map lookup against
+  // ~6,400 templates, microseconds per call. Deduped by `METHOD path`.
+  useEffect(() => {
+    if (!output) {
+      if (endpointChecks.length > 0) setEndpointChecks([]);
+      return;
+    }
+    const usages = extractGraphEndpointUsages(output);
+    const seen = new Set<string>();
+    const next: { method: string; path: string; known: boolean }[] = [];
+    for (const u of usages) {
+      const key = `${u.method} ${u.path}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      next.push({
+        method: u.method,
+        path: u.path,
+        known: isKnownGraphEndpoint(u.method, u.path),
+      });
+    }
+    const sameAsPrev =
+      next.length === endpointChecks.length &&
+      next.every(
+        (n, i) =>
+          n.method === endpointChecks[i]?.method &&
+          n.path === endpointChecks[i]?.path &&
+          n.known === endpointChecks[i]?.known,
+      );
+    if (!sameAsPrev) setEndpointChecks(next);
+  }, [output, endpointChecks]);
 
   // Detect user-initiated scroll inside the code panel. Within ~24px of the
   // bottom counts as "still following"; anything higher pauses auto-scroll.
@@ -922,7 +964,13 @@ export default function GeneratorClient({
 
           {/* Output */}
           {output && !lintResult?.hardReject && (
-            <div ref={outputRef} className="mt-10 scroll-mt-24">
+            <div
+              ref={outputRef}
+              // Break out of the prose-width parent (max-w-4xl) on large
+              // screens so the code area + inspector both have room. Capped at
+              // viewport width minus padding so we never overflow.
+              className="animate-in fade-in slide-in-from-bottom-2 mx-auto mt-10 scroll-mt-24 duration-300 lg:-mx-24 xl:-mx-40"
+            >
               <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3.5 text-[13px]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
                 <span className="text-muted-foreground leading-relaxed">
@@ -934,7 +982,10 @@ export default function GeneratorClient({
                 </span>
               </div>
 
-              <div className="border-border/70 bg-card overflow-hidden rounded-xl border shadow-md ring-1 ring-black/[0.02] dark:ring-white/[0.02]">
+              {/* Split layout: code panel on the left, Inspector slides in from the right. */}
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+                <div className="min-w-0 flex-1">
+                  <div className="border-border/70 bg-card overflow-hidden rounded-xl border shadow-md ring-1 ring-black/[0.02] dark:ring-white/[0.02]">
                 <div className="border-border/70 bg-background/60 flex items-center justify-between gap-3 border-b px-3.5 py-2.5 backdrop-blur-sm">
                   <div className="text-muted-foreground flex items-center gap-2.5 font-mono text-[10.5px] tracking-[0.18em] uppercase">
                     {/* Faux window dots — gives the code block a familiar
@@ -995,32 +1046,45 @@ export default function GeneratorClient({
                     </Button>
                   </div>
                 </div>
-                <pre
-                  ref={codeScrollRef}
-                  onScroll={onCodeScroll}
-                  className={cn(
-                    "max-h-[640px] overflow-auto p-4 text-[12.5px] leading-relaxed",
-                  )}
-                >
-                  <code ref={codeRef} className="language-powershell font-mono">
-                    {code}
-                  </code>
-                  {isStreaming && (
-                    <span
-                      className="bg-accent ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse align-baseline"
-                      aria-hidden="true"
-                    />
-                  )}
-                </pre>
-              </div>
+                    <pre
+                      ref={codeScrollRef}
+                      onScroll={onCodeScroll}
+                      className={cn(
+                        "max-h-[640px] overflow-auto p-4 text-[12.5px] leading-relaxed",
+                      )}
+                    >
+                      <code
+                        ref={codeRef}
+                        className="language-powershell font-mono"
+                      >
+                        {code}
+                      </code>
+                      {isStreaming && (
+                        <span
+                          className="bg-accent ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse align-baseline"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </pre>
+                  </div>
+                </div>
 
-              {lintResult && !isStreaming && !isAutoFixing && (
-                <LintPanel
-                  result={lintResult}
-                  onFix={onFixIssues}
-                  fixDisabled={isStreaming}
-                />
-              )}
+                {/* Inspector — slides in from the right on desktop, sits below on
+                  mobile. The slide-in animation runs once on mount, after the
+                  parent fade-in plays, so it feels like the panel "opens up". */}
+                <aside
+                  className="animate-in fade-in slide-in-from-right-4 duration-500 lg:w-[296px] lg:flex-shrink-0"
+                  style={{ animationDelay: "120ms", animationFillMode: "both" }}
+                >
+                  <Inspector
+                    isStreaming={isStreaming}
+                    isAutoFixing={isAutoFixing}
+                    endpointChecks={endpointChecks}
+                    lintResult={lintResult}
+                    onFix={onFixIssues}
+                  />
+                </aside>
+              </div>
 
               {/* Refine — iterative follow-up. Each refinement counts toward
                 the daily quota. */}

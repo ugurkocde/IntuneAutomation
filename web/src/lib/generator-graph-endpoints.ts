@@ -156,9 +156,13 @@ export function extractGraphEndpointUsages(
     /["']https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/[^"'\s]*["']/g;
   for (const match of scriptBody.matchAll(uriRe)) {
     const raw = match[0].slice(1, -1); // strip quotes
-    if (raw.includes("$")) continue; // PowerShell interpolation — bail
     const url = stripQueryAndFragment(raw);
     const path = url.replace(/^https:\/\/graph\.microsoft\.com/, "");
+    // PowerShell variable interpolation in the path means the final URI is
+    // not known statically — skip. We only check `$` in the path (OData
+    // query params like `?$select=` are legitimate and write as `` ?`$select= ``
+    // in PowerShell double-quoted strings, which we don't want to bail on).
+    if (path.includes("$")) continue;
     const idx = match.index ?? 0;
     const lineStart = scriptBody.lastIndexOf("\n", idx - 1) + 1;
     const nextNewline = scriptBody.indexOf("\n", idx);
