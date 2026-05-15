@@ -794,11 +794,10 @@ export default function GeneratorClient({
                       key={example}
                       type="button"
                       onClick={() => setPrompt(example)}
-                      className="border-border/60 hover:border-accent/50 hover:bg-accent-soft text-muted-foreground hover:text-foreground focus-visible:ring-accent/40 group bg-background/40 cursor-pointer rounded-md border px-2.5 py-1.5 text-[12px] leading-snug transition-all duration-150 hover:-translate-y-px focus-visible:ring-2 focus-visible:outline-none"
+                      title={example}
+                      className="border-border/60 hover:border-accent/50 hover:bg-accent-soft text-muted-foreground hover:text-foreground focus-visible:ring-accent/40 group bg-background/40 cursor-pointer rounded-md border px-2.5 py-1.5 text-left text-[12px] leading-snug transition-all duration-150 hover:-translate-y-px focus-visible:ring-2 focus-visible:outline-none"
                     >
-                      {example.length > 60
-                        ? example.slice(0, 60) + "…"
-                        : example}
+                      {example}
                     </button>
                   ))}
                 </div>
