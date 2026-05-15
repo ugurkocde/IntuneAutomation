@@ -423,7 +423,14 @@ export function lintScript(code: string): LintResult {
   // ------------------------------------------------------------------
   const endpointChecks = checkGraphEndpoints(codeWithoutHelpBlock);
   const unknownEndpoints = endpointChecks.filter((c) => !c.matched);
-  if (endpointChecks.length > 0 && unknownEndpoints.length === 0) {
+  const v1Endpoints = endpointChecks.filter(
+    (c) => c.matched && c.wrongVersion,
+  );
+  if (
+    endpointChecks.length > 0 &&
+    unknownEndpoints.length === 0 &&
+    v1Endpoints.length === 0
+  ) {
     findings.push({
       id: "graph-endpoints-valid",
       severity: "pass",
@@ -442,6 +449,16 @@ export function lintScript(code: string): LintResult {
       category: "correctness",
       message: `Graph endpoint not found in the official catalog: ${u.method} ${u.path}.`,
       detail: `Replace with a real endpoint or remove this call.${suggestionText}`,
+    });
+  }
+  if (v1Endpoints.length > 0) {
+    findings.push({
+      id: "graph-endpoint-v1",
+      severity: "warn",
+      category: "correctness",
+      message: `${v1Endpoints.length} Graph endpoint${v1Endpoints.length === 1 ? " uses" : "s use"} /v1.0 — switch to /beta.`,
+      detail:
+        "IntuneAutomation generator always uses /beta for the full Intune device-management API surface. Rewrite each /v1.0 URI to /beta with the same path.",
     });
   }
 

@@ -130,3 +130,21 @@ export async function releaseReservation(
   const key = `gen:tokens:${utcDateKey()}`;
   await redis.incrby(key, -reservedTokens);
 }
+
+// Continuation session — short-lived marker proving this IP has recently passed
+// Turnstile on /generate. Chained operations (/fix auto-pass, /refine) read it
+// instead of asking the user to re-solve a Turnstile challenge for what is
+// logically one task. Per-IP rate limit and daily-cap reservations still apply
+// independently, so this only weakens bot-verification, nothing else.
+const SESSION_TTL_SEC = 5 * 60;
+
+export async function markSessionActive(ipHash: string): Promise<void> {
+  if (!redis) return;
+  await redis.set(`gen:session:${ipHash}`, "1", { ex: SESSION_TTL_SEC });
+}
+
+export async function hasActiveSession(ipHash: string): Promise<boolean> {
+  if (!redis) return true; // dev mode without Redis allows everything
+  const v = await redis.get(`gen:session:${ipHash}`);
+  return v !== null;
+}

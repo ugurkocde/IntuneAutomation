@@ -8,6 +8,7 @@ import {
   checkPerIp,
   commitReservation,
   hashIp,
+  markSessionActive,
   releaseReservation,
   reserveTokens,
 } from "~/server/generator/rate-limit";
@@ -88,6 +89,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Turnstile passed — open a 5-minute continuation session for this IP so
+  // auto-fix and refine can run without re-requesting a fresh Turnstile token
+  // (which is single-use server-side).
+  const ipHash = hashIp(ip);
+  await markSessionActive(ipHash);
+
   // 2. Cheap pre-flight topic filter. Done BEFORE rate-limit + reservation so
   // an off-topic prompt doesn't consume the user's daily quota. The Turnstile
   // gate above prevents bots from hammering this cheap path indefinitely.
@@ -107,7 +114,6 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Per-IP rate limit
-  const ipHash = hashIp(ip);
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));

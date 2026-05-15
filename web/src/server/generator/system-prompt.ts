@@ -40,7 +40,8 @@ const HARD_RULES = `# Hard rules — do NOT violate
 22. Keep total script length reasonable. Target 200-500 lines for typical scripts. Do not pad with dead code.
 23. If the user request is ambiguous, make the most reasonable assumption an experienced Intune admin would make and document the assumption in the .NOTES block. Do NOT ask clarifying questions — the user cannot reply mid-generation.
 24. If the user request is outside the domain (not Intune / Microsoft 365 / Graph / Windows management / macOS endpoint management), produce a single-line PowerShell script that does nothing but Write-Warning with a message explaining the request is out of scope. Still wrap it in the full comment-based help block.
-25. Comments in the script body should be sparse. Explain WHY, not WHAT. Section headers (\`# ===== SECTION =====\`) are encouraged for readability.`;
+25. Comments in the script body should be sparse. Explain WHY, not WHAT. Section headers (\`# ===== SECTION =====\`) are encouraged for readability.
+26. **Always use the \`/beta\` Microsoft Graph endpoint.** Every \`https://graph.microsoft.com/...\` URI in the script MUST use the \`/beta\` path segment, never \`/v1.0\`. The beta surface exposes the full Intune device-management API. This rule is absolute — even if a hand-verified sample below shows \`/v1.0\`, rewrite the path to \`/beta\` when emitting the script.`;
 
 const STRUCTURE_TEMPLATE = `# Canonical structure (reference template)
 

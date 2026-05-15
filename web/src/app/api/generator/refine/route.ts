@@ -7,6 +7,7 @@ import { scrubPrompt } from "~/server/generator/scrub";
 import {
   checkPerIp,
   commitReservation,
+  hasActiveSession,
   hashIp,
   releaseReservation,
   reserveTokens,
@@ -87,12 +88,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1. Turnstile
-  const turnstile = await verifyTurnstile(
-    typeof turnstileToken === "string" ? turnstileToken : null,
-    ip,
-  );
-  if (!turnstile.ok) {
+  // 1. Bot/abuse gate — accept EITHER fresh Turnstile token OR active
+  // continuation session opened by a recent /generate (same model as /fix).
+  const ipHash = hashIp(ip);
+  let verified = false;
+  if (typeof turnstileToken === "string" && turnstileToken.length > 0) {
+    const t = await verifyTurnstile(turnstileToken, ip);
+    verified = t.ok;
+  }
+  if (!verified && (await hasActiveSession(ipHash))) {
+    verified = true;
+  }
+  if (!verified) {
     return errorResponse(
       403,
       "turnstile-failed",
@@ -139,7 +146,6 @@ export async function POST(req: NextRequest) {
   );
 
   // 5. Per-IP rate limit (refinements count as generations).
-  const ipHash = hashIp(ip);
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));

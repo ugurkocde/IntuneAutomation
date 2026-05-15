@@ -127,15 +127,23 @@ export function suggestGraphEndpoints(
     .map((x) => `${method.toUpperCase()} ${x.tpl}`);
 }
 
-// Result for the lint rule. `match` is null when the URI doesn't correspond
-// to a known endpoint; the lint surfaces the candidate suggestions.
+// Result for the lint rule. `matched` is false when the URI doesn't correspond
+// to a known endpoint; `wrongVersion` is true when the script uses /v1.0 — the
+// generator's policy is to always use /beta for the full Intune surface.
 export type EndpointCheck = {
   method: string;
   uri: string;
   path: string;
   matched: boolean;
+  wrongVersion: boolean;
   suggestions: string[];
 };
+
+function pathVersion(path: string): "v1.0" | "beta" | "unknown" {
+  if (path.startsWith("/v1.0/")) return "v1.0";
+  if (path.startsWith("/beta/")) return "beta";
+  return "unknown";
+}
 
 // Extract every `https://graph.microsoft.com/{v1.0|beta}/...` URI literal from
 // the script body, paired with its inferred HTTP method (default GET; overridden
@@ -194,6 +202,7 @@ export function checkGraphEndpoints(scriptBody: string): EndpointCheck[] {
       uri: u.uri,
       path: u.path,
       matched,
+      wrongVersion: pathVersion(u.path) === "v1.0",
       suggestions: matched ? [] : suggestGraphEndpoints(u.method, u.path, 3),
     };
   });

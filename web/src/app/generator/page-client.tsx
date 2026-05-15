@@ -303,16 +303,22 @@ export default function GeneratorClient({
     el.scrollTop = el.scrollHeight;
   }, [isStreaming, output]);
 
-  // Live Graph endpoint verification — re-runs on every output chunk so the
-  // admin can see in real time that detected URIs are being checked against
-  // the published Microsoft Graph catalog. Cheap: regex + Map lookup against
-  // ~6,400 templates, microseconds per call. Deduped by `METHOD path`.
+  // Live Graph endpoint verification + partial lint during streaming.
+  // Endpoint checks re-run on every chunk against the ~6,400 published Graph
+  // templates (microseconds per call). The partial lint runs as soon as the
+  // metadata block has closed (so the structural hard-reject check doesn't
+  // fire spuriously on incomplete output) — surfaces metadata + permissions
+  // findings mid-stream while pattern-absence categories stay pending until
+  // the post-stream effect commits the final result.
   useEffect(() => {
     if (!output) {
       if (endpointChecks.length > 0) setEndpointChecks([]);
+      if (isStreaming) setLintResult(null);
       return;
     }
-    const usages = extractGraphEndpointUsages(output);
+    const extracted = extractPowerShellCode(output) ?? output;
+
+    const usages = extractGraphEndpointUsages(extracted);
     const seen = new Set<string>();
     const next: { method: string; path: string; known: boolean }[] = [];
     for (const u of usages) {
@@ -334,7 +340,17 @@ export default function GeneratorClient({
           n.known === endpointChecks[i]?.known,
       );
     if (!sameAsPrev) setEndpointChecks(next);
-  }, [output, endpointChecks]);
+
+    if (isStreaming) {
+      const trimmed = extracted.trim();
+      // Wait for the metadata block to be fully written — before this point
+      // lint hard-rejects on structurally-incomplete output, which would
+      // cause a brief red flash before the real findings settle in.
+      if (trimmed.includes("#>") && trimmed.includes(".TITLE")) {
+        setLintResult(lintScript(extracted));
+      }
+    }
+  }, [output, endpointChecks, isStreaming]);
 
   // Detect user-initiated scroll inside the code panel. Within ~24px of the
   // bottom counts as "still following"; anything higher pauses auto-scroll.
