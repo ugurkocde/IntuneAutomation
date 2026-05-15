@@ -137,7 +137,11 @@ export default function GeneratorClient({
   // Ref-bridge so the post-stream effect (declared above runFix) can invoke
   // the latest fix routine without depending on it directly.
   const runFixRef = useRef<
-    | ((script: string, findings: LintResult["findings"]) => Promise<void>)
+    | ((
+        script: string,
+        findings: LintResult["findings"],
+        isAutoFix: boolean,
+      ) => Promise<void>)
     | null
   >(null);
 
@@ -384,8 +388,11 @@ export default function GeneratorClient({
     ) {
       didAutoFixRef.current = true;
       setIsAutoFixing(true);
+      // Auto-fix is server-initiated (the user didn't click anything). Pass
+      // isAutoFix=true so the server skips the per-IP rate limit — one
+      // user-initiated generate shouldn't count as two units of quota.
       void runFixRef
-        .current(extracted, result.findings)
+        .current(extracted, result.findings, true)
         .finally(() => setIsAutoFixing(false));
       // Don't run Prism on output we're about to replace.
       return;
@@ -578,8 +585,15 @@ export default function GeneratorClient({
   // Shared fix-streaming routine. Used by both the manual "Fix with AI"
   // button and the post-generation auto-fix pass. Takes the script + findings
   // explicitly so callers don't have to round-trip through state.
+  // `isAutoFix` distinguishes the two callers: when true (post-generation
+  // pass the user didn't ask for), the server skips the per-IP rate limit
+  // so a single user-initiated generation doesn't burn two units of quota.
   const runFix = useCallback(
-    async (currentScript: string, findings: LintResult["findings"]) => {
+    async (
+      currentScript: string,
+      findings: LintResult["findings"],
+      isAutoFix: boolean,
+    ) => {
       setError(null);
       setIsStreaming(true);
       setLintResult(null);
@@ -598,6 +612,7 @@ export default function GeneratorClient({
             currentScript,
             findings,
             turnstileToken,
+            isAutoFix,
           }),
           signal: controller.signal,
         });
@@ -646,7 +661,8 @@ export default function GeneratorClient({
       return;
     const currentScript = extractPowerShellCode(output) ?? output;
     if (!currentScript) return;
-    await runFix(currentScript, lintResult.findings);
+    // Manual user-initiated fix — counts toward per-IP quota.
+    await runFix(currentScript, lintResult.findings, false);
   }, [lintResult, output, runFix]);
 
   const onCopy = useCallback(async () => {

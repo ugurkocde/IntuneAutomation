@@ -367,23 +367,45 @@ export function lintScript(code: string): LintResult {
   // ------------------------------------------------------------------
   // 9. Null-safe date parsing
   // ------------------------------------------------------------------
-  // Flag direct [DateTime]::Parse($x.someDateField) without a preceding null check.
-  // This is heuristic — we don't have a full PS parser.
+  // Flag direct [DateTime]::Parse($x.someDateField) without a preceding guard.
+  // Recognized guards (any of these means the call is safe):
+  //   - same line includes `if (`, `?` ternary, `-and`, or `$null -ne`
+  //   - the ~300 chars before the call contain an `if (...)` or `while (...)`
+  //     condition that references the SAME property name (multi-line block)
+  //   - the ~300 chars before contain a `try {` (try/catch wrap)
+  // We don't have a real PS parser; the heuristic favors not flagging false
+  // positives over catching every edge case, because the warning triggers
+  // auto-fix and an over-eager rule causes auto-fix to loop without progress.
   const dateParseMatches = Array.from(
     codeWithoutHelpBlock.matchAll(
       /\[DateTime\]::Parse\(\s*\$(?:_|\w+)\.(\w*[Dd]ate[Tt]ime\w*|\w*[Tt]ime)\s*\)/g,
     ),
   );
-  // Crude check: if the same line context doesn't include "if (" or "?" near the parse, flag it.
+  const escapeForRegex = (s: string) =>
+    s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const unsafeDateParses = dateParseMatches.filter((m) => {
     const idx = m.index ?? 0;
+    const fieldName = m[1] ?? "";
     const lineStart = codeWithoutHelpBlock.lastIndexOf("\n", idx) + 1;
     const lineEnd = codeWithoutHelpBlock.indexOf("\n", idx);
     const line = codeWithoutHelpBlock.slice(
       lineStart,
       lineEnd === -1 ? undefined : lineEnd,
     );
-    return !/\bif\s*\(|\?\s*\{|-and|\$null\s+-ne/.test(line);
+    if (/\bif\s*\(|\?\s*\{|-and|\$null\s+-ne/.test(line)) return false;
+
+    // Walk back ~300 chars (typically 5-8 lines of PS).
+    const before = codeWithoutHelpBlock.slice(Math.max(0, idx - 300), idx);
+    // Multi-line if/while guard that references the SAME property.
+    const fieldGuard = new RegExp(
+      `\\b(if|while)\\s*\\([^)]*\\b${escapeForRegex(fieldName)}\\b`,
+      "i",
+    );
+    if (fieldGuard.test(before)) return false;
+    // Try-wrap (any enclosing try block in nearby scope).
+    if (/\btry\s*\{/.test(before)) return false;
+
+    return true;
   });
   if (unsafeDateParses.length > 0) {
     findings.push({
@@ -392,7 +414,7 @@ export function lintScript(code: string): LintResult {
       category: "correctness",
       message: `${unsafeDateParses.length} unguarded \`[DateTime]::Parse(...)\` call${unsafeDateParses.length === 1 ? "" : "s"} on a date field.`,
       detail:
-        "Wrap with `if ($x.field) { [DateTime]::Parse($x.field) } else { $null }` — date fields can be null on newly enrolled or errored devices.",
+        "Rewrite as `$var = if ($x.field) { [DateTime]::Parse($x.field) } else { $null }`, or wrap in try/catch. Parse THROWS on null/empty input — a later `if ($null -eq $var)` check is dead code and does not prevent the throw. Microsoft Graph returns null for date fields on newly enrolled or errored devices.",
     });
   }
 

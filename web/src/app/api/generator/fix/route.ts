@@ -11,6 +11,7 @@ import {
   hashIp,
   releaseReservation,
   reserveTokens,
+  tryConsumeAutoFixSlot,
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
 import {
@@ -36,6 +37,7 @@ type FixBody = {
   currentScript?: unknown;
   findings?: unknown;
   turnstileToken?: unknown;
+  isAutoFix?: unknown;
 };
 
 type ClientFinding = {
@@ -51,8 +53,14 @@ export async function POST(req: NextRequest) {
   } catch {
     return errorResponse(400, "bad-request", "Invalid JSON body.");
   }
-  const { originalPrompt, currentScript, findings, turnstileToken } = (body ??
-    {}) as FixBody;
+  const {
+    originalPrompt,
+    currentScript,
+    findings,
+    turnstileToken,
+    isAutoFix: isAutoFixRaw,
+  } = (body ?? {}) as FixBody;
+  const isAutoFix = isAutoFixRaw === true;
 
   if (
     typeof originalPrompt !== "string" ||
@@ -104,6 +112,7 @@ export async function POST(req: NextRequest) {
   // auto-fix and refine flows ride on the session marker instead of
   // forcing the user to re-solve a challenge.
   const ipHash = hashIp(ip);
+  let verifiedBySession = false;
   let verified = false;
   if (typeof turnstileToken === "string" && turnstileToken.length > 0) {
     const t = await verifyTurnstile(turnstileToken, ip);
@@ -111,6 +120,7 @@ export async function POST(req: NextRequest) {
   }
   if (!verified && (await hasActiveSession(ipHash))) {
     verified = true;
+    verifiedBySession = true;
   }
   if (!verified) {
     return errorResponse(
@@ -120,8 +130,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ipCheck = await checkPerIp(ipHash);
-  if (!ipCheck.allowed) {
+  // Auto-fix free pass: one auto-fix per session can skip the per-IP rate
+  // limit, since it's server-initiated as part of one logical generation the
+  // user already paid for. We require BOTH the client flag AND server-side
+  // slot consumption — the slot is single-claim per session, so a forged
+  // `isAutoFix: true` can't be used to spam.
+  let skipPerIp = false;
+  if (isAutoFix && verifiedBySession) {
+    skipPerIp = await tryConsumeAutoFixSlot(ipHash);
+  }
+
+  const ipCheck = skipPerIp
+    ? null
+    : await checkPerIp(ipHash);
+  if (ipCheck && !ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
     return errorResponse(
       429,
@@ -135,10 +157,14 @@ export async function POST(req: NextRequest) {
       },
     );
   }
-  const rateLimitHeaders = {
-    "x-ratelimit-remaining": String(ipCheck.remaining),
-    "x-ratelimit-reset": String(ipCheck.reset),
-  };
+  // When skipping the per-IP check we surface no rate-limit headers — the
+  // client still has the values from the original /generate response.
+  const rateLimitHeaders: Record<string, string> = ipCheck
+    ? {
+        "x-ratelimit-remaining": String(ipCheck.remaining),
+        "x-ratelimit-reset": String(ipCheck.reset),
+      }
+    : {};
 
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
   if (!reservation.allowed) {

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Lock,
+  ShieldCheck,
   Sparkles,
   Wand2,
   Zap,
@@ -141,6 +143,86 @@ const FEATURE_LIST = [
   "No sign-in required",
   "Free with daily quota",
   "Powered by Claude Haiku 4.5",
+];
+
+// Quality checks displayed in the inspector panel. Kept in sync with the
+// lint rules in src/lib/generator-lint.ts. Server-rendered as crawlable
+// reference content so anyone (or any bot) can read what's actually being
+// verified, including the Security vs Safety distinction.
+const QUALITY_CHECKS: Array<{
+  name: string;
+  summary: string;
+  examples: string[];
+  icon: typeof CheckCircle2;
+}> = [
+  {
+    name: "Metadata",
+    icon: CheckCircle2,
+    summary:
+      "The comment-based help block at the top of every script must be complete and tagged correctly.",
+    examples: [
+      "All 12 required fields present: .TITLE, .SYNOPSIS, .DESCRIPTION, .TAGS, .PLATFORM, .PERMISSIONS, .AUTHOR, .VERSION, .CHANGELOG, .LASTUPDATE, .EXAMPLE, .NOTES",
+      ".AUTHOR is tagged AI Generated (IntuneAutomation.com) — never an impersonated person",
+      ".LASTUPDATE is set to today's date in YYYY-MM-DD format",
+    ],
+  },
+  {
+    name: "Permissions",
+    icon: Lock,
+    summary:
+      "Every Microsoft Graph permission scope declared in .PERMISSIONS must be a real scope, not invented.",
+    examples: [
+      "Each scope is matched against the official Microsoft Graph permission list (~700 scopes refreshed weekly from merill/msgraph)",
+      "Unknown or misspelled scopes are flagged — common cause of Connect-MgGraph failures at runtime",
+    ],
+  },
+  {
+    name: "Security",
+    icon: ShieldCheck,
+    summary:
+      "Detects code-injection and credential-leak risks in the script body.",
+    examples: [
+      "No Invoke-Expression or iex on user-controlled input",
+      "No hardcoded passwords, API keys, tokens, or connection strings",
+      "No -ExecutionPolicy Bypass without a reason",
+      "No hardcoded non-Microsoft external URLs (webhook URLs must be parameters)",
+    ],
+  },
+  {
+    name: "Correctness",
+    icon: Wand2,
+    summary:
+      "Catches logic bugs that pass syntax check but fail at runtime against a real Graph tenant.",
+    examples: [
+      "Null-unsafe [DateTime]::Parse on Graph date fields like lastSyncDateTime — Parse throws on null, a post-assignment null check is dead code",
+      "Cmdlet confusions: Get-SecureBootUEFI used as a boolean, Get-Tpm used for BitLocker status",
+      "Connect-MgGraph -Identity used without an Azure Automation detection branch (interactive runs fail)",
+      "Every https://graph.microsoft.com/... URI is matched against the published Graph endpoint catalog (6,300+ endpoints)",
+      "All Graph URIs must use the /beta path, never /v1.0 — the beta surface exposes the full Intune device-management API",
+    ],
+  },
+  {
+    name: "Safety",
+    icon: AlertTriangle,
+    summary:
+      "Guards on destructive bulk operations. Different from Security — Safety is about protecting the tenant from accidental mass changes, not about code-level vulnerabilities.",
+    examples: [
+      "Any call to /retire, /wipe, /delete, /reset must run inside a script declared with [CmdletBinding(SupportsShouldProcess=$true)]",
+      "SupportsShouldProcess gives the admin -WhatIf for safe-preview and -Confirm for explicit approval",
+      "Without it, a single fat-finger run can wipe hundreds of devices with no undo",
+    ],
+  },
+  {
+    name: "Graph endpoints",
+    icon: ShieldCheck,
+    summary:
+      "Each Microsoft Graph URI literal in the script is checked against the full published endpoint catalog in real time as the script streams in.",
+    examples: [
+      "Unknown endpoints are flagged with up to 3 closest known matches as candidate replacements",
+      "Catches model hallucinations — invented paths that look plausible but don't exist",
+      "Skipped when the URI contains PowerShell variable interpolation in the path (final URI not knowable statically)",
+    ],
+  },
 ];
 
 export default function GeneratorPage() {
@@ -333,6 +415,47 @@ function GeneratorSeoFooter() {
             </li>
           ))}
         </ol>
+      </div>
+
+      {/* Quality checks — explains what every category in the inspector
+          panel actually verifies. Server-rendered so the explanation is
+          crawlable and a stable on-page reference for Security vs Safety. */}
+      <div>
+        <div className="text-muted-foreground mb-4 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase">
+          <ShieldCheck className="text-accent h-3 w-3" aria-hidden="true" />
+          Quality checks
+        </div>
+        <h2 className="font-display mb-3 text-[24px] leading-[1.15] tracking-tight sm:text-[30px]">
+          What we verify in every script
+        </h2>
+        <p className="text-muted-foreground mb-5 max-w-2xl text-[14.5px] leading-relaxed sm:text-[15px]">
+          Every generated script runs through six independent checks. The
+          inspector panel on the right of the output streams these in real
+          time during generation. Any warning or failure triggers an automatic
+          fix pass at no quota cost.
+        </p>
+        <ul className="border-border/70 bg-card/40 divide-border/50 divide-y rounded-xl border backdrop-blur-sm">
+          {QUALITY_CHECKS.map((check) => (
+            <li key={check.name} className="flex gap-4 p-5">
+              <div className="bg-accent-soft text-accent border-accent/30 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border">
+                <check.icon className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-foreground mb-1 text-[15px] leading-tight font-medium">
+                  {check.name}
+                </h3>
+                <p className="text-muted-foreground mb-2 text-[14px] leading-relaxed">
+                  {check.summary}
+                </p>
+                <ul className="text-muted-foreground/90 list-disc space-y-1 pl-4 text-[13px] leading-relaxed">
+                  {check.examples.map((example) => (
+                    <li key={example}>{example}</li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Example use cases — server-rendered semantic <ul> for crawlers. The

@@ -148,3 +148,19 @@ export async function hasActiveSession(ipHash: string): Promise<boolean> {
   const v = await redis.get(`gen:session:${ipHash}`);
   return v !== null;
 }
+
+// Try to claim the single auto-fix slot that comes with each session. The
+// client triggers at most one auto-fix per generation, but we enforce it
+// server-side too so a forged `isAutoFix: true` flag can't be used to bypass
+// the per-IP rate limit indefinitely.
+//
+// Returns true if the slot was free (and is now consumed), false if already
+// used in this session window.
+export async function tryConsumeAutoFixSlot(ipHash: string): Promise<boolean> {
+  if (!redis) return true; // dev mode allows
+  const result = await redis.set(`gen:autofix:${ipHash}`, "1", {
+    nx: true,
+    ex: SESSION_TTL_SEC,
+  });
+  return result === "OK";
+}

@@ -41,7 +41,11 @@ const HARD_RULES = `# Hard rules — do NOT violate
 23. If the user request is ambiguous, make the most reasonable assumption an experienced Intune admin would make and document the assumption in the .NOTES block. Do NOT ask clarifying questions — the user cannot reply mid-generation.
 24. If the user request is outside the domain (not Intune / Microsoft 365 / Graph / Windows management / macOS endpoint management), produce a single-line PowerShell script that does nothing but Write-Warning with a message explaining the request is out of scope. Still wrap it in the full comment-based help block.
 25. Comments in the script body should be sparse. Explain WHY, not WHAT. Section headers (\`# ===== SECTION =====\`) are encouraged for readability.
-26. **Always use the \`/beta\` Microsoft Graph endpoint.** Every \`https://graph.microsoft.com/...\` URI in the script MUST use the \`/beta\` path segment, never \`/v1.0\`. The beta surface exposes the full Intune device-management API. This rule is absolute — even if a hand-verified sample below shows \`/v1.0\`, rewrite the path to \`/beta\` when emitting the script.`;
+26. **Always use the \`/beta\` Microsoft Graph endpoint.** Every \`https://graph.microsoft.com/...\` URI in the script MUST use the \`/beta\` path segment, never \`/v1.0\`. The beta surface exposes the full Intune device-management API. This rule is absolute — even if a hand-verified sample below shows \`/v1.0\`, rewrite the path to \`/beta\` when emitting the script.
+27. **Null-safe \`[DateTime]::Parse\` on Graph date properties.** Microsoft Graph routinely returns null or empty strings for fields like \`lastSyncDateTime\`, \`enrolledDateTime\`, \`lastLogonDateTime\` (new enrollments, errored devices). \`[DateTime]::Parse\` THROWS on null/empty input — it does not return \`$null\`. A downstream \`if ($null -eq $var)\` check is therefore dead code. ALWAYS guard before the call. Two acceptable forms:
+    - Inline ternary: \`$lastSync = if ($device.lastSyncDateTime) { [DateTime]::Parse($device.lastSyncDateTime) } else { $null }\`
+    - Try/catch wrap when the surrounding logic already needs error handling.
+    NEVER write a bare \`$x = [DateTime]::Parse($device.someDateField)\` and rely on a later null check — that pattern is a runtime exception waiting to happen.`;
 
 const STRUCTURE_TEMPLATE = `# Canonical structure (reference template)
 

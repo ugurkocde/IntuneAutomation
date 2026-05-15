@@ -46,6 +46,19 @@ const categoryLabel: Record<LintFinding["category"], string> = {
   safety: "Safety",
 };
 
+const categoryTooltip: Record<LintFinding["category"], string> = {
+  metadata:
+    "The comment-based help block: all 12 required fields present, AI-generated author tag, .LASTUPDATE is today.",
+  permissions:
+    "Every scope in .PERMISSIONS exists in the official Microsoft Graph permission list (~700 scopes).",
+  security:
+    "Code-injection and credential-leak risks: no Invoke-Expression, no hardcoded passwords/keys, no ExecutionPolicy Bypass, no non-Microsoft external URLs.",
+  correctness:
+    "Logic bugs: cmdlet misuse, null-unsafe [DateTime]::Parse on Graph fields, Connect-MgGraph -Identity without an Azure Automation branch, /v1.0 Graph URIs.",
+  safety:
+    "Destructive operations (retire / wipe / delete) are gated by [CmdletBinding(SupportsShouldProcess=$true)] so -WhatIf and -Confirm work.",
+};
+
 type CategoryState =
   | { status: "pending" }
   | { status: "pass" }
@@ -215,6 +228,7 @@ function CategoryRow({
         type="button"
         onClick={() => canExpand && setExpanded((v) => !v)}
         disabled={!canExpand}
+        title={categoryTooltip[category]}
         className={cn(
           "flex w-full items-center gap-2 px-3.5 py-2 text-left text-[12.5px]",
           canExpand && "hover:bg-foreground/[0.02] cursor-pointer",
@@ -305,7 +319,10 @@ function GraphEndpointSection({
 
   return (
     <div className="border-border/40 border-t">
-      <div className="flex items-center gap-2 px-3.5 py-2 text-[12.5px]">
+      <div
+        className="flex items-center gap-2 px-3.5 py-2 text-[12.5px]"
+        title="Every literal https://graph.microsoft.com/... URI in the script is matched against the published Microsoft Graph endpoint catalog (6,300+ endpoints). Unknown URIs are flagged with up to 3 closest known matches as suggestions."
+      >
         {showPending ? (
           <Loader2
             className="text-muted-foreground/60 h-3.5 w-3.5 animate-spin"
