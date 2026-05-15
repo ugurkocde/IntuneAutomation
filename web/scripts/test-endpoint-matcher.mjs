@@ -104,7 +104,7 @@ function stripQueryAndFragment(url) {
 function extractUsages(body) {
   const usages = [];
   const re =
-    /["']https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/[^"'\s]*["']/g;
+    /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
   for (const m of body.matchAll(re)) {
     const raw = m[0].slice(1, -1);
     const url = stripQueryAndFragment(raw);
@@ -128,6 +128,7 @@ Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/deviceManagement/no
 Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/users?\`$select=id,displayName"
 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/groups/abc-123/members"
 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/users/\$id"
+Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?\`$filter=operatingSystem eq 'macOS'&\`$select=id,deviceName"
 `;
 const usages = extractUsages(scriptSample);
 console.log(`\nIntegration: extracted ${usages.length} URIs from sample script`);
@@ -139,4 +140,11 @@ for (const u of usages) {
 }
 console.log(`Expected 1 unknown ("/deviceManagement/notARealThing"), got ${unknownCount}`);
 const integrationOk = unknownCount === 1;
-process.exit(fail === 0 && integrationOk ? 0 : 1);
+// Regression: the macOS-filter sample contains an OData query with a literal
+// space (`eq 'macOS'`). The old extractor regex bailed on whitespace and
+// failed to capture this URI at all.
+const macosFilterCaptured = usages.some((u) =>
+  u.path.includes("/deviceManagement/managedDevices"),
+);
+console.log(`macOS-filter URI captured: ${macosFilterCaptured}`);
+process.exit(fail === 0 && integrationOk && macosFilterCaptured ? 0 : 1);

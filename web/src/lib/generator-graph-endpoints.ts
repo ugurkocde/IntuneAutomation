@@ -159,9 +159,14 @@ export function extractGraphEndpointUsages(
   scriptBody: string,
 ): { method: string; uri: string; path: string }[] {
   const usages: { method: string; uri: string; path: string }[] = [];
-  // Match either single or double quoted Graph URIs.
+  // Match either single or double quoted Graph URIs. Spaces are allowed inside
+  // the URI body because PowerShell strings routinely contain unencoded OData
+  // query params like `?$filter=operatingSystem eq 'macOS'`. We only break on
+  // the MATCHING closing quote (via backreference, so the inner `'macOS'`
+  // inside a double-quoted URI doesn't terminate the match early) and on an
+  // embedded newline (`.` doesn't match `\n` in JS regex by default).
   const uriRe =
-    /["']https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/[^"'\s]*["']/g;
+    /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
   for (const match of scriptBody.matchAll(uriRe)) {
     const raw = match[0].slice(1, -1); // strip quotes
     const url = stripQueryAndFragment(raw);
