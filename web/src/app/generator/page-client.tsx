@@ -95,6 +95,10 @@ export default function GeneratorClient({
   const [redactions, setRedactions] = useState<Redaction[]>([]);
   const [copied, setCopied] = useState(false);
   const [lintResult, setLintResult] = useState<LintResult | null>(null);
+  // True while the post-stream auto-fix pass is running. UI suppresses the
+  // lint panel during this window so users see "Polishing..." instead of an
+  // intermediate panel + fix-button click sequence.
+  const [isAutoFixing, setIsAutoFixing] = useState(false);
   const [refinement, setRefinement] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileStatus, setTurnstileStatus] = useState<
@@ -113,6 +117,20 @@ export default function GeneratorClient({
   const abortRef = useRef<AbortController | null>(null);
   const outputRef = useRef<HTMLDivElement | null>(null);
   const didScrollForStreamRef = useRef(false);
+  const codeScrollRef = useRef<HTMLPreElement | null>(null);
+  // Sticky-to-bottom flag for the streaming code panel. Stays true while the
+  // user is at the bottom; flips to false the moment they scroll up, so we
+  // don't fight their manual review.
+  const followStreamRef = useRef(true);
+  // Per-generation flag — only one auto-fix pass is allowed per initial
+  // stream, so we don't loop on issues the model can't actually resolve.
+  const didAutoFixRef = useRef(false);
+  // Ref-bridge so the post-stream effect (declared above runFix) can invoke
+  // the latest fix routine without depending on it directly.
+  const runFixRef = useRef<
+    | ((script: string, findings: LintResult["findings"]) => Promise<void>)
+    | null
+  >(null);
 
   // Render Turnstile widget once the script loads.
   const renderTurnstile = useCallback(() => {
@@ -266,12 +284,54 @@ export default function GeneratorClient({
     didScrollForStreamRef.current = true;
   }, [isStreaming, output]);
 
+  // While streaming, keep the code panel pinned to the bottom so the user can
+  // follow new tokens. If the user scrolls up to review earlier output, we
+  // back off — followStreamRef tracks that intent.
+  useEffect(() => {
+    if (!isStreaming) return;
+    const el = codeScrollRef.current;
+    if (!el || !followStreamRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [isStreaming, output]);
+
+  // Detect user-initiated scroll inside the code panel. Within ~24px of the
+  // bottom counts as "still following"; anything higher pauses auto-scroll.
+  const onCodeScroll = useCallback(() => {
+    const el = codeScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    followStreamRef.current = distanceFromBottom < 24;
+  }, []);
+
   // Highlight the final output once streaming finishes, and run the lint pass.
   useEffect(() => {
     if (isStreaming || !output || !codeRef.current) return;
 
     const extracted = extractPowerShellCode(output) ?? output;
-    setLintResult(lintScript(extracted));
+    const result = lintScript(extracted);
+    setLintResult(result);
+
+    // Auto-fix once: if the very first lint pass after a fresh generation
+    // surfaces fail/warn findings, silently re-run the fix endpoint so the
+    // user gets a clean script without needing to click "Fix with AI".
+    // Skipped on hard-rejects (model produced non-script output) and after
+    // one pass already happened (so we don't loop on issues the model can't
+    // resolve).
+    const hasActionableIssues = result.failCount > 0 || result.warnCount > 0;
+    if (
+      hasActionableIssues &&
+      !result.hardReject &&
+      !didAutoFixRef.current &&
+      runFixRef.current
+    ) {
+      didAutoFixRef.current = true;
+      setIsAutoFixing(true);
+      void runFixRef
+        .current(extracted, result.findings)
+        .finally(() => setIsAutoFixing(false));
+      // Don't run Prism on output we're about to replace.
+      return;
+    }
 
     let cancelled = false;
     (async () => {
@@ -326,6 +386,10 @@ export default function GeneratorClient({
       setCopied(false);
       setIsStreaming(true);
       didScrollForStreamRef.current = false;
+      followStreamRef.current = true;
+      // Allow one auto-fix pass per fresh generation. Refine/fix don't reset
+      // this — only a brand-new prompt does.
+      didAutoFixRef.current = false;
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -401,6 +465,7 @@ export default function GeneratorClient({
     setIsStreaming(true);
     setLintResult(null);
     setCopied(false);
+    followStreamRef.current = true;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -452,65 +517,79 @@ export default function GeneratorClient({
     }
   }, [refinement, output, prompt, turnstileToken, absorbQuotaHeaders]);
 
+  // Shared fix-streaming routine. Used by both the manual "Fix with AI"
+  // button and the post-generation auto-fix pass. Takes the script + findings
+  // explicitly so callers don't have to round-trip through state.
+  const runFix = useCallback(
+    async (currentScript: string, findings: LintResult["findings"]) => {
+      setError(null);
+      setIsStreaming(true);
+      setLintResult(null);
+      setCopied(false);
+      followStreamRef.current = true;
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const res = await fetch("/api/generator/fix", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            originalPrompt: prompt,
+            currentScript,
+            findings,
+            turnstileToken,
+          }),
+          signal: controller.signal,
+        });
+
+        absorbQuotaHeaders(res);
+
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          throw new Error(data?.message ?? `Fix failed (${res.status})`);
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No response stream.");
+        const decoder = new TextDecoder();
+        let accumulated = "";
+        setOutput("");
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setOutput(accumulated);
+        }
+      } catch (err) {
+        if ((err as { name?: string } | null)?.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      } finally {
+        setIsStreaming(false);
+        abortRef.current = null;
+        if (turnstileWidgetIdRef.current && window.turnstile) {
+          window.turnstile.reset(turnstileWidgetIdRef.current);
+          setTurnstileToken(null);
+        }
+      }
+    },
+    [prompt, turnstileToken, absorbQuotaHeaders],
+  );
+
+  // Keep the ref pointed at the latest runFix so the post-stream effect can
+  // invoke it without taking a dep on the callback identity.
+  runFixRef.current = runFix;
+
   const onFixIssues = useCallback(async () => {
     if (!lintResult || lintResult.failCount + lintResult.warnCount === 0)
       return;
     const currentScript = extractPowerShellCode(output) ?? output;
     if (!currentScript) return;
-
-    setError(null);
-    setIsStreaming(true);
-    setLintResult(null);
-    setCopied(false);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const res = await fetch("/api/generator/fix", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          originalPrompt: prompt,
-          currentScript,
-          findings: lintResult.findings,
-          turnstileToken,
-        }),
-        signal: controller.signal,
-      });
-
-      absorbQuotaHeaders(res);
-
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        throw new Error(data?.message ?? `Fix failed (${res.status})`);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response stream.");
-      const decoder = new TextDecoder();
-      let accumulated = "";
-      setOutput("");
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setOutput(accumulated);
-      }
-    } catch (err) {
-      if ((err as { name?: string } | null)?.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setIsStreaming(false);
-      abortRef.current = null;
-      if (turnstileWidgetIdRef.current && window.turnstile) {
-        window.turnstile.reset(turnstileWidgetIdRef.current);
-        setTurnstileToken(null);
-      }
-    }
-  }, [lintResult, output, prompt, turnstileToken, absorbQuotaHeaders]);
+    await runFix(currentScript, lintResult.findings);
+  }, [lintResult, output, runFix]);
 
   const onCopy = useCallback(async () => {
     const code = extractPowerShellCode(output) ?? output;
@@ -879,7 +958,9 @@ export default function GeneratorClient({
                           style={{ backgroundColor: "var(--brand-accent)" }}
                           aria-hidden="true"
                         />
-                        Streaming
+                        {isAutoFixing
+                          ? "Polishing automatically"
+                          : "Streaming"}
                       </span>
                     )}
                   </div>
@@ -915,6 +996,8 @@ export default function GeneratorClient({
                   </div>
                 </div>
                 <pre
+                  ref={codeScrollRef}
+                  onScroll={onCodeScroll}
                   className={cn(
                     "max-h-[640px] overflow-auto p-4 text-[12.5px] leading-relaxed",
                   )}
@@ -931,7 +1014,7 @@ export default function GeneratorClient({
                 </pre>
               </div>
 
-              {lintResult && !isStreaming && (
+              {lintResult && !isStreaming && !isAutoFixing && (
                 <LintPanel
                   result={lintResult}
                   onFix={onFixIssues}

@@ -2,6 +2,7 @@
 // Pure function — runs client-side after streaming completes. No server roundtrip.
 
 import { GRAPH_SCOPES } from "./generator-graph-data";
+import { checkGraphEndpoints } from "./generator-graph-endpoints";
 //
 // Categories of checks:
 //   - Metadata completeness (the .TITLE/.SYNOPSIS/... block)
@@ -410,6 +411,37 @@ export function lintScript(code: string): LintResult {
         "`Connect-MgGraph -Identity` is used but there is no Azure Automation detection branch.",
       detail:
         "Interactive runs will fail. Detect with `$null -ne $PSPrivateMetadata.JobId.Guid` and branch.",
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // 11. Graph endpoint verification — every literal Graph URI in the
+  //     script body is checked against the published Graph API catalog
+  //     (compiled from merill/msgraph). Unknown endpoints are flagged
+  //     with up to 3 fuzzy-match candidate replacements so the auto-fix
+  //     pass has concrete suggestions instead of just "this is wrong".
+  // ------------------------------------------------------------------
+  const endpointChecks = checkGraphEndpoints(codeWithoutHelpBlock);
+  const unknownEndpoints = endpointChecks.filter((c) => !c.matched);
+  if (endpointChecks.length > 0 && unknownEndpoints.length === 0) {
+    findings.push({
+      id: "graph-endpoints-valid",
+      severity: "pass",
+      category: "correctness",
+      message: `All ${endpointChecks.length} Microsoft Graph endpoint URI${endpointChecks.length === 1 ? "" : "s"} verified against the official catalog.`,
+    });
+  }
+  for (const u of unknownEndpoints) {
+    const suggestionText =
+      u.suggestions.length > 0
+        ? ` Closest known endpoints: ${u.suggestions.join("; ")}.`
+        : "";
+    findings.push({
+      id: `graph-endpoint-unknown-${u.method.toLowerCase()}`,
+      severity: "fail",
+      category: "correctness",
+      message: `Graph endpoint not found in the official catalog: ${u.method} ${u.path}.`,
+      detail: `Replace with a real endpoint or remove this call.${suggestionText}`,
     });
   }
 
