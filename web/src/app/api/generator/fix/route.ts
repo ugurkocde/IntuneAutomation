@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { env } from "~/env";
 import { SYSTEM_PROMPT } from "~/server/generator/system-prompt";
+import { scrubPrompt } from "~/server/generator/scrub";
 import {
   checkPerIp,
   commitReservation,
@@ -11,30 +12,23 @@ import {
   reserveTokens,
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
+import {
+  errorResponse,
+  getClientIp,
+  sanitizeForFencedInterpolation,
+  streamAbortSignal,
+} from "~/server/generator/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_SCRIPT_LENGTH = 30_000;
+const MAX_ORIGINAL_PROMPT_LENGTH = 4000;
+const MAX_FINDING_DETAIL_LENGTH = 500;
 const MAX_FINDINGS = 20;
 const MAX_OUTPUT_TOKENS = 6000;
 const RESERVED_TOKENS_PER_REQUEST = 8000;
 const MODEL_ID = "claude-haiku-4-5";
-
-function getClientIp(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]?.trim() ?? "unknown";
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
-
-function errorResponse(
-  status: number,
-  code: string,
-  message: string,
-  extra?: Record<string, unknown>,
-) {
-  return NextResponse.json({ error: code, message, ...extra }, { status });
-}
 
 type FixBody = {
   originalPrompt?: unknown;
@@ -64,6 +58,13 @@ export async function POST(req: NextRequest) {
     originalPrompt.trim().length === 0
   ) {
     return errorResponse(400, "bad-request", "Original prompt missing.");
+  }
+  if (originalPrompt.length > MAX_ORIGINAL_PROMPT_LENGTH) {
+    return errorResponse(
+      400,
+      "prompt-too-long",
+      "Original prompt exceeds size limit.",
+    );
   }
   if (typeof currentScript !== "string" || currentScript.length === 0) {
     return errorResponse(400, "bad-request", "Current script missing.");
@@ -114,19 +115,21 @@ export async function POST(req: NextRequest) {
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
-    const res = errorResponse(
+    return errorResponse(
       429,
       "rate-limited",
       "You've reached the daily generation limit. Try again later.",
       { resetInSeconds: resetIn },
+      {
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": String(ipCheck.reset),
+        "retry-after": String(resetIn),
+      },
     );
-    res.headers.set("X-RateLimit-Remaining", "0");
-    res.headers.set("X-RateLimit-Reset", String(ipCheck.reset));
-    return res;
   }
   const rateLimitHeaders = {
-    "X-RateLimit-Remaining": String(ipCheck.remaining),
-    "X-RateLimit-Reset": String(ipCheck.reset),
+    "x-ratelimit-remaining": String(ipCheck.remaining),
+    "x-ratelimit-reset": String(ipCheck.reset),
   };
 
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
@@ -147,13 +150,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Scrub the original prompt — the user might have typed a secret in the
+  // initial generate call. We don't want it leaking to Anthropic on the fix.
+  const { cleaned: cleanedOriginalPrompt } = scrubPrompt(originalPrompt.trim());
+
+  // Sanitize the current script: it's client-controlled (whatever the browser
+  // POSTs), so it must not be able to break out of the fenced block we wrap
+  // it in. Replace bare ``` triples with a lookalike to neutralize injections.
+  const safeCurrentScript = sanitizeForFencedInterpolation(
+    currentScript,
+    MAX_SCRIPT_LENGTH,
+  );
+
   const issuesList = failOrWarnFindings
     .map((f, i) => {
-      const detail =
-        typeof f.detail === "string" && f.detail.length > 0
-          ? ` Suggestion: ${f.detail}`
-          : "";
-      return `${i + 1}. [${f.severity}] ${f.message}${detail}`;
+      const rawDetail =
+        typeof f.detail === "string" && f.detail.length > 0 ? f.detail : "";
+      const safeDetail = sanitizeForFencedInterpolation(
+        rawDetail,
+        MAX_FINDING_DETAIL_LENGTH,
+      )
+        .replace(/\n/g, " ")
+        .trim();
+      const detail = safeDetail.length > 0 ? ` Suggestion: ${safeDetail}` : "";
+      const safeMessage = sanitizeForFencedInterpolation(f.message, 300)
+        .replace(/\n/g, " ")
+        .trim();
+      const safeSeverity = f.severity === "fail" ? "fail" : "warn";
+      return `${i + 1}. [${safeSeverity}] ${safeMessage}${detail}`;
     })
     .join("\n");
 
@@ -161,6 +185,7 @@ export async function POST(req: NextRequest) {
   const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   let reconciled = false;
+  const lastUsage = { input: 0, output: 0 };
   const reconcile = async (actual: number) => {
     if (reconciled) return;
     reconciled = true;
@@ -173,12 +198,12 @@ export async function POST(req: NextRequest) {
 
   const fixInstruction = `The original user request was:
 
-${originalPrompt}
+${cleanedOriginalPrompt}
 
 You previously produced this script:
 
 \`\`\`powershell
-${currentScript}
+${safeCurrentScript}
 \`\`\`
 
 An automated quality check found these issues:
@@ -191,7 +216,7 @@ Produce a corrected version of the script that addresses ONLY these specific iss
     model: anthropic(MODEL_ID),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     temperature: 0.1,
-    abortSignal: req.signal,
+    abortSignal: streamAbortSignal(req),
     messages: [
       {
         role: "system",
@@ -205,12 +230,22 @@ Produce a corrected version of the script that addresses ONLY these specific iss
         content: fixInstruction,
       },
     ],
+    onChunk: ({ chunk }) => {
+      const maybeUsage = (chunk as unknown as { usage?: typeof lastUsage })
+        .usage;
+      if (maybeUsage) {
+        if (typeof maybeUsage.input === "number")
+          lastUsage.input = maybeUsage.input;
+        if (typeof maybeUsage.output === "number")
+          lastUsage.output = maybeUsage.output;
+      }
+    },
     onFinish: async ({ usage }) => {
       const total = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
       await reconcile(total);
     },
     onAbort: async () => {
-      await reconcile(0);
+      await reconcile(lastUsage.input + lastUsage.output);
     },
     onError: async () => {
       await reconcile(0);

@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { env } from "~/env";
@@ -14,30 +14,22 @@ import {
 import { verifyTurnstile } from "~/server/generator/turnstile";
 import { checkOnTopic } from "~/server/generator/topic-filter";
 import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
+import {
+  errorResponse,
+  getClientIp,
+  sanitizeForFencedInterpolation,
+  streamAbortSignal,
+} from "~/server/generator/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_REFINEMENT_LENGTH = 1500;
+const MAX_ORIGINAL_PROMPT_LENGTH = 4000;
 const MAX_SCRIPT_LENGTH = 30_000;
 const MAX_OUTPUT_TOKENS = 6000;
 const RESERVED_TOKENS_PER_REQUEST = 8000;
 const MODEL_ID = "claude-haiku-4-5";
-
-function getClientIp(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]?.trim() ?? "unknown";
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
-
-function errorResponse(
-  status: number,
-  code: string,
-  message: string,
-  extra?: Record<string, unknown>,
-) {
-  return NextResponse.json({ error: code, message, ...extra }, { status });
-}
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -57,6 +49,13 @@ export async function POST(req: NextRequest) {
 
   if (typeof originalPrompt !== "string" || originalPrompt.length === 0) {
     return errorResponse(400, "bad-request", "Original prompt missing.");
+  }
+  if (originalPrompt.length > MAX_ORIGINAL_PROMPT_LENGTH) {
+    return errorResponse(
+      400,
+      "prompt-too-long",
+      "Original prompt exceeds size limit.",
+    );
   }
   if (typeof currentScript !== "string" || currentScript.length === 0) {
     return errorResponse(400, "bad-request", "Current script missing.");
@@ -101,15 +100,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. Scrub the refinement instruction (same defense as the primary prompt).
-  // The current script is not scrubbed — it's already-generated PS code,
-  // not user input that might contain secrets.
+  // 2. Scrub both the refinement instruction AND the original prompt — both
+  // are user-controlled text that ends up in the LLM message verbatim.
   const { cleaned: cleanedRefinement } = scrubPrompt(refinement.trim());
+  const { cleaned: cleanedOriginalPrompt } = scrubPrompt(originalPrompt.trim());
 
-  // 3. Topic filter on the refinement instruction. The instruction must still
-  // be domain-relevant; "now write a poem instead" would be rejected here.
-  const topic = checkOnTopic(cleanedRefinement);
-  if (!topic.onTopic) {
+  // 3. Topic filter on BOTH the refinement and the original prompt. The
+  // original prompt appears first in the conversation; an attacker could try
+  // to slip a jailbreak in there and use a clean refinement to pass this gate.
+  const refinementTopic = checkOnTopic(cleanedRefinement);
+  if (!refinementTopic.onTopic) {
     const llmSaysOnTopic = await classifyOnTopicWithLLM(cleanedRefinement);
     if (!llmSaysOnTopic) {
       return errorResponse(
@@ -119,28 +119,48 @@ export async function POST(req: NextRequest) {
       );
     }
   }
+  const originalTopic = checkOnTopic(cleanedOriginalPrompt);
+  if (!originalTopic.onTopic) {
+    const llmSaysOnTopic = await classifyOnTopicWithLLM(cleanedOriginalPrompt);
+    if (!llmSaysOnTopic) {
+      return errorResponse(
+        400,
+        "off-topic",
+        "The original prompt does not look like an Intune / Microsoft Graph / Windows scripting request.",
+      );
+    }
+  }
 
-  // 4. Per-IP rate limit (refinements count as generations).
+  // 4. Sanitize the current script — client-controlled, must not break out
+  // of the fenced block we wrap it in.
+  const safeCurrentScript = sanitizeForFencedInterpolation(
+    currentScript,
+    MAX_SCRIPT_LENGTH,
+  );
+
+  // 5. Per-IP rate limit (refinements count as generations).
   const ipHash = hashIp(ip);
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
-    const res = errorResponse(
+    return errorResponse(
       429,
       "rate-limited",
       "You've reached the daily generation limit. Try again later.",
       { resetInSeconds: resetIn },
+      {
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": String(ipCheck.reset),
+        "retry-after": String(resetIn),
+      },
     );
-    res.headers.set("X-RateLimit-Remaining", "0");
-    res.headers.set("X-RateLimit-Reset", String(ipCheck.reset));
-    return res;
   }
   const rateLimitHeaders = {
-    "X-RateLimit-Remaining": String(ipCheck.remaining),
-    "X-RateLimit-Reset": String(ipCheck.reset),
+    "x-ratelimit-remaining": String(ipCheck.remaining),
+    "x-ratelimit-reset": String(ipCheck.reset),
   };
 
-  // 5. Reserve daily-cap tokens.
+  // 6. Reserve daily-cap tokens.
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
   if (!reservation.allowed) {
     return errorResponse(
@@ -163,6 +183,7 @@ export async function POST(req: NextRequest) {
   const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   let reconciled = false;
+  const lastUsage = { input: 0, output: 0 };
   const reconcile = async (actual: number) => {
     if (reconciled) return;
     reconciled = true;
@@ -175,12 +196,12 @@ export async function POST(req: NextRequest) {
 
   const refineInstruction = `The original user request was:
 
-${originalPrompt}
+${cleanedOriginalPrompt}
 
 The current script is:
 
 \`\`\`powershell
-${currentScript}
+${safeCurrentScript}
 \`\`\`
 
 The user wants this modification applied to the script:
@@ -193,7 +214,7 @@ Produce an updated version of the script that incorporates this modification. Ke
     model: anthropic(MODEL_ID),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     temperature: 0.2,
-    abortSignal: req.signal,
+    abortSignal: streamAbortSignal(req),
     messages: [
       {
         role: "system",
@@ -207,12 +228,22 @@ Produce an updated version of the script that incorporates this modification. Ke
         content: refineInstruction,
       },
     ],
+    onChunk: ({ chunk }) => {
+      const maybeUsage = (chunk as unknown as { usage?: typeof lastUsage })
+        .usage;
+      if (maybeUsage) {
+        if (typeof maybeUsage.input === "number")
+          lastUsage.input = maybeUsage.input;
+        if (typeof maybeUsage.output === "number")
+          lastUsage.output = maybeUsage.output;
+      }
+    },
     onFinish: async ({ usage }) => {
       const total = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
       await reconcile(total);
     },
     onAbort: async () => {
-      await reconcile(0);
+      await reconcile(lastUsage.input + lastUsage.output);
     },
     onError: async () => {
       await reconcile(0);

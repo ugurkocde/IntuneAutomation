@@ -21,16 +21,16 @@ export async function verifyTurnstile(
   }
 
   // No secret in non-dev environments is a deployment misconfiguration.
-  // Bypass to avoid hard outage, but warn loudly in logs so it's caught.
+  // Fail closed rather than silently disable bot verification.
   if (!env.TURNSTILE_SECRET_KEY) {
     if (!warnedAboutMissingSecret) {
-      console.warn(
-        "[generator] TURNSTILE_SECRET_KEY is not set — bot verification " +
-          "is DISABLED. Set the env var to enable Turnstile in production.",
+      console.error(
+        "[generator] TURNSTILE_SECRET_KEY is not set — rejecting all " +
+          "generator requests until the env var is configured.",
       );
       warnedAboutMissingSecret = true;
     }
-    return { ok: true, bypassed: true };
+    return { ok: false, reason: "turnstile-not-configured" };
   }
 
   if (!token) {

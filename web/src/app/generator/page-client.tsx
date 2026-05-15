@@ -1071,8 +1071,14 @@ function formatResetIn(resetMs: number, nowMs: number): string {
 }
 
 function extractPowerShellCode(text: string): string | null {
-  const match = text.match(/```(?:powershell|ps1)?\n?([\s\S]*?)```/);
-  if (match?.[1]) return match[1].trimEnd();
+  // Match the opening fence followed by everything up to the LAST closing
+  // fence in the string. Greedy match prevents premature termination if the
+  // script body happens to contain an embedded ``` triple (e.g. inside a
+  // here-string or comment).
+  const closed = text.match(/```(?:powershell|ps1)?\n?([\s\S]*)```/);
+  if (closed?.[1]) return closed[1].trimEnd();
+  // Still streaming — no closing fence yet. Return everything after the
+  // opening fence.
   const open = text.match(/```(?:powershell|ps1)?\n?([\s\S]*)$/);
   if (open?.[1]) return open[1].trimEnd();
   return null;

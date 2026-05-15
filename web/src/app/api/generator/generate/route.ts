@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 import { env } from "~/env";
@@ -14,6 +14,11 @@ import {
 import { verifyTurnstile } from "~/server/generator/turnstile";
 import { checkOnTopic } from "~/server/generator/topic-filter";
 import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
+import {
+  errorResponse,
+  getClientIp,
+  streamAbortSignal,
+} from "~/server/generator/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,21 +29,6 @@ const MAX_OUTPUT_TOKENS = 6000;
 // daily-cap accounting. Reconciled with actuals when the stream finishes.
 const RESERVED_TOKENS_PER_REQUEST = 8000;
 const MODEL_ID = "claude-haiku-4-5";
-
-function getClientIp(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]?.trim() ?? "unknown";
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
-
-function errorResponse(
-  status: number,
-  code: string,
-  message: string,
-  extra?: Record<string, unknown>,
-) {
-  return NextResponse.json({ error: code, message, ...extra }, { status });
-}
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -121,19 +111,21 @@ export async function POST(req: NextRequest) {
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
-    const res = errorResponse(
+    return errorResponse(
       429,
       "rate-limited",
       "You've reached the daily generation limit. Try again later.",
       { resetInSeconds: resetIn },
+      {
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": String(ipCheck.reset),
+        "retry-after": String(resetIn),
+      },
     );
-    res.headers.set("X-RateLimit-Remaining", "0");
-    res.headers.set("X-RateLimit-Reset", String(ipCheck.reset));
-    return res;
   }
   const rateLimitHeaders = {
-    "X-RateLimit-Remaining": String(ipCheck.remaining),
-    "X-RateLimit-Reset": String(ipCheck.reset),
+    "x-ratelimit-remaining": String(ipCheck.remaining),
+    "x-ratelimit-reset": String(ipCheck.reset),
   };
 
   // 4. Reserve daily-cap budget pessimistically (closes the TOCTOU window).
@@ -158,6 +150,7 @@ export async function POST(req: NextRequest) {
   const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
   let reconciled = false;
+  let lastUsage: { input: number; output: number } = { input: 0, output: 0 };
   const reconcile = async (actual: number) => {
     if (reconciled) return;
     reconciled = true;
@@ -172,8 +165,9 @@ export async function POST(req: NextRequest) {
     model: anthropic(MODEL_ID),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     temperature: 0.2,
-    // Propagate client disconnects to Anthropic so cancels stop billing.
-    abortSignal: req.signal,
+    // Propagate client disconnects + hard stream timeout so cancels/stalls
+    // release the reservation promptly.
+    abortSignal: streamAbortSignal(req),
     messages: [
       {
         role: "system",
@@ -187,15 +181,28 @@ export async function POST(req: NextRequest) {
         content: `Today's date (use in .LASTUPDATE): ${today}\n\nUser request:\n${cleaned}`,
       },
     ],
+    onChunk: ({ chunk }) => {
+      // Some providers attach a usage delta to text chunks. Capture the
+      // latest known input-token count so abort can refund accurately.
+      const maybeUsage = (chunk as unknown as { usage?: typeof lastUsage })
+        .usage;
+      if (maybeUsage) {
+        if (typeof maybeUsage.input === "number")
+          lastUsage.input = maybeUsage.input;
+        if (typeof maybeUsage.output === "number")
+          lastUsage.output = maybeUsage.output;
+      }
+    },
     onFinish: async ({ usage }) => {
       const total = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
       await reconcile(total);
     },
     onAbort: async () => {
-      // Client disconnected. Refund what we haven't used. Anthropic billing
-      // for aborted streams is best-effort partial — we treat actual=0 here,
-      // which slightly over-refunds in the worst case but never under-refunds.
-      await reconcile(0);
+      // Client disconnected or stream timed out. Charge for whatever input
+      // tokens we know about — input is billed even on abort. Output tokens
+      // are best-effort partial; treating known input as the floor avoids
+      // material under-refund without going negative.
+      await reconcile(lastUsage.input + lastUsage.output);
     },
     onError: async () => {
       await reconcile(0);

@@ -89,10 +89,10 @@ export async function reserveTokens(
   }
   const key = `gen:tokens:${utcDateKey()}`;
   const newTotal = await redis.incrby(key, estimatedTokens);
-  // First write of the day — set TTL so the key self-cleans.
-  if (newTotal === estimatedTokens) {
-    await redis.expire(key, 60 * 60 * 48);
-  }
+  // Set TTL unconditionally — idempotent, avoids a TOCTOU where two concurrent
+  // writers both miss the "first write" condition and leave the key without
+  // expiry. Cheap.
+  await redis.expire(key, 60 * 60 * 48);
   if (newTotal > DAILY_CAP_TOKENS) {
     // Over the cap — refund the reservation and reject.
     await redis.incrby(key, -estimatedTokens);

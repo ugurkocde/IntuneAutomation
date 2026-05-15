@@ -1,14 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hashIp, peekPerIp } from "~/server/generator/rate-limit";
+import { getClientIp } from "~/server/generator/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getClientIp(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]?.trim() ?? "unknown";
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
 
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);

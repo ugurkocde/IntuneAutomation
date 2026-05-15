@@ -5,6 +5,11 @@
 
 import { GRAPH_SAMPLES } from "~/lib/generator-graph-data";
 
+// Placeholder used inside the few-shot examples for the .LASTUPDATE date.
+// Kept stable so the prompt cache hit rate stays high — the real date is
+// injected via the user message at request time.
+const FEW_SHOT_DATE_PLACEHOLDER = "YYYY-MM-DD";
+
 const ROLE = `You are a senior Microsoft Intune and Microsoft Graph PowerShell engineer writing production-quality scripts for IT administrators. Your output is published as part of the IntuneAutomation.com open-source library, so it must match the project's strict conventions exactly.`;
 
 const HARD_RULES = `# Hard rules — do NOT violate
@@ -284,7 +289,7 @@ Expected output (this is the canonical reference for any Graph reporting script)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-05-11
+    ${FEW_SHOT_DATE_PLACEHOLDER}
 
 .EXAMPLE
     .\\get-intune-role-assignments.ps1
@@ -483,7 +488,7 @@ Expected output (canonical pattern for any Remediation,Detection script — note
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-05-11
+    ${FEW_SHOT_DATE_PLACEHOLDER}
 
 .EXAMPLE
     .\\detect-disk-cleanup-needed.ps1
