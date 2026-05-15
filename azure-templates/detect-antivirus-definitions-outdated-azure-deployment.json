@@ -1,75 +1,17 @@
 {
-  "outputs": {
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    }
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "identity": {
-        "type": "SystemAssigned"
-      },
-      "type": "Microsoft.Automation/automationAccounts",
-      "apiVersion": "2023-11-01",
-      "name": "[parameters('automationAccountName')]",
-      "properties": {
-        "sku": {
-          "name": "Basic"
-        }
-      }
-    },
-    {
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "apiVersion": "2023-11-01",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "properties": {
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]",
-        "logProgress": "[variables('logProgress')]",
-        "description": "[parameters('runbookDescription')]"
-      }
-    }
-  ],
   "parameters": {
-    "runbookDescription": {
-      "type": "string",
-      "metadata": {
-        "description": "Description of the runbook"
-      },
-      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours)."
-    },
     "runbookName": {
       "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
       },
       "defaultValue": "detect-antivirus-definitions-outdated"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
+      }
     },
     "location": {
       "type": "string",
@@ -78,11 +20,12 @@
       },
       "defaultValue": "[resourceGroup().location]"
     },
-    "automationAccountName": {
+    "runbookDescription": {
+      "type": "string",
       "metadata": {
-        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
+        "description": "Description of the runbook"
       },
-      "type": "string"
+      "defaultValue": "Checks if Windows Defender definitions are current (within 48 hours)."
     }
   },
   "variables": {
@@ -91,5 +34,62 @@
     "runbookType": "PowerShell",
     "logProgress": false
   },
-  "contentVersion": "1.0.0.0"
+  "resources": [
+    {
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "Basic"
+        }
+      },
+      "type": "Microsoft.Automation/automationAccounts",
+      "name": "[parameters('automationAccountName')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "apiVersion": "2023-11-01"
+    },
+    {
+      "location": "[parameters('location')]",
+      "properties": {
+        "logVerbose": "[variables('logVerbose')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+      ],
+      "apiVersion": "2023-11-01"
+    }
+  ],
+  "contentVersion": "1.0.0.0",
+  "outputs": {
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
+    }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
 }
