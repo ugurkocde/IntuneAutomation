@@ -1077,26 +1077,44 @@ export default function GeneratorClient({
                     </Button>
                   </div>
                 </div>
-                    <pre
-                      ref={codeScrollRef}
-                      onScroll={onCodeScroll}
-                      className={cn(
-                        "max-h-[640px] overflow-auto p-4 text-[12.5px] leading-relaxed",
-                      )}
-                    >
-                      <code
-                        ref={codeRef}
-                        className="language-powershell font-mono"
+                    <div className="relative">
+                      <pre
+                        ref={codeScrollRef}
+                        onScroll={onCodeScroll}
+                        className={cn(
+                          "max-h-[640px] overflow-auto p-4 text-[12.5px] leading-relaxed",
+                        )}
                       >
-                        {code}
-                      </code>
+                        <code
+                          ref={codeRef}
+                          className="language-powershell font-mono"
+                        >
+                          {code}
+                        </code>
+                        {isStreaming && (
+                          <span
+                            className="bg-accent ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse align-baseline"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </pre>
+                      {/* Centered streaming overlay — a soft grayish wash
+                        across the entire code panel with the status word in
+                        the middle. Translucent so the streamed code keeps
+                        showing through. Pointer-events disabled so scroll +
+                        text selection on the pre still work. */}
                       {isStreaming && (
-                        <span
-                          className="bg-accent ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse align-baseline"
+                        <div
                           aria-hidden="true"
-                        />
+                          className="animate-in fade-in bg-foreground/[0.08] pointer-events-none absolute inset-0 flex items-center justify-center backdrop-blur-[1px] duration-300"
+                        >
+                          <div className="text-foreground inline-flex items-center gap-3 text-[20px] font-medium tracking-tight">
+                            <Loader2 className="text-accent h-5 w-5 animate-spin" />
+                            {isAutoFixing ? "Polishing…" : "Generating…"}
+                          </div>
+                        </div>
                       )}
-                    </pre>
+                    </div>
                   </div>
                 </div>
 
