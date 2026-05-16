@@ -1070,7 +1070,17 @@ export default function GeneratorClient({
                       variant="ghost"
                       onClick={onDownload}
                       disabled={isStreaming || !output}
-                      className="h-8 cursor-pointer gap-1.5 text-xs"
+                      className={cn(
+                        "h-8 cursor-pointer gap-1.5 text-xs transition-all",
+                        // Once the script is ready, promote Download to a
+                        // bordered/ringed pill so it reads as the primary
+                        // "take it" action instead of blending in with Copy.
+                        !isStreaming &&
+                          !isAutoFixing &&
+                          output &&
+                          !lintResult?.hardReject &&
+                          "border-accent/50 bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent border",
+                      )}
                     >
                       <Download className="h-3.5 w-3.5" />
                       Download
