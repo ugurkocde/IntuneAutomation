@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Github, Menu, X, Search, Sparkles } from "lucide-react";
+import { Github, Library, Menu, X, Search, Sparkles } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { useScripts } from "~/components/scripts-provider";
@@ -90,6 +90,14 @@ export default function Navbar() {
                 /
               </kbd>
             </button>
+
+            <Link
+              href="/scripts/"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <Library className="h-3.5 w-3.5" strokeWidth={2} />
+              Scripts
+            </Link>
 
             <Link
               href="/generator/"
@@ -183,6 +191,15 @@ export default function Navbar() {
                   /
                 </span>
               </button>
+
+              <Link
+                href="/scripts/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-foreground hover:bg-card flex items-center gap-2 rounded-md px-3 py-2.5 transition-colors"
+              >
+                <Library className="h-4 w-4" strokeWidth={2} />
+                Scripts
+              </Link>
 
               <Link
                 href="/generator/"
