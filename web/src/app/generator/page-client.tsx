@@ -1079,7 +1079,13 @@ export default function GeneratorClient({
                           !isAutoFixing &&
                           output &&
                           !lintResult?.hardReject &&
-                          "border-accent/50 bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent border",
+                          // The `!` important markers override the Button
+                          // ghost variant's `hover:text-accent-foreground`,
+                          // which tw-merge doesn't recognize as conflicting
+                          // with `text-accent` (different theme tokens).
+                          // Without these, hover flips text to white in
+                          // light mode and the button becomes unreadable.
+                          "border-accent/50 bg-accent-soft text-accent hover:bg-accent-soft! hover:text-accent! border",
                       )}
                     >
                       <Download className="h-3.5 w-3.5" />
