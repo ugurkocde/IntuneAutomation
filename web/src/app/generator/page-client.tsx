@@ -118,6 +118,10 @@ export default function GeneratorClient({
     limit: number;
     reset: number;
   } | null>(null);
+  // Lifetime "scripts generated so far" counter — small social-proof line
+  // under the daily quota. Fetched once on mount and bumped optimistically
+  // each time the user kicks off a generation so it ticks up in real time.
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
@@ -267,6 +271,27 @@ export default function GeneratorClient({
         });
       } catch {
         // Non-critical
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch the lifetime "scripts generated so far" count once on mount.
+  // Cached on the edge for 60s, so this is cheap even with traffic spikes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/generator/stats", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { total: number };
+        if (!cancelled && typeof data.total === "number") {
+          setTotalCount(data.total);
+        }
+      } catch {
+        // Non-critical — counter just stays hidden.
       }
     })();
     return () => {
@@ -479,6 +504,11 @@ export default function GeneratorClient({
           } | null;
           throw new Error(data?.message ?? `Request failed (${res.status})`);
         }
+
+        // Optimistically bump the visible lifetime counter so it ticks up
+        // immediately for the user instead of waiting for the next page
+        // load + 60s edge-cache refresh.
+        setTotalCount((n) => (n == null ? n : n + 1));
 
         const redactionHeader = res.headers.get("x-generator-redactions");
         if (redactionHeader) {
@@ -907,47 +937,58 @@ export default function GeneratorClient({
                 )}
               </div>
               {quota && (
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="bg-border/60 h-1 w-24 overflow-hidden rounded-full"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={quota.limit}
-                    aria-valuenow={quota.remaining}
-                    aria-label="Daily generations remaining"
-                  >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2.5">
                     <div
+                      className="bg-border/60 h-1 w-24 overflow-hidden rounded-full"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={quota.limit}
+                      aria-valuenow={quota.remaining}
+                      aria-label="Daily generations remaining"
+                    >
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          quota.remaining === 0
+                            ? "bg-destructive"
+                            : quota.remaining <= 1
+                              ? "bg-amber-500"
+                              : "bg-accent",
+                        )}
+                        style={{
+                          width: `${Math.max(0, Math.min(100, (quota.remaining / quota.limit) * 100))}%`,
+                          backgroundColor:
+                            quota.remaining > 1
+                              ? "var(--brand-accent)"
+                              : undefined,
+                        }}
+                      />
+                    </div>
+                    <p
                       className={cn(
-                        "h-full rounded-full transition-all",
+                        "text-[12px] tabular-nums",
                         quota.remaining === 0
-                          ? "bg-destructive"
+                          ? "text-destructive"
                           : quota.remaining <= 1
-                            ? "bg-amber-500"
-                            : "bg-accent",
+                            ? "text-amber-500"
+                            : "text-muted-foreground",
                       )}
-                      style={{
-                        width: `${Math.max(0, Math.min(100, (quota.remaining / quota.limit) * 100))}%`,
-                        backgroundColor:
-                          quota.remaining > 1
-                            ? "var(--brand-accent)"
-                            : undefined,
-                      }}
-                    />
+                    >
+                      {quota.remaining === 0
+                        ? `Daily limit reached · resets in ${formatResetIn(quota.reset, now)}`
+                        : `${quota.remaining} of ${quota.limit} left today · resets in ${formatResetIn(quota.reset, now)}`}
+                    </p>
                   </div>
-                  <p
-                    className={cn(
-                      "text-[12px] tabular-nums",
-                      quota.remaining === 0
-                        ? "text-destructive"
-                        : quota.remaining <= 1
-                          ? "text-amber-500"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {quota.remaining === 0
-                      ? `Daily limit reached · resets in ${formatResetIn(quota.reset, now)}`
-                      : `${quota.remaining} of ${quota.limit} left today · resets in ${formatResetIn(quota.reset, now)}`}
-                  </p>
+                  {/* Lifetime social-proof counter. Hidden until the fetch
+                    resolves so the form doesn't flash a "0 generated"
+                    momentary state. */}
+                  {totalCount != null && totalCount > 0 && (
+                    <p className="text-muted-foreground/70 text-[11px] tabular-nums">
+                      {totalCount.toLocaleString()}{" "}
+                      {totalCount === 1 ? "script" : "scripts"} generated so far
+                    </p>
+                  )}
                 </div>
               )}
             </div>

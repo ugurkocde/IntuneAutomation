@@ -8,6 +8,7 @@ import {
   checkPerIp,
   commitReservation,
   hashIp,
+  incrementTotalCount,
   markSessionActive,
   releaseReservation,
   reserveTokens,
@@ -94,6 +95,13 @@ export async function POST(req: NextRequest) {
   // (which is single-use server-side).
   const ipHash = hashIp(ip);
   await markSessionActive(ipHash);
+
+  // Bump the lifetime "scripts generated so far" counter that the form
+  // shows as social proof. Only /generate counts — fix/refine are part of
+  // the same logical generation.
+  void incrementTotalCount().catch(() => {
+    // Counter telemetry is best-effort; never fail a generation on it.
+  });
 
   // 2. Cheap pre-flight topic filter. Done BEFORE rate-limit + reservation so
   // an off-topic prompt doesn't consume the user's daily quota. The Turnstile

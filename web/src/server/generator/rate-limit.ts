@@ -164,3 +164,25 @@ export async function tryConsumeAutoFixSlot(ipHash: string): Promise<boolean> {
   });
   return result === "OK";
 }
+
+// Lifetime counter of successful initial generations. Incremented only on
+// /generate after Turnstile passes — fix and refine calls are part of one
+// logical generation and don't inflate the public count. Surfaced via the
+// /api/generator/stats endpoint as social proof on the generator form.
+const TOTAL_COUNT_KEY = "gen:count:total";
+
+export async function incrementTotalCount(): Promise<void> {
+  if (!redis) return;
+  await redis.incr(TOTAL_COUNT_KEY);
+}
+
+export async function getTotalCount(): Promise<number> {
+  if (!redis) return 0;
+  const v = await redis.get<number | string | null>(TOTAL_COUNT_KEY);
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
