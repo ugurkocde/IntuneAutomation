@@ -34,6 +34,7 @@ export async function generateMetadata({
   }
 
   const publishedTime = new Date(post.date).toISOString();
+  const modifiedTime = new Date(post.lastUpdated).toISOString();
   const url = `${BASE_URL}/blog/${slug}/`;
 
   return {
@@ -49,7 +50,7 @@ export async function generateMetadata({
       url,
       siteName: "IntuneAutomation",
       publishedTime,
-      modifiedTime: publishedTime,
+      modifiedTime,
       authors: [post.author],
       tags: post.tags,
       images: post.image
@@ -94,6 +95,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         title={post.title}
         description={post.description}
         date={post.date}
+        lastUpdated={post.lastUpdated}
         author={post.author}
         image={post.image}
         tags={post.tags}

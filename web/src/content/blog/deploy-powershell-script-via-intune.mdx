@@ -1,0 +1,161 @@
+---
+title: "How to Deploy a PowerShell Script via Intune: Step-by-Step Guide"
+description: "A complete walkthrough for deploying PowerShell scripts to Windows devices through Microsoft Intune platform scripts — context, requirements, troubleshooting, and the patterns that actually work in production."
+date: "2026-05-19"
+author: "IntuneAutomation Team"
+tags:
+  [
+    "Intune",
+    "PowerShell",
+    "Platform Scripts",
+    "Windows",
+    "Tutorial",
+    "Deployment",
+  ]
+category: "tutorials"
+readingTime: "11 min read"
+published: true
+---
+
+If you need to run PowerShell against a fleet of Windows endpoints — set a registry value, install a feature, drop a file, write a marker for compliance — **Intune platform scripts** are the simplest deployment vehicle Microsoft gives you. They are also the feature most likely to fail silently the first time, because the execution context, encoding, signing, and 64-bit behaviour all matter and none of it is obvious from the Intune portal UI.
+
+This guide walks through deploying a PowerShell script to managed Windows devices using Intune's built-in platform scripts feature, the constraints you need to design around, and how to debug the deployment when it does not behave the way you expect.
+
+If you would rather call Microsoft Graph from a workstation or schedule a tenant-wide script in Azure Automation, those are different deployment models — see the [Intune scripts pillar guide](/intune-scripts/) for the full landscape.
+
+## What an Intune platform script actually is
+
+A platform script (sometimes called a "device management script") is a `.ps1` file you upload to Intune. Intune pushes it to assigned Windows devices via the Intune Management Extension (IME), and the IME executes it on the device. The script runs **once per device** by default, with a per-device success state you can re-trigger only by removing and re-assigning the script.
+
+That single execution model is the most important detail. A platform script is not a recurring job. If you need re-evaluation, use a [proactive remediation pair](/scripts/remediation/) instead, which runs on a schedule and exposes detection state. Platform scripts are for one-shot operations that should run once when the device reaches the assignment and then stay applied.
+
+The other thing the docs do not surface clearly: platform scripts only target **Windows 10 and Windows 11 devices enrolled in Intune with the Intune Management Extension installed**. Co-managed devices need the Intune Management Extension workload pointed at Intune. macOS, iOS, and Android use entirely separate script and configuration mechanisms.
+
+## Prerequisites checklist
+
+Before uploading anything, confirm:
+
+- Devices are Windows 10 1607+ or Windows 11, Entra-joined or hybrid-joined
+- Devices are enrolled in Intune and the Intune Management Extension is installed (it deploys automatically when the device is targeted by any Win32 app or platform script)
+- You have **Policy and Profile Manager** or **Intune Administrator** role in the tenant
+- Your script is encoded as **UTF-8 with BOM** or **ANSI** — UTF-16/UTF-8 without BOM will fail to run on some Windows builds
+- Your script is **under 200 KB**
+- Your script is **idempotent**: it can run repeatedly without breaking the device, because device wipes and re-enrolments will re-run it
+
+Skipping the idempotency check is the single most common cause of "it worked in testing, why is helpdesk getting weird tickets two weeks later".
+
+## Writing a script that is safe to deploy
+
+A production-quality platform script does four things: detects current state, decides whether action is needed, performs the change, and exits with a meaningful code. The IME treats exit code `0` as success and any non-zero exit as failure for Intune reporting. Failures do not retry automatically.
+
+Here is the shape of a script that registers a custom Windows feature flag in the registry — written to run in SYSTEM context, log to `ProgramData`, and exit cleanly whether the value already existed or had to be created.
+
+```powershell
+<#
+.SYNOPSIS
+    Register the Contoso-FeatureX flag for managed Windows devices.
+
+.DESCRIPTION
+    Creates HKLM:\SOFTWARE\Contoso\FeatureX with a DWORD value of 1 if
+    missing. Idempotent — safe to re-run. Logs to
+    C:\ProgramData\Contoso\Logs\featurex-enable.log so the Intune
+    Management Extension can be inspected if reporting shows a failure.
+
+.NOTES
+    Run context:    SYSTEM (Intune platform script default)
+    Exit codes:     0 = success or already configured, 1 = failure
+#>
+
+$ErrorActionPreference = 'Stop'
+$logDir = 'C:\ProgramData\Contoso\Logs'
+$logFile = Join-Path $logDir 'featurex-enable.log'
+
+function Write-Log {
+    param([string]$Message)
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+    "{0:o}  {1}" -f (Get-Date), $Message | Out-File -FilePath $logFile -Append -Encoding utf8
+}
+
+try {
+    $keyPath = 'HKLM:\SOFTWARE\Contoso\FeatureX'
+    if (-not (Test-Path $keyPath)) {
+        New-Item -Path $keyPath -Force | Out-Null
+        Write-Log "Created key $keyPath"
+    }
+
+    $current = (Get-ItemProperty -Path $keyPath -Name Enabled -ErrorAction SilentlyContinue).Enabled
+    if ($current -ne 1) {
+        New-ItemProperty -Path $keyPath -Name Enabled -Value 1 -PropertyType DWord -Force | Out-Null
+        Write-Log 'Set Enabled = 1'
+    } else {
+        Write-Log 'Enabled already set to 1, no action taken'
+    }
+
+    exit 0
+}
+catch {
+    Write-Log "Failed: $($_.Exception.Message)"
+    exit 1
+}
+```
+
+The logging convention matters. When a script reports failure in the Intune portal, the only place you can read the script's own output is the IME log on the device itself. Writing your own structured log under `C:\ProgramData` means helpdesk can collect it without needing to repro.
+
+## Step-by-step deployment
+
+Once the script is written and tested locally:
+
+1. Open **Intune admin center** → **Devices** → **Scripts and remediations** → **Platform scripts** → **Add** → **Windows 10 and later**
+2. Give the script a name and short description. Names show up in device-side IME logs, so include a version or date suffix so future-you knows which iteration you are looking at — for example, `Contoso-FeatureX-Enable-v2-2026-05`
+3. Upload the `.ps1` file
+4. Configure the three execution toggles:
+   - **Run this script using the logged on credentials** — leave as **No** unless you specifically need to act on the user's profile (HKCU writes, per-user file drops). The default SYSTEM context is what you want for HKLM, Program Files, and service operations.
+   - **Enforce script signature check** — only enable if you are signing your scripts. Most internal scripts skip this.
+   - **Run script in 64-bit PowerShell host** — set to **Yes** for anything that touches 64-bit modules, the WMI repository, or registry keys outside `Wow6432Node`. Leaving it at the default 32-bit host is the cause of most "Get-CimInstance returns nothing" mysteries.
+5. Assign to an Entra group. Start with a pilot group of 5-10 devices. **Never** assign a new platform script directly to All Devices on first deployment.
+6. Click **Add** and wait
+
+Intune syncs to the IME on a schedule (every hour by default, faster with a manual sync), so devices in the pilot group will pick the script up within an hour or two. Force a sync by opening **Settings → Accounts → Access work or school → managed device → Info → Sync** on a test endpoint.
+
+## Reading the deployment status
+
+In the portal: **Platform scripts** → your script → **Monitor**. You get a per-device pass/fail count and a drill-down list. The list updates after each device check-in, not in real time.
+
+For deeper diagnosis on a single device, the IME log lives at `C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManagementExtension.log`. Open it with **CMTrace** (in the ConfigMgr toolkit) or any viewer that handles the CMTrace format. Search for the script's name or GUID. The log will show:
+
+- When the script was downloaded
+- The command line used to execute it
+- The exit code
+- Whether stdout/stderr was captured
+
+If the script exited with code `0` but the change did not happen, the script logic is wrong. If the script never ran, the device is not in the assignment, the IME is unhealthy, or the device is in a sync backoff.
+
+## The eight things that break platform scripts
+
+In rough order of how often I see each one:
+
+1. **Wrong encoding** — saved as UTF-8 without BOM by VS Code, IME fails to parse the BOM-less first line. Always **Save with Encoding → UTF-8 with BOM** before uploading.
+2. **64-bit vs 32-bit host mismatch** — script reads HKLM but only sees the WOW6432Node keys. Toggle the 64-bit setting.
+3. **SYSTEM context cannot reach the user profile** — `$env:USERPROFILE` returns `C:\Windows\system32\config\systemprofile`, not the signed-in user. Switch to user context or use `Get-CimInstance Win32_UserProfile` to enumerate.
+4. **Script blocks on input** — `Read-Host`, `Get-Credential`, `pause`. The IME has no console; the script hangs until killed.
+5. **Script depends on a module that is not installed** — SYSTEM PowerShell does not have your user's `$PROFILE` module path. Install per-device or inline the logic.
+6. **Network egress restrictions** — script reaches out to GitHub or a private feed and the device is on a network that blocks it.
+7. **Missing exit code** — script finishes with an uncaught exception, IME records "Failed" with no further detail.
+8. **Reassignment loop** — admin removes and re-adds the assignment, IME re-runs the script. If the script is destructive instead of idempotent, the device pays the cost twice.
+
+## When platform scripts are the wrong tool
+
+If you need re-evaluation on a schedule, use [proactive remediation script pairs](/scripts/remediation/). Detection runs hourly (or on your schedule), and remediation only fires when detection reports non-compliant. That is the right model for "ensure setting X stays at value Y."
+
+If you need to run something against the **tenant** rather than the device — bulk-edit assignments, generate a compliance report, export device inventory to CSV — that work belongs in [Azure Automation as a runbook](/scripts/operational/), authenticated through Managed Identity. Platform scripts only run on the endpoint.
+
+If you need to deploy a binary or installer, use a **Win32 app** instead. Win32 apps have detection rules, dependencies, requirements, and supersedence — none of which platform scripts can express.
+
+## Related resources
+
+- [The complete Intune scripts library](/intune-scripts/) — categories, deployment paths, and the curated catalog
+- [Proactive remediation scripts](/scripts/remediation/) — detection + remediation pairs for ongoing enforcement
+- [Operational scripts](/scripts/operational/) — tenant-wide automation for Azure Automation runbooks
+- [Diagnostics scripts](/scripts/diagnostics/) — endpoint log collection and Autopilot troubleshooting

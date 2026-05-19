@@ -477,6 +477,11 @@ interface BlogPostingSchemaProps {
   title: string;
   description: string;
   date: string;
+  /**
+   * Optional explicit last-modified timestamp. Falls back to `date` when
+   * absent so older call sites keep working.
+   */
+  lastUpdated?: string;
   author: string;
   image?: string;
   tags?: string[];
@@ -488,19 +493,23 @@ export function BlogPostingSchema({
   title,
   description,
   date,
+  lastUpdated,
   author,
   image,
   tags,
 }: BlogPostingSchemaProps) {
   const url = `${baseUrl}/blog/${slug}/`;
   const isoDate = new Date(date).toISOString();
+  const isoModified = lastUpdated
+    ? new Date(lastUpdated).toISOString()
+    : isoDate;
   const schema = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: title,
     description,
     datePublished: isoDate,
-    dateModified: isoDate,
+    dateModified: isoModified,
     inLanguage: "en-US",
     url,
     mainEntityOfPage: {

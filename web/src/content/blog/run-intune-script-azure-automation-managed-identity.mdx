@@ -1,0 +1,142 @@
+---
+title: "Run an Intune PowerShell Script in Azure Automation with Managed Identity"
+description: "Move your Intune PowerShell scripts off your workstation and into Azure Automation runbooks authenticated by Managed Identity — no app registrations, no secrets, no rotation. Step-by-step from runbook creation to scheduled execution."
+date: "2026-05-19"
+author: "IntuneAutomation Team"
+tags:
+  [
+    "Intune",
+    "Azure Automation",
+    "Managed Identity",
+    "PowerShell",
+    "Microsoft Graph",
+    "Runbooks",
+  ]
+category: "tutorials"
+readingTime: "12 min read"
+published: true
+---
+
+Most Intune PowerShell scripts start their life on an admin's workstation, signed in interactively through `Connect-MgGraph`. That is fine for development. It is the wrong place for anything that needs to run on a schedule, run unattended, or survive the admin leaving the company. Once a script becomes "the thing we run every Monday morning," it belongs in **Azure Automation as a runbook**, authenticated by **Managed Identity**.
+
+This guide walks through the full setup: creating an Automation account, enabling its system-assigned Managed Identity, granting the identity the Microsoft Graph permissions an Intune script needs, importing the script, and scheduling it. No app registrations, no client secrets to rotate, no plaintext credentials anywhere.
+
+For the broader catalog of Intune scripts and how Azure Automation fits among the other deployment paths, see the [Intune scripts pillar guide](/intune-scripts/).
+
+## Why Managed Identity instead of an app registration
+
+The historical pattern for unattended Graph access was to register an app, generate a client secret or certificate, store it somewhere the script could read, and refresh it before it expired. Every one of those steps is something you can get wrong, and the result was secrets sitting in vaults, scripts, or — too often — environment variables on the runbook itself.
+
+A **system-assigned Managed Identity** removes all of that. Azure provisions a service principal automatically when you enable Managed Identity on the Automation account, the identity's credentials live in Azure's identity infrastructure, and your script authenticates with a single line — `Connect-MgGraph -Identity` — that Azure resolves without ever exposing a secret to PowerShell. The identity is bound to the Automation account, so deleting the account deletes the identity. There is nothing to rotate, nothing to leak, and nothing to forget about.
+
+The trade-off is that you have to grant the Managed Identity its Microsoft Graph permissions explicitly through PowerShell or the Azure CLI, because the portal does not expose the "API Permissions" blade for managed identities the way it does for app registrations. That sounds like friction; it is mostly a one-time step you scripted once and never thought about again.
+
+## Prerequisites
+
+- An Azure subscription with permission to create resources in a resource group
+- **Application Administrator** or **Privileged Role Administrator** role in Microsoft Entra ID (to assign Graph application permissions to the Managed Identity)
+- **Intune Administrator** in the tenant
+- The script you want to schedule, written to detect Azure Automation and call `Connect-MgGraph -Identity` when present
+
+Scripts from the IntuneAutomation library handle the environment detection automatically — they use `$PSPrivateMetadata.JobId` to recognise Azure Automation and switch from interactive sign-in to Managed Identity transparently. Browse the [operational scripts catalog](/scripts/operational/) for runbook-ready examples.
+
+## Step 1 — Create the Automation account
+
+In the Azure portal: **Create a resource → Automation**. Pick a resource group, region, and name. For new accounts, accept the default of **System-assigned managed identity enabled**. The whole process takes about a minute.
+
+If you are adopting Managed Identity on an existing Automation account, open the account → **Identity** → **System assigned** → **Status: On** → **Save**. Azure provisions the identity and surfaces its Object (principal) ID. Copy that ID — you will need it in the next step.
+
+## Step 2 — Grant Microsoft Graph permissions to the identity
+
+This is the step the Azure portal hides. The Managed Identity exists, but it has no permissions to Microsoft Graph until you grant them through PowerShell.
+
+Run this from a workstation signed in as Application Administrator or Privileged Role Administrator:
+
+```powershell
+# Replace with your Managed Identity's principal (object) ID
+$managedIdentityId = '<paste-from-Identity-blade>'
+
+# Microsoft Graph service principal — the same in every tenant
+$graphSp = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+
+# The Graph application permissions the script needs (least privilege).
+# Use Read-only roles unless the script writes back to Intune.
+$rolesToGrant = @(
+    'DeviceManagementManagedDevices.Read.All'
+    'DeviceManagementConfiguration.Read.All'
+)
+
+foreach ($roleName in $rolesToGrant) {
+    $appRole = $graphSp.AppRoles |
+        Where-Object { $_.Value -eq $roleName -and $_.AllowedMemberTypes -contains 'Application' }
+
+    if (-not $appRole) {
+        Write-Warning "Role $roleName not found on Microsoft Graph"
+        continue
+    }
+
+    New-MgServicePrincipalAppRoleAssignment `
+        -ServicePrincipalId $managedIdentityId `
+        -PrincipalId $managedIdentityId `
+        -ResourceId $graphSp.Id `
+        -AppRoleId $appRole.Id | Out-Null
+
+    Write-Output "Granted $roleName"
+}
+```
+
+Each Intune script in the IntuneAutomation library declares its required Microsoft Graph scopes in the comment-based help header at the top of the file. Read the header, copy the scopes into `$rolesToGrant`, and re-run the snippet whenever you add a new runbook. Apply **least privilege**: grant only the scopes the script actually needs, and prefer `.Read.All` over `.ReadWrite.All` when the script does not modify state.
+
+If a script needs additional permissions (for example, `Group.Read.All` for group-based reports or `User.Read.All` for sign-in metadata), add those role names to the array and run the loop again.
+
+## Step 3 — Import the runbook
+
+Open the Automation account → **Runbooks → Create a runbook**. Pick **PowerShell** as the type, set the runtime version to **PowerShell 7.2** (or the latest non-preview runtime), and give it a meaningful name.
+
+You have two import paths:
+
+1. **Paste the script** into the editor and click **Save → Publish**
+2. **Click Deploy to Azure on any [IntuneAutomation script page](/scripts/)**, which loads an ARM template that creates the runbook in your selected Automation account with the script body pre-populated
+
+The Deploy to Azure path is faster for scripts already in the library — the ARM template handles import, naming, and publish in one go. For scripts you wrote yourself, the paste-and-publish path is fine.
+
+After publishing, click **Test pane** and start a test job. The test runs in Azure Automation immediately — same environment as a real execution — and streams output to the editor. If the script writes a CSV or sends an email, you will see those side effects happen for real. **Always test in the test pane before scheduling.**
+
+## Step 4 — Schedule the runbook
+
+In the runbook → **Schedules → Add a schedule → Create a new schedule**. Pick a recurrence. Common patterns:
+
+- **Daily compliance audits** — early morning so the report is ready when the day starts
+- **Weekly inventory exports** — off-hours on the day you review them
+- **Hourly drift checks** — for high-value detection where catching the issue 60 minutes earlier matters
+
+Attach the schedule to the runbook. The runbook will start on its next scheduled tick. Job history, output, and errors are visible under **Jobs** for as long as your Automation account's retention is configured for (90 days by default, configurable up to 365).
+
+## Step 5 — Verify and tighten
+
+After the first successful scheduled run:
+
+- Open **Jobs → the run → Output**. Confirm the script produced what it should — a CSV, an email, a Teams message, a successful state report
+- Open **Jobs → the run → Errors**. There should be none. Warnings are fine; errors mean the runbook failed even if its output looked correct
+- Open **Identity → Azure role assignments**. Confirm only the roles you granted are listed. If you over-granted during initial testing, revoke the extras now
+- Set up an **Action Group** or **alert rule** in Azure Monitor on the Automation account's `Failed` job count. You want to know within minutes when a runbook stops working, not when the helpdesk notices the report is missing
+
+The whole loop — runbook, schedule, identity, alerting — is now production-grade with no secrets to rotate.
+
+## When Azure Automation is the wrong choice
+
+If the work has to happen **on a specific device** (registry change, file drop, service start), Azure Automation has no path to the endpoint. Use an [Intune platform script](/blog/deploy-powershell-script-via-intune/) or a [proactive remediation pair](/blog/intune-detection-script-vs-remediation-script/) instead.
+
+If the work runs **once and only once** (a one-time migration, a tenant cutover), schedule it as a one-shot in Azure Automation or just run it interactively from your workstation. A runbook with no schedule is just a snippet of code with overhead.
+
+If the work needs **interactive input** (approvals, dynamic parameters chosen at runtime), Azure Automation is awkward — you can supply runbook parameters at start, but anything richer than that wants a different surface like a Logic App or a custom approval flow.
+
+For everything else — recurring reports, scheduled audits, drift detection, off-hours bulk operations — Managed Identity runbooks are the cleanest path. No app registrations, no secrets, no rotation, no plaintext credentials. The cost is fifteen minutes of one-time setup. The payoff is every script after the first one taking three minutes to ship.
+
+## Related resources
+
+- [The complete Intune scripts library](/intune-scripts/) — categories and deployment paths
+- [Operational scripts](/scripts/operational/) — runbook-ready scripts for scheduled tenant operations
+- [Reporting scripts](/scripts/reporting/) — CSV and HTML report generators that pair well with daily schedules
+- [How to deploy a PowerShell script via Intune](/blog/deploy-powershell-script-via-intune/) — the per-device deployment path
+- [Intune detection vs remediation scripts](/blog/intune-detection-script-vs-remediation-script/) — when to use proactive remediations instead of runbooks

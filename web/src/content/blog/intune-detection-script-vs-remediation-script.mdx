@@ -1,0 +1,155 @@
+---
+title: "Intune Detection Scripts vs Remediation Scripts: When to Use Each"
+description: "The practical difference between Intune detection scripts and remediation scripts, when to write each, how they pair together in proactive remediations, and the exit-code patterns that keep them reliable in production."
+date: "2026-05-19"
+author: "IntuneAutomation Team"
+tags:
+  [
+    "Intune",
+    "PowerShell",
+    "Proactive Remediations",
+    "Detection",
+    "Remediation",
+    "Compliance",
+  ]
+category: "tutorials"
+readingTime: "10 min read"
+published: true
+---
+
+In Microsoft Intune, "detection script" and "remediation script" sound interchangeable but they refer to two different roles that work together inside a single feature called **proactive remediations** (now called "Remediations" in the Intune admin center, though the API still uses the original term). Detection asks a question; remediation answers it. Get the pairing right and you have a self-healing fleet. Get it wrong and you have a script that loops, a script that runs and reports success while doing nothing, or worst of all, a script that "fixes" a device that was never broken.
+
+This post explains the difference, when each is the right tool, the exit-code contract Intune enforces, and the patterns that keep both halves safe to deploy.
+
+For the broader catalog of Intune scripts and where remediations fit into it, see the [Intune scripts pillar guide](/intune-scripts/).
+
+## The job each script does
+
+A **detection script** runs on the device on a schedule, inspects state, and reports compliance through its exit code. **Exit `0` means compliant** (the system is in the expected state), and **exit `1` means non-compliant** (something is wrong and the remediation should fire). Output written to stdout shows up in the Intune portal as the "pre-remediation detection output" column, so you can use `Write-Output` to surface human-readable context for whoever reviews the report.
+
+A **remediation script** runs only when the detection script paired with it exits `1`. Its job is to put the device into the compliant state — apply the missing setting, restart the service, clean up the disk, re-enable the encryption — and exit `0` if the change succeeded. If the remediation exits `1`, Intune records a remediation failure and the pair will be re-evaluated next cycle.
+
+Together, a detection-remediation pair is a **closed control loop**: detection observes, remediation corrects, detection re-observes on the next schedule and reports the device as compliant. That is the model. Everything else in this post is about not breaking it.
+
+## When to use a detection script alone
+
+You can deploy a detection script on its own, without a remediation. This is the right pattern when:
+
+- You want to **report on state** across the fleet without taking action — for example, "how many devices have TPM 2.0 enabled" or "how many have a specific app version installed"
+- The fix requires **user consent** or is **destructive enough** that you want an admin to action it manually
+- You are **investigating** an issue and want telemetry before you commit to a remediation
+
+The detection script becomes a scheduled inventory probe. Pair it with regular CSV exports from the **Device status** view in Intune and you have a longitudinal compliance report for the cost of writing one script.
+
+## When you need the full pair
+
+Use a detection + remediation pair when:
+
+- The compliant state is **deterministic** — the script knows what right looks like
+- The remediation is **non-destructive** and **idempotent** — running it twice does not break the device
+- The remediation does not require **user interaction**
+- The change is **reversible** through Intune or a future remediation if it turns out to be wrong
+
+Classic examples: a registry key that must equal a specific value, a service that must be running, a scheduled task that must exist, a Windows feature that must be enabled, a file that should be present in `C:\ProgramData`. These all have a clear "right answer" and a low-risk fix.
+
+Bad examples: anything that wipes user data, anything that triggers a reboot mid-day without warning, anything that modifies a production application's configuration without the app team knowing.
+
+## The exit-code contract
+
+Intune evaluates the pair using only the exit code. Stdout and stderr are captured for reporting but they have no semantic effect — they will not change whether remediation fires or whether the pair is marked successful.
+
+| Detection exits | Remediation behaviour | Reported as |
+| --- | --- | --- |
+| `0` | Not run | Compliant — no detection issue |
+| `1`, remediation exits `0` | Ran successfully | Detection issue, remediation succeeded |
+| `1`, remediation exits `1` | Ran and failed | Detection issue, remediation failed |
+| Any other code or unhandled exception | Treated as failure | Detection failed, remediation not run |
+
+That fourth row is the trap. If your detection script throws an uncaught exception, PowerShell exits with code `1` only if `$ErrorActionPreference = 'Stop'` is set. Otherwise it can exit `0` after a terminating error in the middle of the script — Intune will mark the device compliant when it is not. Always wrap detection logic in a `try/catch` and `exit 1` from the catch block.
+
+## A minimal pair
+
+Here is a detection script that checks whether the SmartScreen service is running:
+
+```powershell
+<#
+.SYNOPSIS
+    Detect SmartScreen service state.
+
+.NOTES
+    Exit 0 = compliant (running), exit 1 = non-compliant (anything else)
+#>
+
+$ErrorActionPreference = 'Stop'
+try {
+    $svc = Get-Service -Name 'smartscreen' -ErrorAction Stop
+    if ($svc.Status -eq 'Running') {
+        Write-Output 'SmartScreen running'
+        exit 0
+    }
+    Write-Output "SmartScreen status: $($svc.Status)"
+    exit 1
+}
+catch {
+    Write-Output "Detection error: $($_.Exception.Message)"
+    exit 1
+}
+```
+
+And the paired remediation that starts the service:
+
+```powershell
+<#
+.SYNOPSIS
+    Start the SmartScreen service if it is not already running.
+
+.NOTES
+    Idempotent. Exit 0 on success or already-running. Exit 1 if start fails.
+#>
+
+$ErrorActionPreference = 'Stop'
+try {
+    $svc = Get-Service -Name 'smartscreen' -ErrorAction Stop
+    if ($svc.Status -ne 'Running') {
+        if ($svc.StartType -eq 'Disabled') {
+            Set-Service -Name 'smartscreen' -StartupType Manual
+        }
+        Start-Service -Name 'smartscreen'
+    }
+    Write-Output 'SmartScreen running'
+    exit 0
+}
+catch {
+    Write-Output "Remediation error: $($_.Exception.Message)"
+    exit 1
+}
+```
+
+Two things are deliberate. First, the remediation re-checks the state before acting — it does not assume detection's reading is still accurate. Second, it handles the `Disabled` start type explicitly, because `Start-Service` on a disabled service throws, and a remediation that throws is a remediation that fails.
+
+## The patterns that keep pairs reliable
+
+**Set `$ErrorActionPreference = 'Stop'` at the top of both scripts.** Without it, non-terminating errors slip past your `try/catch` and the script exits `0` after a real failure. The default `Continue` behaviour was designed for interactive shells, not unattended remediations.
+
+**Write output that explains the decision.** The portal shows the last stdout line per execution. `Write-Output "SmartScreen status: $($svc.Status)"` tells the admin reviewing the report exactly why detection fired. Treat output like a structured log message, not a debug print.
+
+**Make the remediation idempotent.** Detection runs on a schedule. If remediation fires, succeeds, and the device drifts back into non-compliance an hour later, remediation will fire again. Make sure that running it twice in a row produces the same final state.
+
+**Avoid `Restart-Computer` in remediation.** Users will lose work. If a setting genuinely requires a reboot, set a registry marker and rely on Windows' next-reboot pickup — or schedule the reboot through a separate compliance policy with a grace period.
+
+**Pilot before tenant-wide.** A buggy remediation hitting every device in your tenant at once is a recoverable disaster, but it is still a disaster. Assign the pair to a 5-10 device pilot group first, watch for a full schedule cycle, then expand.
+
+## When to use something other than a remediation pair
+
+If the action only needs to run **once per device** (apply a setting at enrolment, drop a file, register a startup item), use an [Intune platform script](/blog/deploy-powershell-script-via-intune/) instead. Platform scripts run a single time per device unless re-assigned.
+
+If you need to act on **tenant-wide state** — bulk policy assignments, compliance reports, license audits — that work belongs in an Azure Automation runbook called via Microsoft Graph. The [operational scripts catalog](/scripts/operational/) is full of these. Remediations only see one device at a time.
+
+If you need to act on a **device's user profile** while the user is signed in, set the remediation to run in user context (the toggle in the Intune assignment), and remember that `$env:USERPROFILE` and HKCU will resolve correctly only in that context.
+
+## Related resources
+
+- [The complete Intune scripts library](/intune-scripts/) — categories and deployment paths
+- [Proactive remediation scripts](/scripts/remediation/) — production-ready detection/remediation pairs
+- [How to deploy a PowerShell script via Intune](/blog/deploy-powershell-script-via-intune/) — the one-shot platform-scripts deployment model
+- [Compliance scripts](/scripts/compliance/) — tenant-wide reporting on compliance state

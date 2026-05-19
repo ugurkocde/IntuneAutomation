@@ -8,6 +8,15 @@ export interface BlogPost {
   title: string;
   description: string;
   date: string;
+  /**
+   * ISO date of the last meaningful edit. Resolution order:
+   *   1. frontmatter `lastUpdated` (or alias `updated`)
+   *   2. filesystem mtime of the MDX file
+   *   3. frontmatter `date` (fallback so this is always set)
+   * Surfaced to the sitemap and BlogPosting JSON-LD so search and AI engines
+   * see real freshness signals instead of the deploy date.
+   */
+  lastUpdated: string;
   author: string;
   tags: string[];
   category: string;
@@ -28,6 +37,40 @@ function ensurePostsDirectory() {
   }
 }
 
+function toIsoOrNull(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
+}
+
+function resolveLastUpdated(
+  data: Record<string, unknown>,
+  fullPath: string,
+  fallbackDate: string,
+): string {
+  // 1. explicit frontmatter wins — author has stated the canonical last-edit
+  return (
+    toIsoOrNull(data.lastUpdated) ??
+    toIsoOrNull(data.updated) ??
+    // 2. filesystem mtime — accurate when the file was actually re-saved
+    (() => {
+      try {
+        return fs.statSync(fullPath).mtime.toISOString();
+      } catch {
+        return null;
+      }
+    })() ??
+    // 3. publish date — never null, last resort
+    fallbackDate
+  );
+}
+
 export const getAllPosts = cache(async (): Promise<BlogPost[]> => {
   ensurePostsDirectory();
 
@@ -40,11 +83,13 @@ export const getAllPosts = cache(async (): Promise<BlogPost[]> => {
       const fileContents = fs.readFileSync(fullPath, "utf8");
       const { data } = matter(fileContents);
 
+      const date = data.date || new Date().toISOString();
       return {
         slug,
         title: data.title || slug,
         description: data.description || "",
-        date: data.date || new Date().toISOString(),
+        date,
+        lastUpdated: resolveLastUpdated(data, fullPath, date),
         author: data.author || "IntuneAutomation Team",
         tags: data.tags || [],
         category: data.category || "general",
@@ -72,11 +117,13 @@ export const getPostBySlug = cache(
     const fileContents = fs.readFileSync(fullPath, "utf8");
     const { data, content } = matter(fileContents);
 
+    const date = data.date || new Date().toISOString();
     return {
       slug,
       title: data.title || slug,
       description: data.description || "",
-      date: data.date || new Date().toISOString(),
+      date,
+      lastUpdated: resolveLastUpdated(data, fullPath, date),
       author: data.author || "IntuneAutomation Team",
       tags: data.tags || [],
       category: data.category || "general",

@@ -68,12 +68,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
-    // Blog posts
+    // Blog posts — lastUpdated resolves frontmatter → file mtime → publish date
+    // in src/lib/blog.ts, so this surfaces real freshness to search and AI
+    // engines instead of pinning every post to the deploy date.
     const posts = await getAllPosts();
     const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
       url: `${baseUrl}/blog/${post.slug}/`,
-      // Blog posts don't currently expose lastUpdated; fall back to deploy date.
-      lastModified: STATIC_LAST_MODIFIED,
+      lastModified: new Date(post.lastUpdated),
       changeFrequency: "monthly",
       priority: 0.7,
     }));

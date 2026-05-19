@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ScriptDetailPageWrapper } from "~/components/script-detail-page-wrapper";
 import {
   ScriptStructuredData,
+  ScriptFAQStructuredData,
   BreadcrumbStructuredData,
 } from "~/components/script-structured-data";
 import type { Script } from "~/lib/scripts";
@@ -102,6 +103,7 @@ export default async function ScriptPage({ params }: PageProps) {
     return (
       <>
         <ScriptStructuredData script={script} url={scriptUrl} />
+        <ScriptFAQStructuredData script={script} />
         <BreadcrumbStructuredData items={breadcrumbItems} />
         <ScriptDetailPageWrapper
           script={JSON.parse(JSON.stringify(script))}
