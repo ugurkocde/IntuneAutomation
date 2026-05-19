@@ -13,23 +13,25 @@ const BASE_URL = "https://intuneautomation.com";
 
 export const metadata: Metadata = {
   // Short title — root layout's title template appends "| IntuneAutomation".
-  title: "All Scripts",
+  // Title front-loads the head keyword "Intune PowerShell Scripts" because
+  // /scripts/ is the page we most want ranking for catalog-intent searches.
+  title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
   description:
-    "Browse 50+ free PowerShell scripts for Intune automation. Find detection scripts, remediation scripts, and reporting tools. Filter by operational, reporting, or notification scripts.",
+    "Browse 120+ free PowerShell scripts for Microsoft Intune automation. Detection, remediation, compliance, reporting and Azure Automation runbooks. Filter by category, deploy in one click.",
   alternates: { canonical: "/scripts/" },
   openGraph: {
-    title: "All Scripts | IntuneAutomation",
+    title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
     description:
-      "Browse 50+ free PowerShell scripts for Microsoft Intune automation.",
+      "Browse 120+ free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.",
     url: `${BASE_URL}/scripts/`,
     type: "website",
     siteName: "IntuneAutomation",
   },
   twitter: {
     card: "summary_large_image",
-    title: "All Scripts | IntuneAutomation",
+    title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
     description:
-      "Browse 50+ free PowerShell scripts for Microsoft Intune automation.",
+      "Browse 120+ free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.",
   },
 };
 

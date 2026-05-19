@@ -1,22 +1,18 @@
 "use client";
 
-import { lazy, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { MotionConfig } from "framer-motion";
 import Navbar from "~/components/navbar";
 import HeroSection from "~/components/hero-section";
+import PopularScripts from "~/components/popular-scripts";
+import WhatsNewStrip from "~/components/whats-new-strip";
+import HowItWorksSection from "~/components/how-it-works-section";
+import FAQSection from "~/components/faq-section";
+import EcosystemSection from "~/components/ecosystem-section";
+import Footer from "~/components/footer";
+import SearchDialog from "~/components/search-dialog";
 import { ScriptsProvider, useScripts } from "~/components/scripts-provider";
 import { AnalyticsProvider } from "~/components/analytics-provider";
-
-// Lazy load non-critical components
-const Footer = lazy(() => import("~/components/footer"));
-const SearchDialog = lazy(() => import("~/components/search-dialog"));
-const EcosystemSection = lazy(() => import("~/components/ecosystem-section"));
-const FAQSection = lazy(() => import("~/components/faq-section"));
-const HowItWorksSection = lazy(
-  () => import("~/components/how-it-works-section"),
-);
-const WhatsNewStrip = lazy(() => import("~/components/whats-new-strip"));
 
 // FloatingSubscriptionCTA initialises a Supabase client at module load (for
 // the subscriber-count query) which touches localStorage. Defer it to the
@@ -25,22 +21,6 @@ const FloatingSubscriptionCTA = dynamic(
   () => import("~/components/floating-subscription-cta"),
   { ssr: false },
 );
-
-// Dynamic import for heavy components with loading states
-const PopularScripts = dynamic(() => import("~/components/popular-scripts"), {
-  loading: () => (
-    <div className="container mx-auto max-w-7xl px-4 py-16">
-      <div className="animate-pulse">
-        <div className="bg-muted mx-auto mb-4 h-8 w-48 rounded" />
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-muted h-64 rounded-lg" />
-          ))}
-        </div>
-      </div>
-    </div>
-  ),
-});
 
 const ScriptDetail = dynamic(
   () =>
@@ -66,27 +46,14 @@ export default function Home() {
             <main className="flex-1">
               <HeroSection />
               <PopularScripts />
-              <Suspense fallback={<div className="h-40" />}>
-                <WhatsNewStrip />
-              </Suspense>
-              <Suspense fallback={<div className="h-64" />}>
-                <HowItWorksSection />
-              </Suspense>
-              {/* FAQSection lives inside main because the navbar scrolls to its
-               * id anchor. Give it its own Suspense with min-height so the page
-               * doesn't collapse while the chunk loads. */}
-              <Suspense fallback={<div className="min-h-[400px]" />}>
-                <FAQSection />
-              </Suspense>
-              <Suspense fallback={<div className="min-h-[300px]" />}>
-                <EcosystemSection />
-              </Suspense>
+              <WhatsNewStrip />
+              <HowItWorksSection />
+              <FAQSection />
+              <EcosystemSection />
             </main>
 
-            <Suspense fallback={<div className="h-0" />}>
-              <SearchDialog />
-              <Footer />
-            </Suspense>
+            <SearchDialog />
+            <Footer />
             <FloatingSubscriptionCTA />
           </div>
           <HomeScriptDetail />

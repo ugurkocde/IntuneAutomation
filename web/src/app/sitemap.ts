@@ -5,7 +5,7 @@ import { getAllPosts } from "~/lib/blog";
 // Static fallback date — bump manually when home/blog index content meaningfully
 // changes so crawlers don't get spurious "everything updated" signals on every
 // deploy. Per-script/per-post pages still use their own lastUpdated dates.
-const STATIC_LAST_MODIFIED = new Date("2026-05-11");
+const STATIC_LAST_MODIFIED = new Date("2026-05-19");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://intuneautomation.com";
@@ -22,6 +22,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}/scripts/`,
       lastModified: STATIC_LAST_MODIFIED,
       changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/intune-scripts/`,
+      lastModified: STATIC_LAST_MODIFIED,
+      changeFrequency: "weekly",
       priority: 0.95,
     },
     {
