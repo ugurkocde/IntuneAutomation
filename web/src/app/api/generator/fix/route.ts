@@ -4,11 +4,13 @@ import { streamText } from "ai";
 import { env } from "~/env";
 import { SYSTEM_PROMPT } from "~/server/generator/system-prompt";
 import { scrubPrompt } from "~/server/generator/scrub";
+import { checkForPromptAbuse } from "~/lib/generator-abuse";
 import {
   checkPerIp,
   commitReservation,
   hasActiveSession,
   hashIp,
+  incrementSecurityEvent,
   releaseReservation,
   reserveTokens,
   tryConsumeAutoFixSlot,
@@ -123,10 +125,24 @@ export async function POST(req: NextRequest) {
     verifiedBySession = true;
   }
   if (!verified) {
+    void incrementSecurityEvent("turnstile-failed").catch(() => {});
     return errorResponse(
       403,
       "turnstile-failed",
       "Bot verification failed. Refresh the page and try again.",
+    );
+  }
+
+  // Scrub and abuse-check before consuming rate limit or token budget. The
+  // original prompt is user-controlled and is interpolated into the fix prompt.
+  const { cleaned: cleanedOriginalPrompt } = scrubPrompt(originalPrompt.trim());
+  const originalAbuse = checkForPromptAbuse(cleanedOriginalPrompt);
+  if (!originalAbuse.allowed) {
+    void incrementSecurityEvent(originalAbuse.category).catch(() => {});
+    return errorResponse(
+      400,
+      originalAbuse.category,
+      "This generator cannot help with prompt injection, malware, credential theft, evasion, persistence, or data exfiltration requests.",
     );
   }
 
@@ -140,10 +156,9 @@ export async function POST(req: NextRequest) {
     skipPerIp = await tryConsumeAutoFixSlot(ipHash);
   }
 
-  const ipCheck = skipPerIp
-    ? null
-    : await checkPerIp(ipHash);
+  const ipCheck = skipPerIp ? null : await checkPerIp(ipHash);
   if (ipCheck && !ipCheck.allowed) {
+    void incrementSecurityEvent("rate-limited").catch(() => {});
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
     return errorResponse(
       429,
@@ -168,6 +183,7 @@ export async function POST(req: NextRequest) {
 
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
   if (!reservation.allowed) {
+    void incrementSecurityEvent("daily-cap-reached").catch(() => {});
     return errorResponse(
       503,
       "daily-cap-reached",
@@ -183,10 +199,6 @@ export async function POST(req: NextRequest) {
       "Generator is not configured (no API key).",
     );
   }
-
-  // Scrub the original prompt — the user might have typed a secret in the
-  // initial generate call. We don't want it leaking to Anthropic on the fix.
-  const { cleaned: cleanedOriginalPrompt } = scrubPrompt(originalPrompt.trim());
 
   // Sanitize the current script: it's client-controlled (whatever the browser
   // POSTs), so it must not be able to break out of the fenced block we wrap

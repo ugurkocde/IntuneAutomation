@@ -186,3 +186,20 @@ export async function getTotalCount(): Promise<number> {
   }
   return 0;
 }
+
+export type SecurityEventKind =
+  | "prompt-injection"
+  | "harmful-request"
+  | "off-topic"
+  | "turnstile-failed"
+  | "rate-limited"
+  | "daily-cap-reached";
+
+export async function incrementSecurityEvent(
+  kind: SecurityEventKind,
+): Promise<void> {
+  if (!redis) return;
+  const key = `gen:security:${utcDateKey()}:${kind}`;
+  await redis.incr(key);
+  await redis.expire(key, 60 * 60 * 48);
+}

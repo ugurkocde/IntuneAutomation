@@ -9,10 +9,12 @@ import {
   commitReservation,
   hasActiveSession,
   hashIp,
+  incrementSecurityEvent,
   releaseReservation,
   reserveTokens,
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
+import { checkForPromptAbuse } from "~/lib/generator-abuse";
 import { checkOnTopic } from "~/server/generator/topic-filter";
 import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
 import {
@@ -100,6 +102,7 @@ export async function POST(req: NextRequest) {
     verified = true;
   }
   if (!verified) {
+    void incrementSecurityEvent("turnstile-failed").catch(() => {});
     return errorResponse(
       403,
       "turnstile-failed",
@@ -112,6 +115,22 @@ export async function POST(req: NextRequest) {
   const { cleaned: cleanedRefinement } = scrubPrompt(refinement.trim());
   const { cleaned: cleanedOriginalPrompt } = scrubPrompt(originalPrompt.trim());
 
+  const refinementAbuse = checkForPromptAbuse(cleanedRefinement);
+  const originalAbuse = checkForPromptAbuse(cleanedOriginalPrompt);
+  if (!refinementAbuse.allowed || !originalAbuse.allowed) {
+    const abuseCategory = !refinementAbuse.allowed
+      ? refinementAbuse.category
+      : originalAbuse.allowed
+        ? "harmful-request"
+        : originalAbuse.category;
+    void incrementSecurityEvent(abuseCategory).catch(() => {});
+    return errorResponse(
+      400,
+      abuseCategory,
+      "This generator cannot help with prompt injection, malware, credential theft, evasion, persistence, or data exfiltration requests.",
+    );
+  }
+
   // 3. Topic filter on BOTH the refinement and the original prompt. The
   // original prompt appears first in the conversation; an attacker could try
   // to slip a jailbreak in there and use a clean refinement to pass this gate.
@@ -119,6 +138,7 @@ export async function POST(req: NextRequest) {
   if (!refinementTopic.onTopic) {
     const llmSaysOnTopic = await classifyOnTopicWithLLM(cleanedRefinement);
     if (!llmSaysOnTopic) {
+      void incrementSecurityEvent("off-topic").catch(() => {});
       return errorResponse(
         400,
         "off-topic",
@@ -130,6 +150,7 @@ export async function POST(req: NextRequest) {
   if (!originalTopic.onTopic) {
     const llmSaysOnTopic = await classifyOnTopicWithLLM(cleanedOriginalPrompt);
     if (!llmSaysOnTopic) {
+      void incrementSecurityEvent("off-topic").catch(() => {});
       return errorResponse(
         400,
         "off-topic",
@@ -148,6 +169,7 @@ export async function POST(req: NextRequest) {
   // 5. Per-IP rate limit (refinements count as generations).
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
+    void incrementSecurityEvent("rate-limited").catch(() => {});
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
     return errorResponse(
       429,
@@ -169,6 +191,7 @@ export async function POST(req: NextRequest) {
   // 6. Reserve daily-cap tokens.
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
   if (!reservation.allowed) {
+    void incrementSecurityEvent("daily-cap-reached").catch(() => {});
     return errorResponse(
       503,
       "daily-cap-reached",

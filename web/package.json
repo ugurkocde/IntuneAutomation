@@ -7,10 +7,12 @@
     "build": "next build",
     "check": "tsc --noEmit",
     "dev": "next dev --turbo",
+    "audit:security": "npm audit --audit-level=critical",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "preview": "next build && next start",
     "start": "next start",
+    "test:generator-security": "node --experimental-strip-types scripts/test-generator-security.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -40,7 +42,7 @@
     "framer-motion": "^12.12.1",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.511.0",
-    "next": "15.3.8",
+    "next": "^15.5.18",
     "next-mdx-remote": "^6.0.0",
     "next-themes": "^0.4.6",
     "prismjs": "^1.30.0",
@@ -69,6 +71,9 @@
     "tailwindcss": "^4.0.15",
     "tw-animate-css": "^1.3.0",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   },
   "ct3aMetadata": {
     "initVersion": "7.39.3"

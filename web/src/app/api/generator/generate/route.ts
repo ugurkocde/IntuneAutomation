@@ -8,12 +8,14 @@ import {
   checkPerIp,
   commitReservation,
   hashIp,
+  incrementSecurityEvent,
   incrementTotalCount,
   markSessionActive,
   releaseReservation,
   reserveTokens,
 } from "~/server/generator/rate-limit";
 import { verifyTurnstile } from "~/server/generator/turnstile";
+import { checkForPromptAbuse } from "~/lib/generator-abuse";
 import { checkOnTopic } from "~/server/generator/topic-filter";
 import { classifyOnTopicWithLLM } from "~/server/generator/topic-classifier";
 import {
@@ -82,6 +84,7 @@ export async function POST(req: NextRequest) {
     ip,
   );
   if (!turnstile.ok) {
+    void incrementSecurityEvent("turnstile-failed").catch(() => {});
     return errorResponse(
       403,
       "turnstile-failed",
@@ -107,12 +110,22 @@ export async function POST(req: NextRequest) {
   // an off-topic prompt doesn't consume the user's daily quota. The Turnstile
   // gate above prevents bots from hammering this cheap path indefinitely.
   const { cleaned, redactions } = scrubPrompt(prompt.trim());
+  const abuse = checkForPromptAbuse(cleaned);
+  if (!abuse.allowed) {
+    void incrementSecurityEvent(abuse.category).catch(() => {});
+    return errorResponse(
+      400,
+      abuse.category,
+      "This generator cannot help with prompt injection, malware, credential theft, evasion, persistence, or data exfiltration requests.",
+    );
+  }
   const topic = checkOnTopic(cleaned);
   if (!topic.onTopic) {
     // Keyword filter said no. Escalate to a cheap LLM classifier so natural
     // prompts like "block USB drives on company laptops" aren't bounced.
     const llmSaysOnTopic = await classifyOnTopicWithLLM(cleaned);
     if (!llmSaysOnTopic) {
+      void incrementSecurityEvent("off-topic").catch(() => {});
       return errorResponse(
         400,
         "off-topic",
@@ -124,6 +137,7 @@ export async function POST(req: NextRequest) {
   // 3. Per-IP rate limit
   const ipCheck = await checkPerIp(ipHash);
   if (!ipCheck.allowed) {
+    void incrementSecurityEvent("rate-limited").catch(() => {});
     const resetIn = Math.max(0, Math.ceil((ipCheck.reset - Date.now()) / 1000));
     return errorResponse(
       429,
@@ -145,6 +159,7 @@ export async function POST(req: NextRequest) {
   // 4. Reserve daily-cap budget pessimistically (closes the TOCTOU window).
   const reservation = await reserveTokens(RESERVED_TOKENS_PER_REQUEST);
   if (!reservation.allowed) {
+    void incrementSecurityEvent("daily-cap-reached").catch(() => {});
     return errorResponse(
       503,
       "daily-cap-reached",

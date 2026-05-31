@@ -3,6 +3,7 @@
 
 import { GRAPH_SCOPES } from "./generator-graph-data";
 import { checkGraphEndpoints } from "./generator-graph-endpoints";
+import { checkForMaliciousScript } from "./generator-abuse";
 //
 // Categories of checks:
 //   - Metadata completeness (the .TITLE/.SYNOPSIS/... block)
@@ -52,6 +53,12 @@ function detectHardReject(code: string): { reason: string } | null {
     return {
       reason:
         "Output is missing the required metadata block (.TITLE and #> close).",
+    };
+  }
+  const maliciousScript = checkForMaliciousScript(trimmed);
+  if (maliciousScript.malicious) {
+    return {
+      reason: `Output contains a high-risk malicious automation pattern. ${maliciousScript.reason}`,
     };
   }
   return null;
@@ -238,6 +245,13 @@ export function lintScript(code: string): LintResult {
   // ------------------------------------------------------------------
   // 5. Dangerous code patterns
   // ------------------------------------------------------------------
+  // Strip comment-based help block and inline comments before scanning body
+  // patterns, so examples and notes do not create false positives.
+  const codeWithoutHelpBlock = code.replace(/<#[\s\S]*?#>/g, "");
+  const codeWithoutComments = codeWithoutHelpBlock.replace(
+    /(^|\s)#[^\n]*/g,
+    "",
+  );
   const dangerousPatterns: Array<{ id: string; re: RegExp; msg: string }> = [
     {
       id: "invoke-expression",
@@ -254,14 +268,37 @@ export function lintScript(code: string): LintResult {
       re: /-ExecutionPolicy\s+Bypass/i,
       msg: "Sets `-ExecutionPolicy Bypass`. Acceptable for Intune deployment scripts but flag for review.",
     },
+    {
+      id: "encoded-command",
+      re: /\b(?:EncodedCommand|FromBase64String|DownloadString)\b/i,
+      msg: "Uses encoded or downloaded code execution primitives.",
+    },
+    {
+      id: "credential-access",
+      re: /\b(?:Login Data|Credential Manager|Get-StoredCredential|vaultcmd|NTDS\.dit|\\SAM\b)\b/i,
+      msg: "References credential stores or browser credential artifacts.",
+    },
+    {
+      id: "defender-bypass",
+      re: /\b(?:Set-MpPreference|Add-MpPreference)\b[\s\S]{0,160}\b(?:DisableRealtimeMonitoring|DisableIOAVProtection|DisableBehaviorMonitoring|ExclusionPath|ExclusionProcess)\b/i,
+      msg: "Changes Microsoft Defender protection or exclusions.",
+    },
+    {
+      id: "persistence",
+      re: /\b(?:New-ScheduledTask|Register-ScheduledTask|schtasks(?:\.exe)?|HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run|HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run)\b/i,
+      msg: "Creates startup or scheduled-task persistence.",
+    },
   ];
   let dangerousFound = false;
   for (const p of dangerousPatterns) {
-    if (p.re.test(code)) {
+    if (p.re.test(codeWithoutComments)) {
       dangerousFound = true;
       findings.push({
         id: p.id,
-        severity: p.id === "execution-policy-bypass" ? "warn" : "fail",
+        severity:
+          p.id === "execution-policy-bypass" || p.id === "persistence"
+            ? "warn"
+            : "fail",
         category: "security",
         message: p.msg,
       });
@@ -280,13 +317,6 @@ export function lintScript(code: string): LintResult {
   // ------------------------------------------------------------------
   // 6. Hardcoded webhook / non-Graph external URLs
   // ------------------------------------------------------------------
-  // Strip comment-based help block and inline comments before scanning URLs,
-  // so we don't flag URLs inside .EXAMPLE or .NOTES.
-  const codeWithoutHelpBlock = code.replace(/<#[\s\S]*?#>/g, "");
-  const codeWithoutComments = codeWithoutHelpBlock.replace(
-    /(^|\s)#[^\n]*/g,
-    "",
-  );
   const urlMatches = Array.from(
     codeWithoutComments.matchAll(/https?:\/\/[^\s"'`)]+/g),
   );
@@ -344,23 +374,37 @@ export function lintScript(code: string): LintResult {
     );
   const hasShouldProcess =
     /\[CmdletBinding\([^)]*SupportsShouldProcess\s*=\s*\$true/i.test(code);
-  if (hasDestructiveCall && !hasShouldProcess) {
+  const hasShouldProcessCall = /\$PSCmdlet\.ShouldProcess\s*\(/i.test(
+    codeWithoutHelpBlock,
+  );
+  const hasHighConfirmImpact =
+    /\[CmdletBinding\([^)]*ConfirmImpact\s*=\s*['"]High['"]/i.test(code);
+  const hasConfirmDefaultTrue =
+    /\[switch\]\s*\$Confirm\s*=\s*\$true/i.test(code) ||
+    /\[bool\]\s*\$Confirm\s*=\s*\$true/i.test(code);
+  const destructiveMissing: string[] = [];
+  if (!hasShouldProcess) destructiveMissing.push("SupportsShouldProcess");
+  if (!hasShouldProcessCall) destructiveMissing.push("$PSCmdlet.ShouldProcess");
+  if (!hasHighConfirmImpact) destructiveMissing.push("ConfirmImpact = 'High'");
+  if (!hasConfirmDefaultTrue)
+    destructiveMissing.push("-Confirm defaulting true");
+
+  if (hasDestructiveCall && destructiveMissing.length > 0) {
     findings.push({
       id: "destructive-no-shouldprocess",
       severity: "fail",
       category: "safety",
-      message:
-        "Script performs destructive operations (retire/wipe/delete) but lacks `SupportsShouldProcess`.",
+      message: `Script performs destructive operations (retire/wipe/delete) but lacks required safeguards: ${destructiveMissing.join(", ")}.`,
       detail:
-        "Add `[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]` and gate destructive calls behind `$PSCmdlet.ShouldProcess(...)`.",
+        "Use `[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]`, gate destructive calls behind `$PSCmdlet.ShouldProcess(...)`, and include a confirmation parameter that defaults to safe confirmation.",
     });
-  } else if (hasDestructiveCall && hasShouldProcess) {
+  } else if (hasDestructiveCall) {
     findings.push({
       id: "destructive-with-shouldprocess",
       severity: "pass",
       category: "safety",
       message:
-        "Destructive operations are gated by `SupportsShouldProcess` and `-WhatIf`.",
+        "Destructive operations are gated by `SupportsShouldProcess`, `ShouldProcess`, high confirm impact, and explicit confirmation.",
     });
   }
 
@@ -445,9 +489,7 @@ export function lintScript(code: string): LintResult {
   // ------------------------------------------------------------------
   const endpointChecks = checkGraphEndpoints(codeWithoutHelpBlock);
   const unknownEndpoints = endpointChecks.filter((c) => !c.matched);
-  const v1Endpoints = endpointChecks.filter(
-    (c) => c.matched && c.wrongVersion,
-  );
+  const v1Endpoints = endpointChecks.filter((c) => c.matched && c.wrongVersion);
   if (
     endpointChecks.length > 0 &&
     unknownEndpoints.length === 0 &&

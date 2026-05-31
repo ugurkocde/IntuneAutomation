@@ -55,7 +55,8 @@ export async function classifyOnTopicWithLLM(prompt: string): Promise<boolean> {
     });
     return text.trim().toLowerCase().startsWith("yes");
   } catch {
-    // Fail open — a classifier outage must not block real users.
-    return true;
+    // Fail closed in production. Ambiguous prompts should not reach the script
+    // generator just because the classifier is unavailable.
+    return process.env.NODE_ENV !== "production";
   }
 }
