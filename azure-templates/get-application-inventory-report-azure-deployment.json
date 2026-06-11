@@ -1,83 +1,77 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "parameters": {
-    "runbookDescription": {
-      "metadata": {
-        "description": "Description of the runbook"
+  "resources": [
+    {
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
+      "name": "[parameters('automationAccountName')]",
+      "identity": {
+        "type": "SystemAssigned"
       },
-      "type": "string",
-      "defaultValue": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,"
+      "properties": {
+        "sku": {
+          "name": "Basic"
+        }
+      },
+      "type": "Microsoft.Automation/automationAccounts"
     },
+    {
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+      ],
+      "properties": {
+        "runbookType": "[variables('runbookType')]",
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "logVerbose": "[variables('logVerbose')]",
+        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]"
+      },
+      "type": "Microsoft.Automation/automationAccounts/runbooks"
+    }
+  ],
+  "parameters": {
     "automationAccountName": {
       "type": "string",
       "metadata": {
         "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
       }
     },
-    "location": {
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      },
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]"
-    },
     "runbookName": {
+      "type": "string",
+      "defaultValue": "get-application-inventory-report",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
-      },
-      "type": "string",
-      "defaultValue": "get-application-inventory-report"
-    }
-  },
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-application-inventory-report.ps1",
-    "logProgress": false
-  },
-  "contentVersion": "1.0.0.0",
-  "resources": [
-    {
-      "identity": {
-        "type": "SystemAssigned"
-      },
-      "type": "Microsoft.Automation/automationAccounts",
-      "name": "[parameters('automationAccountName')]",
-      "location": "[parameters('location')]",
-      "apiVersion": "2023-11-01",
-      "properties": {
-        "sku": {
-          "name": "Basic"
-        }
       }
     },
-    {
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "apiVersion": "2023-11-01",
-      "properties": {
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]",
-        "description": "[parameters('runbookDescription')]",
-        "logProgress": "[variables('logProgress')]"
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookDescription": {
+      "type": "string",
+      "defaultValue": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,",
+      "metadata": {
+        "description": "Description of the runbook"
       }
     }
-  ],
+  },
+  "contentVersion": "1.0.0.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "outputs": {
     "scriptSourceUrl": {
       "type": "string",
       "value": "[variables('scriptUri')]"
     },
-    "automationAccountName": {
+    "runbookName": {
       "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "[parameters('runbookName')]"
     },
     "deploymentInstructions": {
       "type": "string",
@@ -87,9 +81,15 @@
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
-    "runbookName": {
+    "automationAccountName": {
       "type": "string",
-      "value": "[parameters('runbookName')]"
+      "value": "[parameters('automationAccountName')]"
     }
+  },
+  "variables": {
+    "runbookType": "PowerShell",
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/apps/get-application-inventory-report.ps1",
+    "logProgress": false
   }
 }
