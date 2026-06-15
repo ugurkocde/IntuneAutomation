@@ -1,12 +1,47 @@
 {
-  "outputs": {
-    "scriptSourceUrl": {
+  "parameters": {
+    "runbookName": {
+      "defaultValue": "rotate-bitlocker-keys",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
+      },
+      "type": "string"
+    },
+    "automationAccountName": {
       "type": "string",
-      "value": "[variables('scriptUri')]"
+      "metadata": {
+        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
+      }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the runbook deployment"
+      },
+      "type": "string"
+    },
+    "runbookDescription": {
+      "defaultValue": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.",
+      "metadata": {
+        "description": "Description of the runbook"
+      },
+      "type": "string"
+    }
+  },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "outputs": {
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
     },
     "automationAccountName": {
       "type": "string",
       "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
     },
     "runbookName": {
       "type": "string",
@@ -15,81 +50,46 @@
     "runbookUrl": {
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
     }
+  },
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/rotate-bitlocker-keys.ps1",
+    "logProgress": false,
+    "logVerbose": false,
+    "runbookType": "PowerShell"
   },
   "resources": [
     {
+      "type": "Microsoft.Automation/automationAccounts",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "name": "[parameters('automationAccountName')]",
       "properties": {
         "sku": {
           "name": "Basic"
         }
-      },
-      "name": "[parameters('automationAccountName')]",
-      "identity": {
-        "type": "SystemAssigned"
-      },
-      "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts"
+      }
     },
     {
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
       "properties": {
-        "description": "[parameters('runbookDescription')]",
         "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]"
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]"
       },
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "dependsOn": [
         "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "apiVersion": "2023-11-01",
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks"
+      ]
     }
-  ],
-  "contentVersion": "1.0.0.0",
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/rotate-bitlocker-keys.ps1",
-    "logProgress": false,
-    "runbookType": "PowerShell",
-    "logVerbose": false
-  },
-  "parameters": {
-    "runbookDescription": {
-      "type": "string",
-      "defaultValue": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.",
-      "metadata": {
-        "description": "Description of the runbook"
-      }
-    },
-    "automationAccountName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
-      }
-    },
-    "runbookName": {
-      "type": "string",
-      "defaultValue": "rotate-bitlocker-keys",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for the runbook deployment"
-      }
-    }
-  },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+  ]
 }
