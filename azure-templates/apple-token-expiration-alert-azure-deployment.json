@@ -1,19 +1,47 @@
 {
-  "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/apple-token-expiration-alert.ps1",
-    "runbookType": "PowerShell",
-    "logVerbose": false,
-    "logProgress": false
-  },
-  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "properties": {
+        "sku": {
+          "name": "Basic"
+        }
+      },
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "name": "[parameters('automationAccountName')]"
+    },
+    {
+      "properties": {
+        "publishContentLink": {
+          "uri": "[variables('scriptUri')]"
+        },
+        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]",
+        "description": "[parameters('runbookDescription')]",
+        "logVerbose": "[variables('logVerbose')]"
+      },
+      "location": "[parameters('location')]",
+      "apiVersion": "2023-11-01",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+      ],
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]"
+    }
+  ],
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "outputs": {
     "scriptSourceUrl": {
       "type": "string",
       "value": "[variables('scriptUri')]"
     },
-    "deploymentInstructions": {
+    "automationAccountName": {
       "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
+      "value": "[parameters('automationAccountName')]"
     },
     "runbookName": {
       "type": "string",
@@ -23,18 +51,22 @@
       "type": "string",
       "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
     },
-    "automationAccountName": {
+    "deploymentInstructions": {
       "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
     }
   },
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "variables": {
+    "runbookType": "PowerShell",
+    "logProgress": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/notification/apple-token-expiration-alert.ps1",
+    "logVerbose": false
+  },
   "parameters": {
-    "location": {
-      "defaultValue": "[resourceGroup().location]",
+    "automationAccountName": {
       "type": "string",
       "metadata": {
-        "description": "Location for the runbook deployment"
+        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
       }
     },
     "runbookName": {
@@ -51,45 +83,13 @@
         "description": "Description of the runbook"
       }
     },
-    "automationAccountName": {
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
       "type": "string",
       "metadata": {
-        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
+        "description": "Location for the runbook deployment"
       }
     }
   },
-  "resources": [
-    {
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts",
-      "identity": {
-        "type": "SystemAssigned"
-      },
-      "properties": {
-        "sku": {
-          "name": "Basic"
-        }
-      },
-      "name": "[parameters('automationAccountName')]",
-      "apiVersion": "2023-11-01"
-    },
-    {
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "location": "[parameters('location')]",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "properties": {
-        "description": "[parameters('runbookDescription')]",
-        "publishContentLink": {
-          "uri": "[variables('scriptUri')]"
-        },
-        "runbookType": "[variables('runbookType')]",
-        "logVerbose": "[variables('logVerbose')]",
-        "logProgress": "[variables('logProgress')]"
-      },
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
-      "apiVersion": "2023-11-01"
-    }
-  ]
+  "contentVersion": "1.0.0.0"
 }
