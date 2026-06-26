@@ -232,7 +232,10 @@ async function main() {
   for (const f of files) {
     scripts.push(await buildEntry(f));
   }
-  scripts.sort((a, b) => a.id.localeCompare(b.id));
+  // Deterministic code-unit sort (localeCompare is ICU/locale-dependent and
+  // would reorder hyphenated ids differently across OS/Node versions, breaking
+  // the CI drift guard).
+  scripts.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   const categories = [...new Set(scripts.map((s) => s.category))].sort();
   const index = {
