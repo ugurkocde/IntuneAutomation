@@ -12,6 +12,7 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "preview": "next build && next start",
     "start": "next start",
+    "export:generator-instructions": "node --experimental-strip-types scripts/export-generator-instructions.mjs",
     "test:generator-security": "node --experimental-strip-types scripts/test-generator-security.mjs",
     "typecheck": "tsc --noEmit"
   },

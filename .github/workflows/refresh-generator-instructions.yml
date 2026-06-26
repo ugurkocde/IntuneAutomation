@@ -1,0 +1,42 @@
+# Regenerates mcp/data/generator-instructions.md (served by the MCP server)
+# whenever the generator system prompt or its exporter changes, keeping the
+# MCP authoring guide in sync with the website generator. No user-controlled
+# input — only committed source files.
+name: Refresh MCP authoring guide
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "web/src/server/generator/system-prompt.ts"
+      - "web/scripts/export-generator-instructions.mjs"
+      - "web/scripts/alias-hooks.mjs"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Regenerate MCP authoring guide
+        run: node --experimental-strip-types web/scripts/export-generator-instructions.mjs
+
+      - name: Commit and push if changed
+        run: |
+          if [[ -z "$(git status --porcelain mcp/data/generator-instructions.md)" ]]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mcp/data/generator-instructions.md
+          git commit -m "chore(mcp): sync authoring guide with generator system prompt [skip ci]"
+          git push

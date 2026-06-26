@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.ugurkocde/intuneautomation",
+  "description": "Search and retrieve the IntuneAutomation PowerShell script library (Microsoft Intune / Microsoft Graph automation) and the script-authoring conventions, from any MCP client.",
+  "repository": {
+    "url": "https://github.com/ugurkocde/intuneautomation",
+    "source": "github"
+  },
+  "websiteUrl": "https://intuneautomation.com",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@ugurkocde/intuneautomation-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

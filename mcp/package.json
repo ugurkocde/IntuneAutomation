@@ -1,0 +1,63 @@
+{
+  "name": "@ugurkocde/intuneautomation-mcp",
+  "version": "1.0.0",
+  "mcpName": "io.github.ugurkocde/intuneautomation",
+  "description": "MCP server to search and retrieve the IntuneAutomation PowerShell script library (Microsoft Intune automation) from Claude Code and any MCP client.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "intune",
+    "microsoft-intune",
+    "powershell",
+    "microsoft-graph",
+    "claude",
+    "claude-code",
+    "automation"
+  ],
+  "homepage": "https://intuneautomation.com",
+  "bugs": {
+    "url": "https://github.com/ugurkocde/intuneautomation/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ugurkocde/intuneautomation.git",
+    "directory": "mcp"
+  },
+  "license": "MIT",
+  "author": "Ugur Koc",
+  "type": "module",
+  "bin": {
+    "intuneautomation-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "data",
+    "README.md",
+    "LICENSE",
+    "ATTRIBUTION.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "generate-index": "node scripts/generate-index.mjs",
+    "build": "npm run generate-index && tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "verify": "node test/verify.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
