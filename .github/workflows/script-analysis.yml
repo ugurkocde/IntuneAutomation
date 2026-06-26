@@ -247,6 +247,18 @@ jobs:
           Write-Host "✓ Generated $($scriptFiles.Count) Azure deployment templates"
           Write-Host "✓ Created azure-deployment-templates.json registry"
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate MCP script index
+        run: |
+          # Deterministic timestamp from the current commit so the index only
+          # changes when scripts change (avoids empty daily-cron commits).
+          export SOURCE_DATE="$(git log -1 --format=%cI)"
+          node mcp/scripts/generate-index.mjs
+
       - name: Upload test results
         uses: actions/upload-artifact@v7
         if: always()
@@ -261,7 +273,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add testresults.json script-tests.json azure-templates/ azure-deployment-templates.json
+          git add testresults.json script-tests.json azure-templates/ azure-deployment-templates.json mcp/data/scripts-index.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

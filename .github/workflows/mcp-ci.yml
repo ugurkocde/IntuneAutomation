@@ -1,0 +1,70 @@
+# Builds, typechecks, and end-to-end verifies the intuneautomation-mcp package,
+# and guards the committed MCP data (index + authoring guide) against drift.
+name: MCP CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "mcp/**"
+      - ".github/workflows/mcp-ci.yml"
+  pull_request:
+    paths:
+      - "mcp/**"
+      - "scripts/**"
+      - "web/src/server/generator/system-prompt.ts"
+      - "web/src/lib/generator-graph-data.ts"
+      - "web/scripts/export-generator-instructions.mjs"
+      - "web/scripts/alias-hooks.mjs"
+      - ".github/workflows/mcp-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build & verify (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "20", "22"]
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run verify
+
+  drift:
+    name: data drift guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Regenerate index (preserving committed timestamp)
+        run: |
+          SD="$(node -e "process.stdout.write(require('./mcp/data/scripts-index.json').generated)")"
+          SOURCE_DATE="$SD" node mcp/scripts/generate-index.mjs
+      - name: Regenerate authoring guide
+        run: node --experimental-strip-types web/scripts/export-generator-instructions.mjs
+      - name: Fail if committed MCP data is stale
+        run: |
+          if ! git diff --quiet mcp/data/scripts-index.json mcp/data/generator-instructions.md; then
+            echo "::error::Committed MCP data is out of date. Regenerate and commit:"
+            echo "  node mcp/scripts/generate-index.mjs"
+            echo "  node --experimental-strip-types web/scripts/export-generator-instructions.mjs"
+            git --no-pager diff --stat mcp/data/
+            exit 1
+          fi
+          echo "MCP data is in sync."

@@ -1,0 +1,2346 @@
+{
+  "repository": "ugurkocde/intuneautomation",
+  "branch": "main",
+  "generated": "2026-06-26T03:11:45Z",
+  "count": 33,
+  "categories": [
+    "apps",
+    "compliance",
+    "devices",
+    "monitoring",
+    "notification",
+    "operational",
+    "remediation",
+    "security"
+  ],
+  "scripts": [
+    {
+      "id": "add-devices-to-groups-from-csv",
+      "title": "Add Devices to Entra ID Groups from CSV",
+      "synopsis": "Adds Intune-managed devices to Entra ID groups based on a CSV file input.",
+      "description": "This script reads a CSV file containing device identifiers and group names, then adds\nthe specified devices to their corresponding Entra ID groups. It supports multiple\ndevice identifiers (Device Name, Serial Number, Azure AD Device ID) for flexible\ndevice matching and can add devices to multiple groups.\n\nThe script validates that devices exist in Intune before processing, checks for\nexisting group memberships to avoid duplicates, and can create new groups with\nuser confirmation. A dry-run mode allows previewing changes before execution.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "Group.ReadWrite.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Directory.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "CsvPath",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "GenerateTemplate",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "TemplatePath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"device-group-template.csv\"",
+          "switch": false
+        },
+        {
+          "name": "DryRun",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "CreateMissingGroups",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\add-devices-to-groups-from-csv.ps1 -GenerateTemplate\nCreates a template CSV file using your system's default delimiter (automatically comma for US, semicolon for Europe)",
+        ".\\add-devices-to-groups-from-csv.ps1 -GenerateTemplate -TemplatePath \"C:\\templates\\mytemplate.csv\"\nCreates a template CSV file at the specified path with system default delimiter",
+        ".\\add-devices-to-groups-from-csv.ps1 -CsvPath \"C:\\devices.csv\"\nReads the CSV file and adds devices to specified groups",
+        ".\\add-devices-to-groups-from-csv.ps1 -CsvPath \"C:\\devices.csv\" -DryRun\nPreview what changes would be made without actually making them",
+        ".\\add-devices-to-groups-from-csv.ps1 -CsvPath \"C:\\devices.csv\" -CreateMissingGroups -Force\nAdd devices to groups and automatically create missing groups without prompting"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- CSV file should contain columns: DeviceName, SerialNumber, DeviceId (Azure AD), GroupName\n- At least one device identifier (DeviceName, SerialNumber, or DeviceId) must be provided per row\n- The GroupName column is required for all rows\n- Devices already in target groups will be skipped\n- Device matching priority: DeviceId > SerialNumber > DeviceName\n- CSV import: Automatically detects comma or semicolon delimiters\n- Template generation: Automatically uses your system's regional delimiter (comma for US/UK, semicolon for Europe)\n- Templates will open correctly in Excel on the system where they were generated\n\nCSV Format Example:\nDeviceName,SerialNumber,DeviceId,GroupName\nDESKTOP-ABC123,VMW12345,,IT-Department-Devices\n,VMW67890,,Finance-Devices\n,,a1b2c3d4-e5f6-7890-abcd-ef1234567890,Executive-Devices",
+      "path": "scripts/devices/add-devices-to-groups-from-csv.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/add-devices-to-groups-from-csv.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/add-devices-to-groups-from-csv.ps1"
+    },
+    {
+      "id": "app-deployment-failure-alert",
+      "title": "App Deployment Failure Alert Notification",
+      "synopsis": "Automated runbook to monitor application deployment failures in Intune and send email alerts for deployment issues.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors application \ndeployment status in Microsoft Intune and identifies applications with high failure rates or \ndeployment issues. It tracks deployment success rates, identifies required applications with \nfailures, and sends email notifications to administrators with detailed deployment reports. \nThe script helps maintain application availability and user productivity by proactively alerting \non deployment failures and providing actionable insights for remediation.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-30",
+      "schedule": "Daily",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "FailureThresholdPercent",
+          "type": "int",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients \"admin@company.com\"\nAlerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com",
+        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients \"admin@company.com,appsupport@company.com\"\nAlerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's application deployment requirements when setting threshold\n- Review application packages and deployment settings based on findings\n- Critical for maintaining application availability and user productivity",
+      "path": "scripts/notification/app-deployment-failure-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/app-deployment-failure-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/app-deployment-failure-alert.ps1"
+    },
+    {
+      "id": "apple-token-expiration-alert",
+      "title": "Apple Token Expiration Alert Notification",
+      "synopsis": "Automated runbook to monitor Apple DEP tokens and VPP tokens expiration and send email alerts.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration \nstatus of Apple Device Enrollment Program (DEP) tokens and Apple Push Notification Service (APNS) \ncertificates in Microsoft Intune. When tokens or certificates are approaching expiration or have \nexpired, the script sends email notifications to specified recipients using Microsoft Graph Mail API.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementServiceConfig.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-30",
+      "schedule": "Daily",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "NotificationDays",
+          "type": "int",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients \"admin@company.com\"\nChecks for tokens expiring within 30 days and sends alerts to admin@company.com",
+        ".\\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients \"admin@company.com,security@company.com\"\nChecks for tokens expiring within 7 days and sends alerts to multiple recipients"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily or weekly)\n- DEP tokens are valid for one year from creation\n- APNS certificates are valid for one year from creation\n- Critical for maintaining iOS/macOS device and app management continuity",
+      "path": "scripts/notification/apple-token-expiration-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/apple-token-expiration-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/apple-token-expiration-alert.ps1"
+    },
+    {
+      "id": "backup-bitlocker-keys-to-keyvault",
+      "title": "BitLocker Keys Backup to Azure Key Vault",
+      "synopsis": "Backs up BitLocker recovery keys from Entra ID (Azure AD) to Azure Key Vault using REST API.",
+      "description": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,\nthen stores them securely in Azure Key Vault using REST API. Each key is stored as a secret with\ndevice information (name and serial number) included in tags. The script ensures secure storage\nThe script uses Microsoft Graph authentication for both Graph API and Key Vault API calls,\neliminating the need for the large Az.Accounts module. Simply provide your Key Vault URI\nand the script handles the rest. On first run, you will be prompted to consent to the required\npermissions including Key Vault access.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Compliance"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "BitlockerKey.Read.All",
+        "https://vault.azure.net/user_impersonation"
+      ],
+      "minRole": "Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "VaultUri",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "OverwriteExisting",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ShowProgress",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://bitlockerfilevaultkeys.vault.azure.net\"\nBacks up all BitLocker keys to the specified Azure Key Vault",
+        ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://myvault.vault.azure.net\" -OverwriteExisting -ShowProgress\nBacks up keys with overwrite option and progress display"
+      ],
+      "notes": "- Requires only Microsoft.Graph.Authentication module (no Az modules needed)\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
+      "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1"
+    },
+    {
+      "id": "check-apple-token-validity",
+      "title": "Apple Token Validity Checker",
+      "synopsis": "Monitor and report on the validity and expiration status of Apple DEP tokens and Push Notification Certificates in Intune.",
+      "description": "This script connects to Microsoft Graph and retrieves all Apple Device Enrollment Program (DEP) tokens \nand Apple Push Notification Certificates configured in Intune. It checks their validity status, \nexpiration dates, and sync status to help administrators proactively manage Apple Business Manager \nintegrations. The script generates detailed reports in CSV format, highlighting tokens and certificates \nthat are expired, expiring soon, or have sync issues.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementServiceConfig.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ExpirationWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "OnlyShowProblems",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "SendEmailAlert",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "AlertEmailAddress",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-apple-token-validity.ps1\nGenerates Apple token validity reports for all DEP tokens and Push Notification Certificates",
+        ".\\check-apple-token-validity.ps1 -OutputPath \"C:\\Reports\" -ExpirationWarningDays 60\nGenerates reports with 60-day expiration warning and saves to specified directory",
+        ".\\check-apple-token-validity.ps1 -OnlyShowProblems -SendEmailAlert\nShows only problematic tokens and certificates and sends email alerts for critical issues"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- DEP tokens are valid for one year from creation\n- Apple Push Notification Certificates are valid for one year from creation\n- Automatic sync occurs daily, manual sync can be triggered\n- Critical for maintaining iOS/macOS device and app management",
+      "path": "scripts/monitoring/check-apple-token-validity.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-apple-token-validity.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-apple-token-validity.ps1"
+    },
+    {
+      "id": "check-bitlocker-keys",
+      "title": "BitLocker Key Storage Checker",
+      "synopsis": "Monitor and verify that BitLocker recovery keys for Windows devices are properly stored in Entra ID.",
+      "description": "This script connects to Microsoft Graph API, retrieves all Windows devices from Intune,\nand checks if each device has BitLocker recovery keys stored in Entra ID. The script\nprovides detailed reporting on compliance status, identifies devices without stored keys,\nand exports comprehensive results to CSV format for further analysis. This helps ensure\nproper BitLocker key escrow for data recovery scenarios.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring",
+        "Security"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "BitlockerKey.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OnlyShowMissing",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeLastSync",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportJson",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ShowProgress",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-bitlocker-keys.ps1\nGenerates BitLocker key storage report for all Windows devices in Intune",
+        ".\\check-bitlocker-keys.ps1 -OutputPath \"C:\\Reports\" -OnlyShowMissing\nSaves report to specified directory and shows only devices missing BitLocker keys",
+        ".\\check-bitlocker-keys.ps1 -IncludeLastSync -ExportJson\nIncludes last sync information and exports results in JSON format as well"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- BitLocker keys are automatically escrowed to Entra ID when properly configured\n- Devices must be Azure AD joined or Hybrid Azure AD joined for key escrow\n- Consider configuring BitLocker policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements",
+      "path": "scripts/monitoring/check-bitlocker-keys.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-bitlocker-keys.ps1"
+    },
+    {
+      "id": "check-filevault-keys",
+      "title": "FileVault Key Storage Checker",
+      "synopsis": "Monitor and verify that FileVault recovery keys for macOS devices are properly stored in Intune.",
+      "description": "This script connects to Microsoft Graph API, retrieves all macOS devices from Intune,\nand checks if each device has FileVault recovery keys stored in Intune. The script\nprovides detailed reporting on compliance status, identifies devices without stored keys,\nand exports comprehensive results to CSV format for further analysis. This helps ensure\nproper FileVault key escrow for data recovery scenarios.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring",
+        "Security"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-09-22",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OnlyShowMissing",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeLastSync",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportJson",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ShowProgress",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-filevault-keys.ps1\nGenerates FileVault key storage report for all macOS devices in Intune",
+        ".\\check-filevault-keys.ps1 -OutputPath \"C:\\Reports\" -OnlyShowMissing\nSaves report to specified directory and shows only devices missing FileVault keys",
+        ".\\check-filevault-keys.ps1 -IncludeLastSync -ExportJson\nIncludes last sync information and exports results in JSON format as well"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- FileVault keys are automatically escrowed to Intune when properly configured\n- Devices must be enrolled in Intune and have FileVault policy applied\n- Consider configuring FileVault policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements",
+      "path": "scripts/monitoring/check-filevault-keys.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-filevault-keys.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-filevault-keys.ps1"
+    },
+    {
+      "id": "check-policy-changes",
+      "title": "Policy Changes Monitor",
+      "synopsis": "Monitor and report on recent changes to Policies in Microsoft Intune.",
+      "description": "This script connects to Microsoft Graph and retrieves recent changes to Policies\nconfigured in Intune. It checks audit logs for policy modifications, creations, deletions, and\nassignments within a specified time period. The script generates detailed reports in CSV format,\nhighlighting policy changes with details about who made the changes, when they occurred, and\nwhat was modified. This helps administrators track configuration drift and maintain governance\nover device configuration policies.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DaysBack",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OnlyShowChanges",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "SendEmailAlert",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "AlertEmailAddress",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "IncludeDetails",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-policy-changes.ps1\nGenerates a report of policy changes from the last 30 days",
+        ".\\check-policy-changes.ps1 -DaysBack 30 -OutputPath \"C:\\Reports\"\nGenerates a report of policy changes from the last 30 days and saves to specified directory",
+        ".\\check-policy-changes.ps1 -OnlyShowChanges -SendEmailAlert -AlertEmailAddress \"admin@contoso.com\"\nShows only modified policies and sends email alerts for changes"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Policies use modern configuration templates\n- Policies require beta Graph endpoint access\n- Audit data is available for up to 30 days by default\n- Critical for maintaining configuration governance and compliance\n- Monitor for unauthorized changes to security policies",
+      "path": "scripts/monitoring/check-policy-changes.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-policy-changes.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-policy-changes.ps1"
+    },
+    {
+      "id": "check-unassigned-policies",
+      "title": "Unassigned Policies Monitor",
+      "synopsis": "Identify and report on all unassigned policies in Microsoft Intune.",
+      "description": "This script connects to Microsoft Graph and retrieves all device configuration policies\nconfigured in Intune, then checks which policies have no assignments to users, groups,\nor devices. Unassigned policies represent potential configuration drift, unused resources,\nor incomplete policy deployment. The script generates detailed reports in CSV format,\nhighlighting unassigned policies with creation dates, policy types, and recommendations.\nThis helps administrators maintain clean policy governance and identify policies that\nmay need assignment or removal.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "IncludeDetails",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "CreatedWithinDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "0",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-unassigned-policies.ps1\nGenerates a report of all unassigned policies",
+        ".\\check-unassigned-policies.ps1 -OutputPath \"C:\\Reports\" -IncludeDetails\nGenerates a detailed report and saves to specified directory",
+        ".\\check-unassigned-policies.ps1 -CreatedWithinDays 7\nGenerates report for policies created in the last 7 days"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Checks all policy types: Device Configuration, Settings Catalog, Administrative Templates\n- Unassigned policies may indicate incomplete deployment or unused configurations\n- Regular monitoring helps maintain policy governance and compliance\n- Consider removing or assigning policies that have been unassigned for extended periods",
+      "path": "scripts/monitoring/check-unassigned-policies.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-unassigned-policies.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-unassigned-policies.ps1"
+    },
+    {
+      "id": "cleanup-autopilot-devices",
+      "title": "Cleanup Orphaned Autopilot Devices",
+      "synopsis": "Remove devices from Autopilot that are no longer managed in Intune",
+      "description": "This script connects to Microsoft Graph and identifies Windows Autopilot devices that are\nregistered in the Autopilot service but are no longer present as managed devices in Intune.\nThese orphaned devices can accumulate over time when devices are retired, reimaged, or\nreplaced without proper cleanup of the Autopilot registration.\n\nThe script provides options to preview orphaned devices before removal and supports\nbatch operations with confirmation prompts for safety. It helps maintain a clean\nAutopilot device inventory and prevents potential enrollment issues.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementServiceConfig.ReadWrite.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "PreviewOnly",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "RemoveOrphaned",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportPath",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "ShowProgressBar",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeDetails",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\cleanup-autopilot-devices.ps1 -PreviewOnly\nShows orphaned Autopilot devices without removing them",
+        ".\\cleanup-autopilot-devices.ps1 -RemoveOrphaned -ExportPath \"C:\\Reports\\removed-autopilot-devices.csv\"\nRemoves orphaned devices and exports the list to CSV",
+        ".\\cleanup-autopilot-devices.ps1 -RemoveOrphaned -Force -ShowProgressBar\nRemoves orphaned devices without confirmation prompts, with progress display",
+        ".\\cleanup-autopilot-devices.ps1 -PreviewOnly -ForceModuleInstall\nShows orphaned devices and forces module installation without prompting"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Only processes Windows Autopilot devices\n- Comparison is based on device serial numbers\n- Use -PreviewOnly first to review devices before removal\n- Large environments may take several minutes to process\n- Consider running during maintenance windows\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/devices/cleanup-autopilot-devices.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/cleanup-autopilot-devices.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/cleanup-autopilot-devices.ps1"
+    },
+    {
+      "id": "create-app-based-groups",
+      "title": "Create App-Based Entra ID Groups",
+      "synopsis": "Creates Entra ID groups based on applications installed on Intune-managed devices.",
+      "description": "This script queries Intune-managed devices to identify which applications are installed,\nthen creates or updates Entra ID groups containing devices with specific applications.\nIt supports multiple detection methods including detected apps and deployment status,\nhandles all app types (Win32, Store, LOB, Web apps), and provides flexible group\ncreation options. Perfect for dynamic device targeting based on installed software.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementApps.Read.All",
+        "Group.ReadWrite.All",
+        "Directory.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-23",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ApplicationName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "GroupPrefix",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"Devices-With-\"",
+          "switch": false
+        },
+        {
+          "name": "GroupSuffix",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "UpdateExisting",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "MinimumVersion",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "FilterByType",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "FilterByPlatform",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "OnlySuccessfulInstalls",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "DryRun",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "MaxDevices",
+          "type": "int",
+          "mandatory": false,
+          "default": "0",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\create-app-based-groups.ps1 -ApplicationName \"TeamViewer\"\nCreates a group named \"Devices-With-TeamViewer\" containing all devices with TeamViewer installed",
+        ".\\create-app-based-groups.ps1 -ApplicationName \"Microsoft*\" -GroupPrefix \"SW-\" -GroupSuffix \"-Installed\"\nCreates groups for all Microsoft apps with custom naming (e.g., \"SW-Microsoft Teams-Installed\")",
+        ".\\create-app-based-groups.ps1 -ApplicationName \"Chrome\" -MinimumVersion \"120.0\" -UpdateExisting\nCreates/updates a group with devices having Chrome version 120.0 or higher",
+        ".\\create-app-based-groups.ps1 -ApplicationName \"*\" -FilterByType \"Win32\" -DryRun\nPreview groups that would be created for all Win32 applications"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports wildcards in application names\n- Can create multiple groups in a single run\n- Uses both detected apps and deployment status for comprehensive coverage\n- Groups are created as security groups by default\n- Device limit per group is 100,000 (Entra ID limitation)",
+      "path": "scripts/devices/create-app-based-groups.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/create-app-based-groups.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/create-app-based-groups.ps1"
+    },
+    {
+      "id": "detect-antivirus-definitions-outdated",
+      "title": "Windows Defender Definition Update Detection",
+      "synopsis": "Detects if Windows Defender antivirus definitions are outdated",
+      "description": "Checks if Windows Defender definitions are current (within 48 hours).\nReturns exit code 1 if definitions are outdated.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-09",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-antivirus-definitions.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\detect-antivirus-definitions-outdated.ps1"
+      ],
+      "notes": "Runs in SYSTEM context",
+      "path": "scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1"
+    },
+    {
+      "id": "detect-disk-cleanup-needed",
+      "title": "Disk Cleanup Detection Script",
+      "synopsis": "Detects if system requires disk cleanup based on temp file accumulation",
+      "description": "Checks Windows temp folders and recycle bin size.\nReturns exit code 1 if more than 1GB can be cleaned up.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-09",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-disk-cleanup.ps1",
+      "parameters": [
+        {
+          "name": "Path",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        }
+      ],
+      "examples": [
+        ".\\detect-disk-cleanup-needed.ps1"
+      ],
+      "notes": "Runs in SYSTEM context",
+      "path": "scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1"
+    },
+    {
+      "id": "device-compliance-drift-alert",
+      "title": "Device Compliance Drift Alert Notification",
+      "synopsis": "Automated runbook to monitor device compliance drift in Intune and send email alerts for compliance deterioration.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance \nstatus in Microsoft Intune and identifies devices that have fallen out of compliance. It tracks compliance \ntrends, identifies patterns of compliance deterioration, and sends email notifications to administrators \nwith detailed compliance reports. The script helps maintain security posture by proactively alerting on \ncompliance drift and providing actionable insights for remediation.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-30",
+      "schedule": "Daily",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ComplianceThresholdPercent",
+          "type": "int",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients \"admin@company.com\"\nAlerts when overall compliance falls below 85% and sends notifications to admin@company.com",
+        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients \"admin@company.com,security@company.com\"\nAlerts when overall compliance falls below 90% and sends notifications to multiple recipients"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's compliance requirements when setting threshold\n- Review compliance policies and device configurations based on findings\n- Critical for maintaining security posture and regulatory compliance",
+      "path": "scripts/notification/device-compliance-drift-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/device-compliance-drift-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/device-compliance-drift-alert.ps1"
+    },
+    {
+      "id": "get-app-installation-status-report",
+      "title": "Application Installation Status Report",
+      "synopsis": "Generate a comprehensive application installation status report for all managed applications in Intune.",
+      "description": "This script connects to Microsoft Graph, retrieves all managed applications and their installation status\nacross all devices, and generates detailed reports in both CSV and HTML formats. The report includes\ninstallation state (installed, pending, failed, not applicable), error codes, device details,\nand summary statistics to help identify and troubleshoot application deployment issues.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-09-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "FilterByInstallState",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"all\"",
+          "switch": false
+        },
+        {
+          "name": "FilterByPlatform",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"all\"",
+          "switch": false
+        },
+        {
+          "name": "FilterByAppName",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "OpenReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "MaxApps",
+          "type": "int",
+          "mandatory": false,
+          "default": "0",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-app-installation-status-report.ps1\nGenerates application installation status report for all applications",
+        ".\\get-app-installation-status-report.ps1 -FilterByInstallState \"failed\"\nGenerates report showing only failed application installations",
+        ".\\get-app-installation-status-report.ps1 -FilterByPlatform \"Windows\" -OutputPath \"C:\\Reports\"\nGenerates report for Windows applications and saves to specified directory",
+        ".\\get-app-installation-status-report.ps1 -FilterByAppName \"Microsoft 365\" -OpenReport\nGenerates report filtered by application name and opens the HTML report"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- Uses beta endpoint for comprehensive installation status data\n- Supports filtering by install state (installed, pending, failed, notApplicable)\n- Supports filtering by platform (Windows, iOS, Android, macOS)",
+      "path": "scripts/apps/get-app-installation-status-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-app-installation-status-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-app-installation-status-report.ps1"
+    },
+    {
+      "id": "get-application-inventory-report",
+      "title": "Application Inventory Report",
+      "synopsis": "Generate a comprehensive application inventory report for all managed devices in Intune.",
+      "description": "This script connects to Microsoft Graph, retrieves all managed devices and their installed applications,\nand generates detailed reports in both CSV and HTML formats. The report includes application details,\ninstallation status, version information, and summary statistics across the entire device fleet.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.1",
+      "lastUpdate": "2026-06-12",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "IncludeSystemApps",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "FilterByPublisher",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "FilterByAppName",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "OpenReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "MaxDevices",
+          "type": "int",
+          "mandatory": false,
+          "default": "0",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-application-inventory-report.ps1\nGenerates application inventory reports for all managed devices",
+        ".\\get-application-inventory-report.ps1 -OutputPath \"C:\\Reports\" -IncludeSystemApps\nGenerates reports including system applications and saves them to the specified directory",
+        ".\\get-application-inventory-report.ps1 -FilterByPublisher \"Microsoft Corporation\" -OpenReport\nGenerates reports filtered by Microsoft applications and opens the HTML report",
+        ".\\get-application-inventory-report.ps1 -ForceModuleInstall\nForces module installation without prompting and generates the report"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- System applications are excluded by default to focus on business applications\n- Uses beta endpoint for enhanced application data\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/apps/get-application-inventory-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-application-inventory-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-application-inventory-report.ps1"
+    },
+    {
+      "id": "get-device-compliance-report",
+      "title": "Device Compliance Report",
+      "synopsis": "Generate a comprehensive device compliance report for managed devices in Intune.",
+      "description": "This script connects to Microsoft Graph, retrieves managed devices and their compliance status,\nand generates a detailed report in both CSV and HTML formats. The report includes device details,\ncompliance status, and summary statistics.",
+      "category": "compliance",
+      "categoryLabel": "compliance",
+      "tags": [
+        "Devices",
+        "Compliance",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OpenReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-device-compliance-report.ps1\nGenerates compliance reports for all managed devices",
+        ".\\get-device-compliance-report.ps1 -OutputPath \"C:\\Reports\"\nGenerates reports and saves them to the specified directory",
+        ".\\get-device-compliance-report.ps1 -ForceModuleInstall\nGenerates reports and forces module installation without prompting"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take several minutes to complete\n- Reports are saved in both CSV and HTML formats\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/compliance/get-device-compliance-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-device-compliance-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-device-compliance-report.ps1"
+    },
+    {
+      "id": "get-devices-by-scopetag",
+      "title": "Get Devices by Scope Tag Report",
+      "synopsis": "Generates comprehensive device reports filtered by Scope Tags with CSV and HTML export options",
+      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,\nfiltering them by specified Scope Tags. It generates detailed reports showing device \nstatus, owner information, enrollment profiles, compliance state, and other critical \ndata. The script supports both CSV and HTML output formats, with the HTML report \nfeaturing a management-friendly styled interface.\n\nIdeal for multi-school environments or organizations using Scope Tags for \nadministrative delegation, this script helps analyze device distribution and \nstatus across different organizational units.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices",
+        "Compliance"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementRBAC.Read.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-01",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "IncludeScopeTag",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "ExcludeScopeTag",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "ExportPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "(Get-Location).Path",
+          "switch": false
+        },
+        {
+          "name": "Platform",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "ComplianceState",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "ShowProgressBar",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeDetails",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-devices-by-scopetag.ps1 -IncludeScopeTag \"School_A\"\nGets all devices with the \"School_A\" scope tag and exports CSV and HTML reports to current directory",
+        ".\\get-devices-by-scopetag.ps1 -IncludeScopeTag \"School_A,School_B\" -ExportPath \"C:\\Reports\"\nGets devices from School_A and School_B, exports to both CSV and HTML in the specified directory",
+        ".\\get-devices-by-scopetag.ps1 -ExcludeScopeTag \"Default\" -ExportPath \"C:\\Reports\"\nGets all devices except those with only the \"Default\" scope tag",
+        ".\\get-devices-by-scopetag.ps1 -IncludeScopeTag \"School_A\" -Platform \"Windows\" -ComplianceState \"Compliant\"\nGets only compliant Windows devices from School_A"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- The script makes individual API calls for each device to retrieve scope tag information\n- Large environments may take several minutes to process due to individual device lookups\n- HTML report includes sorting and filtering capabilities\n- CSV export includes all device details for further analysis\n- Scope Tags must match exactly (case-sensitive)\n- Devices can have multiple scope tags assigned\n- The beta API endpoint is required to retrieve scope tag information\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/devices/get-devices-by-scopetag.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-devices-by-scopetag.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-devices-by-scopetag.ps1"
+    },
+    {
+      "id": "get-duplicate-applications",
+      "title": "Duplicate Applications Report",
+      "synopsis": "Identify and report duplicate applications across all managed devices in Intune.",
+      "description": "This script connects to Microsoft Graph, retrieves all applications uploaded to Intune,\nand identifies potential duplicate applications. Duplicates are identified by applications with the same\nname but different publishers or name variations. The script generates detailed reports\nshowing duplicate applications and their variations to help with application cleanup\nand standardization efforts.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-duplicate-applications.ps1\nGenerates duplicate applications report for all Intune applications",
+        ".\\get-duplicate-applications.ps1 -OutputPath \"C:\\Reports\"\nGenerates duplicate applications report and saves to specified directory",
+        ".\\get-duplicate-applications.ps1 -ForceModuleInstall\nForces module installation without prompting and generates the report"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Reports are saved in both CSV and HTML formats\n- Analyzes applications uploaded to Intune, not device-installed applications\n- Duplicate detection criteria:\n  * Same application name with different publishers\n  * Applications with name variations (case differences, extra spaces, etc.)\n  * Same application name with different app types\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/apps/get-duplicate-applications.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-duplicate-applications.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-duplicate-applications.ps1"
+    },
+    {
+      "id": "get-endpoint-analytics-report",
+      "title": "Endpoint Analytics Report",
+      "synopsis": "Generate comprehensive Endpoint Analytics reports from Microsoft Intune including startup performance, application reliability, battery health, and work from anywhere metrics.",
+      "description": "This script connects to Microsoft Graph API (beta) and retrieves Endpoint Analytics data from Intune.\nIt collects metrics across multiple categories including device startup performance, application reliability,\nbattery health, work from anywhere readiness, and overall device scores. Results are exported to CSV and HTML\nformats for analysis and reporting purposes.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-01-28",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "IncludeStartupPerformance",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeAppReliability",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeBatteryHealth",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeWorkFromAnywhere",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeAll",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportJson",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ShowProgress",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-endpoint-analytics-report.ps1\nGenerates a complete Endpoint Analytics report with all metrics",
+        ".\\get-endpoint-analytics-report.ps1 -OutputPath \"C:\\Reports\" -IncludeStartupPerformance\nGenerates report with only startup performance metrics",
+        ".\\get-endpoint-analytics-report.ps1 -IncludeAll -ExportJson\nGenerates report with all metrics and exports to both CSV and JSON formats"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Uses Microsoft Graph Beta API endpoints\n- Some features require Intune Advanced Analytics license\n- Battery Health metrics require Windows 10/11 devices\n- Endpoint Analytics must be enabled in Intune\n- Documentation: https://learn.microsoft.com/en-us/intune/analytics/overview",
+      "path": "scripts/monitoring/get-endpoint-analytics-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-endpoint-analytics-report.ps1"
+    },
+    {
+      "id": "get-intune-audit-logs",
+      "title": "Get Intune Audit Logs",
+      "synopsis": "Retrieves and displays audit log entries from Microsoft Intune with filtering and export options.",
+      "description": "This script connects to Microsoft Graph to retrieve audit log entries from Intune,\nshowing administrative actions, configuration changes, and other tracked activities.\nIt provides detailed information about who performed actions, what was changed,\nwhen it occurred, and the result. Supports filtering by date range, user, and\nactivity type, with options to export results to CSV or HTML format.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-23",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "NumberOfEntries",
+          "type": "int",
+          "mandatory": false,
+          "default": "20",
+          "switch": false
+        },
+        {
+          "name": "DaysBack",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "FilterByUser",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "FilterByActivity",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "FilterByCategory",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "OnlyFailures",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToHtml",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OpenReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "DetailedView",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-intune-audit-logs.ps1\nDisplays the last 20 audit log entries",
+        ".\\get-intune-audit-logs.ps1 -NumberOfEntries 50 -DaysBack 7\nShows the last 50 audit entries from the past 7 days",
+        ".\\get-intune-audit-logs.ps1 -FilterByUser \"admin@company.com\" -ExportToCsv\nShows all audit entries for a specific user and exports to CSV",
+        ".\\get-intune-audit-logs.ps1 -FilterByActivity \"*Policy*\" -ExportToHtml -OpenReport\nShows audit entries related to policy changes and opens HTML report"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Audit logs are retained for 30 days in Intune\n- Uses beta endpoint for comprehensive audit data\n- Results are sorted by timestamp (newest first)\n- Supports wildcards in activity and user filters",
+      "path": "scripts/monitoring/get-intune-audit-logs.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-intune-audit-logs.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-intune-audit-logs.ps1"
+    },
+    {
+      "id": "get-intune-role-assignments",
+      "title": "Get Intune Role Assignments",
+      "synopsis": "Lists all Intune role assignments showing who has which roles for security auditing.",
+      "description": "This script connects to Microsoft Graph to retrieve all Intune role definitions\nand their assignments, providing a clear view of who has administrative access\nto Intune. It shows both built-in and custom roles, the assigned users/groups,\nassignment dates, and scopes. Perfect for security audits and access reviews.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security"
+      ],
+      "permissions": [
+        "DeviceManagementRBAC.Read.All",
+        "User.Read.All",
+        "Group.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-23",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ShowEmptyRoles",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-intune-role-assignments.ps1\nShows all Intune role assignments",
+        ".\\get-intune-role-assignments.ps1 -ShowEmptyRoles\nShows all roles including those with no current assignments",
+        ".\\get-intune-role-assignments.ps1 -ExportToCsv\nExports the role assignments report to a CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Shows both built-in and custom Intune roles\n- Resolves user and group names for assignments\n- Assignment dates may not be available for older assignments",
+      "path": "scripts/security/get-intune-role-assignments.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-intune-role-assignments.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-intune-role-assignments.ps1"
+    },
+    {
+      "id": "get-maa-compliance-report",
+      "title": "Multi-Admin Approval Compliance Dashboard Report",
+      "synopsis": "Generate comprehensive compliance reports on Multi-Admin Approval (MAA) usage and coverage in Intune.",
+      "description": "This script connects to Microsoft Graph and analyzes Multi-Admin Approval configurations, usage patterns, \nand compliance metrics across your Intune environment. It generates detailed reports showing MAA coverage \ngaps, approval statistics, admin permissions, and trends. The script helps organizations ensure proper \nimplementation of MAA controls and identify areas for security improvement. Reports are generated in \nboth HTML and CSV formats for different audiences.",
+      "category": "compliance",
+      "categoryLabel": "compliance",
+      "tags": [
+        "Compliance",
+        "Reporting",
+        "Security",
+        "MAA",
+        "Governance"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementRBAC.Read.All",
+        "AuditLog.Read.All",
+        "Directory.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "DaysToAnalyze",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "IncludeRecommendations",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "DetailedAnalysis",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportDetailedCSV",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-maa-compliance-report.ps1\nGenerates MAA compliance reports in current directory with default 30-day analysis period",
+        ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -DaysToAnalyze 90\nGenerates reports with 90-day analysis period and saves to specified directory",
+        ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -IncludeRecommendations -DetailedAnalysis\nGenerates detailed reports with security recommendations and in-depth analysis"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports both local execution and Azure Automation Runbook environments\n- Generates both HTML dashboard and CSV data exports\n- HTML report includes charts and visualizations\n- CSV exports enable further analysis in Excel or Power BI\n- Consider running monthly for compliance tracking\n- Use -DetailedAnalysis for security audits",
+      "path": "scripts/compliance/get-maa-compliance-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-maa-compliance-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-maa-compliance-report.ps1"
+    },
+    {
+      "id": "get-stale-devices",
+      "title": "Get Stale Intune Devices",
+      "synopsis": "Identifies and reports on devices that haven't checked in to Intune within a specified timeframe",
+      "description": "This script connects to Microsoft Graph and retrieves all managed devices from Intune,\nthen identifies devices that are considered \"stale\" based on their last check-in date.\nThe script supports all device platforms (Windows, iOS, Android, macOS) and provides\ncomprehensive reporting with options to export results to CSV format.\n\nStale devices may indicate hardware that is no longer in use, devices that have been\nreimaged without proper cleanup, or devices experiencing connectivity issues.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DaysStale",
+          "type": "int",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "Platform",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"All\"",
+          "switch": false
+        },
+        {
+          "name": "IncludeNeverCheckedIn",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportPath",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "ShowProgressBar",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "IncludeDetails",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-stale-devices.ps1 -DaysStale 30\nGets all devices that haven't checked in for 30 days or more",
+        ".\\get-stale-devices.ps1 -DaysStale 60 -Platform \"Windows\" -ExportPath \"C:\\Reports\\stale-windows-devices.csv\"\nGets Windows devices that haven't checked in for 60 days and exports to CSV",
+        ".\\get-stale-devices.ps1 -DaysStale 90 -IncludeNeverCheckedIn -ShowProgressBar\nGets devices stale for 90+ days, includes devices that never checked in, with progress display",
+        ".\\get-stale-devices.ps1 -DaysStale 30 -ForceModuleInstall\nGets stale devices and forces module installation without prompting"
+      ],
+      "notes": "- Requires only Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Large environments may take several minutes to process\n- Consider running during off-hours for large tenant scans\n- Devices that have never checked in will show 'Never' as last check-in time\n- Corporate-owned devices vs personal devices are distinguished in the output\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/devices/get-stale-devices.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-stale-devices.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-stale-devices.ps1"
+    },
+    {
+      "id": "maa-pending-requests-monitor",
+      "title": "Multi-Admin Approval Pending Requests Monitor",
+      "synopsis": "Automated runbook to monitor Multi-Admin Approval (MAA) pending requests in Intune and send email alerts to approvers.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors Multi-Admin Approval \nrequests in Microsoft Intune and identifies pending approval requests. It tracks new requests, monitors \nrequest age, identifies approvers, and sends email notifications to administrators with detailed request \ninformation and direct links to the Intune portal. The script helps maintain security compliance by ensuring \ntimely review of administrative changes and provides visibility into the MAA approval workflow.\n\nKey Features:\n- Monitors all MAA pending requests across protected resources\n- Tracks request age and highlights urgent requests\n- Identifies and notifies appropriate approvers\n- Provides direct links to Intune portal for quick action\n- Tracks previously notified requests to avoid spam\n- Sends escalation alerts for aging requests\n- Supports both Azure Automation runbook and local execution\n- HTML formatted email reports with actionable insights\n- Uses Microsoft Graph Mail API exclusively",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification",
+        "Security",
+        "RunbookOnly",
+        "Email",
+        "Monitoring",
+        "MAA",
+        "Compliance"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementRBAC.Read.All",
+        "AuditLog.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "",
+      "schedule": "Hourly",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "UrgentThresholdHours",
+          "type": "int",
+          "mandatory": false,
+          "default": "24",
+          "switch": false
+        },
+        {
+          "name": "EscalationThresholdHours",
+          "type": "int",
+          "mandatory": false,
+          "default": "72",
+          "switch": false
+        },
+        {
+          "name": "IncludeProcessedRequests",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceNotification",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"security@company.com\" -UrgentThresholdHours 24\nMonitors MAA requests and alerts security team, marking requests older than 24 hours as urgent",
+        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"admin@company.com,security@company.com\" -UrgentThresholdHours 48 -EscalationThresholdHours 72\nMonitors MAA requests with multiple recipients and escalation for requests older than 72 hours"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- This script is designed specifically for Azure Automation runbooks\n- Email notifications are sent via Microsoft Graph Mail API\n- Recommended to run hourly to ensure timely notifications\n- Stores state in Azure Automation variables to track notified requests\n- Critical for maintaining MAA compliance and security posture",
+      "path": "scripts/notification/maa-pending-requests-monitor.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/maa-pending-requests-monitor.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/maa-pending-requests-monitor.ps1"
+    },
+    {
+      "id": "remediate-antivirus-definitions",
+      "title": "Windows Defender Definition Update Remediation",
+      "synopsis": "Updates Windows Defender antivirus definitions",
+      "description": "Forces Windows Defender signature updates and verifies they were successful.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-09",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-antivirus-definitions-outdated.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\remediate-antivirus-definitions.ps1"
+      ],
+      "notes": "Runs in SYSTEM context",
+      "path": "scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1"
+    },
+    {
+      "id": "remediate-disk-cleanup",
+      "title": "Disk Cleanup Remediation Script",
+      "synopsis": "Cleans temporary files and empties recycle bin",
+      "description": "Removes Windows temp files, user temp files, and empties the recycle bin.\nAlso runs Windows disk cleanup utility.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-06-09",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-disk-cleanup-needed.ps1",
+      "parameters": [
+        {
+          "name": "Path",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        }
+      ],
+      "examples": [
+        ".\\remediate-disk-cleanup.ps1"
+      ],
+      "notes": "Runs in SYSTEM context",
+      "path": "scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1"
+    },
+    {
+      "id": "restart-devices",
+      "title": "Restart Devices",
+      "synopsis": "Trigger remote restart operations on specific managed devices in Intune or devices in an Entra ID group.",
+      "description": "This script connects to Microsoft Graph and triggers remote restart operations on targeted devices.\nYou can target devices by specific names, device IDs, or by Entra ID group membership.\nThe script provides real-time feedback on restart operations and handles errors gracefully.\nAll operations include confirmation prompts to prevent accidental restarts.",
+      "category": "operational",
+      "categoryLabel": "operational",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-09-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DeviceNames",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "DeviceIds",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EntraGroupName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "RestartDelaySeconds",
+          "type": "int",
+          "mandatory": false,
+          "default": "2",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\restart-devices.ps1 -DeviceNames \"LAPTOP001\",\"DESKTOP002\"\nRestarts specific devices by name",
+        ".\\restart-devices.ps1 -DeviceIds \"12345678-1234-1234-1234-123456789012\",\"87654321-4321-4321-4321-210987654321\"\nRestarts specific devices by their Intune device IDs",
+        ".\\restart-devices.ps1 -EntraGroupName \"IT Department Devices\"\nRestarts all devices belonging to users in the specified Entra ID group",
+        ".\\restart-devices.ps1 -DeviceNames \"LAPTOP001\" -Force\nRestarts a specific device without confirmation prompt"
+      ],
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Restart operations are triggered immediately but may take 5-30 minutes to execute\n- Devices will restart within 5 minutes when users are logged in\n- Confirmation prompts are shown unless -Force parameter is used\n- Use with caution as this will interrupt user work",
+      "path": "scripts/operational/restart-devices.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/restart-devices.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/restart-devices.ps1"
+    },
+    {
+      "id": "rotate-bitlocker-keys",
+      "title": "Rotate BitLocker Keys",
+      "synopsis": "Rotates BitLocker keys for all Windows devices in Intune using Graph API.",
+      "description": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.\nThe script retrieves all Windows devices from Intune and triggers BitLocker key rotation for each device.\nIt provides real-time feedback on the rotation process and handles errors gracefully.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DelaySeconds",
+          "type": "int",
+          "mandatory": false,
+          "default": "2",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\rotate-bitlocker-keys.ps1\nRotates BitLocker keys for all Windows devices in Intune",
+        ".\\rotate-bitlocker-keys.ps1 -DelaySeconds 5\nRotates BitLocker keys with a 5-second delay between operations"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- BitLocker key rotation is triggered immediately but may take time to complete on the device\n- The script will show real-time progress and results\n- Only Windows devices with BitLocker enabled will be processed\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "path": "scripts/security/rotate-bitlocker-keys.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-bitlocker-keys.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/rotate-bitlocker-keys.ps1"
+    },
+    {
+      "id": "rotate-macos-laps-passwords",
+      "title": "Rotate macOS LAPS Passwords",
+      "synopsis": "Rotates Local Administrator Password Solution (LAPS) passwords for macOS devices in Intune using Graph API.",
+      "description": "This script connects to Intune via Microsoft Graph API and rotates the LAPS passwords for managed macOS devices.\nThe script retrieves all macOS devices from Intune and triggers LAPS password rotation for each device.\nIt provides real-time feedback on the rotation process, handles errors gracefully, and generates detailed reports.\nThe script supports filtering by device groups, individual devices, or processing all macOS devices.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-09-22",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DeviceName",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "DeviceId",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "DelaySeconds",
+          "type": "int",
+          "mandatory": false,
+          "default": "2",
+          "switch": false
+        },
+        {
+          "name": "ExportReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "TestMode",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "DeviceLimit",
+          "type": "int",
+          "mandatory": false,
+          "default": "0",
+          "switch": false
+        },
+        {
+          "name": "ShowProgress",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\rotate-macos-laps-passwords.ps1\nRotates LAPS passwords for all macOS devices in Intune",
+        ".\\rotate-macos-laps-passwords.ps1 -DeviceName \"MacBook-001\"\nRotates LAPS password for a specific device",
+        ".\\rotate-macos-laps-passwords.ps1 -DelaySeconds 5 -ExportReport\nRotates LAPS passwords with a 5-second delay between operations and exports results",
+        ".\\rotate-macos-laps-passwords.ps1 -TestMode -DeviceLimit 5\nRuns in test mode, processing only 5 devices without actual rotation"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- LAPS must be configured and enabled for macOS devices in Intune\n- The rotation is triggered immediately but may take time to complete on the device\n- Personal devices cannot have their LAPS passwords rotated\n- The new password will be available in Intune after successful rotation",
+      "path": "scripts/security/rotate-macos-laps-passwords.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-macos-laps-passwords.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/rotate-macos-laps-passwords.ps1"
+    },
+    {
+      "id": "stale-device-cleanup-alert",
+      "title": "Stale Device Cleanup Alert Notification",
+      "synopsis": "Automated runbook to monitor stale devices in Intune and send email alerts for cleanup recommendations.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook that monitors devices in \nMicrosoft Intune that haven't checked in for a specified number of days. It identifies stale \ndevices across different platforms (Windows, iOS, Android, macOS) and sends email notifications \nto administrators with cleanup recommendations. The script helps maintain a clean device inventory \nand optimize licensing costs by identifying devices that may no longer be in use.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-30",
+      "schedule": "Weekly",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "StaleAfterDays",
+          "type": "int",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients \"admin@company.com\"\nIdentifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com",
+        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients \"admin@company.com,security@company.com\"\nIdentifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (weekly or monthly)\n- Consider your organization's device usage patterns when setting staleness threshold\n- Review cleanup recommendations before taking action on devices\n- Critical for maintaining accurate device inventory and license optimization",
+      "path": "scripts/notification/stale-device-cleanup-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/stale-device-cleanup-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/stale-device-cleanup-alert.ps1"
+    },
+    {
+      "id": "sync-devices",
+      "title": "Sync Devices",
+      "synopsis": "Trigger synchronization on specific managed devices in Intune or devices in an Entra ID group.",
+      "description": "This script connects to Microsoft Graph and triggers synchronization operations on targeted devices.\nYou can target devices by specific names, device IDs, or by Entra ID group membership.\nThe script provides real-time feedback on sync operations and handles errors gracefully.",
+      "category": "operational",
+      "categoryLabel": "operational",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.1",
+      "lastUpdate": "2025-09-24",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DeviceNames",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "DeviceIds",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EntraGroupName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ForceSync",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "SyncDelaySeconds",
+          "type": "int",
+          "mandatory": false,
+          "default": "2",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\sync-devices.ps1 -DeviceNames \"LAPTOP001\",\"DESKTOP002\"\nSynchronizes specific devices by name",
+        ".\\sync-devices.ps1 -DeviceIds \"12345678-1234-1234-1234-123456789012\",\"87654321-4321-4321-4321-210987654321\"\nSynchronizes specific devices by their Intune device IDs",
+        ".\\sync-devices.ps1 -EntraGroupName \"IT Department Devices\"\nSynchronizes all devices belonging to users in the specified Entra ID group",
+        ".\\sync-devices.ps1 -EntraGroupName \"Sales Team\" -ForceSync\nForces synchronization of all devices for users in the Sales Team group"
+      ],
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Sync operations are triggered immediately but may take time to complete on the device\n- Use -ForceSync to override the 1-hour sync threshold\n- The script will show real-time progress and results",
+      "path": "scripts/operational/sync-devices.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/sync-devices.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/sync-devices.ps1"
+    },
+    {
+      "id": "wipe-devices",
+      "title": "Wipe Devices",
+      "synopsis": "Perform remote wipe operations on specific managed devices in Intune or devices in an Entra ID group.",
+      "description": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.\nYou can target devices by specific names, device IDs, or by Entra ID group membership.\nThe script provides options for selective wipe (remove company data) or full wipe (factory reset).\nAll operations include confirmation prompts to prevent accidental data loss.",
+      "category": "operational",
+      "categoryLabel": "operational",
+      "tags": [
+        "Operational",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2025-05-29",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DeviceNames",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "DeviceIds",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "EntraGroupName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "WipeType",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "KeepEnrollmentData",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "PIN",
+          "type": "string",
+          "mandatory": false,
+          "switch": false
+        },
+        {
+          "name": "WipeDelaySeconds",
+          "type": "int",
+          "mandatory": false,
+          "default": "3",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\wipe-devices.ps1 -DeviceNames \"LAPTOP001\",\"DESKTOP002\" -WipeType Selective\nPerforms selective wipe on specific devices by name",
+        ".\\wipe-devices.ps1 -DeviceIds \"12345678-1234-1234-1234-123456789012\" -WipeType Full -Force\nPerforms full wipe on a specific device by ID without confirmation",
+        ".\\wipe-devices.ps1 -EntraGroupName \"Compromised Devices\" -WipeType Selective\nPerforms selective wipe on all devices belonging to users in the specified group",
+        ".\\wipe-devices.ps1 -DeviceNames \"LAPTOP001\" -WipeType Full -KeepEnrollmentData -PIN \"123456\"\nPerforms full wipe while keeping enrollment data and using a PIN for device unlock"
+      ],
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- CAUTION: Full wipe will completely reset the device to factory settings\n- Selective wipe removes only company data and apps\n- Operations cannot be undone - use with extreme caution\n- Confirmation prompts are shown unless -Force parameter is used",
+      "path": "scripts/operational/wipe-devices.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/wipe-devices.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/wipe-devices.ps1"
+    }
+  ]
+}

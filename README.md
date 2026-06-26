@@ -97,6 +97,18 @@ The `grant-permissions-managed-identity.ps1` script grants these Microsoft Graph
 
 These permissions cover most common Intune automation scenarios.
 
+### Option 3: Ask Claude (MCP Server)
+
+Use the [`@ugurkocde/intuneautomation-mcp`](mcp/) server to **search and retrieve these scripts from inside Claude Code** (or any MCP client) using natural language — no API key, no login, nothing to host.
+
+```bash
+claude mcp add intuneautomation -- npx -y @ugurkocde/intuneautomation-mcp
+```
+
+Then just ask: _"Which Intune scripts report on non-compliant devices?"_ or _"Show me the script to rotate BitLocker keys and what permissions it needs."_ Claude returns the right script with its required Microsoft Graph permissions, minimum role, parameters, and full source.
+
+It can also **write new scripts** that follow the project's conventions: the server exposes the same authoring guide used by [intuneautomation.com/generator](https://intuneautomation.com/generator), so asking _"write me an Intune script to report stale devices"_ produces a script matching the library's strict format, auth patterns, and safety rules. See [mcp/README.md](mcp/README.md) for details.
+
 ## 📁 Scripts Overview
 
 ```

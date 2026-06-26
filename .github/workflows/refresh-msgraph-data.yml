@@ -27,10 +27,15 @@ jobs:
         working-directory: web
         run: node scripts/sync-msgraph-data.mjs
 
+      - name: Regenerate MCP authoring guide
+        # The guide embeds the curated Graph samples, so refresh it whenever the
+        # data module is regenerated.
+        run: node --experimental-strip-types web/scripts/export-generator-instructions.mjs
+
       - name: Detect changes
         id: diff
         run: |
-          if [[ -n "$(git status --porcelain web/src/lib/generator-graph-data.ts)" ]]; then
+          if [[ -n "$(git status --porcelain web/src/lib/generator-graph-data.ts mcp/data/generator-instructions.md)" ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -41,6 +46,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/src/lib/generator-graph-data.ts
-          git commit -m "chore(web): refresh msgraph data from graph.pm"
+          git add web/src/lib/generator-graph-data.ts mcp/data/generator-instructions.md
+          git commit -m "chore(web): refresh msgraph data from graph.pm [skip ci]"
           git push
