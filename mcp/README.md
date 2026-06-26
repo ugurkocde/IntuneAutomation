@@ -6,14 +6,14 @@
 [![node](https://img.shields.io/node/v/@ugurkocde/intuneautomation-mcp.svg)](https://nodejs.org)
 
 An [MCP](https://modelcontextprotocol.io) server that lets Claude Code, Claude
-Desktop, Cursor, VS Code, Codex, and any MCP client **search, retrieve, and write**
-Microsoft Intune PowerShell scripts from the
+Desktop, Codex, Cursor, VS Code, Windsurf, Gemini CLI, and any MCP client
+**search, retrieve, and write** Microsoft Intune PowerShell scripts from the
 [IntuneAutomation](https://intuneautomation.com) library — in natural language.
 
 Ask _"Which Intune scripts report on non-compliant devices?"_ or _"Write me a
 script to export all compliance policies to CSV"_ and the assistant uses this
-server to find the right script (with its required Microsoft Graph permissions,
-minimum role, parameters, and source) or to author a new one that matches the
+server to find the right script — with its required Microsoft Graph permissions,
+minimum role, parameters, and source — or to author a new one that matches the
 project's conventions.
 
 > **No API key. No login. No hosted service. No telemetry.** The server runs
@@ -21,7 +21,19 @@ project's conventions.
 > catalog from GitHub. It never connects to your Microsoft tenant and never runs
 > any script — you do that yourself, with your own authentication.
 
-## Install
+## Contents
+
+- [Quick start](#quick-start) — [Claude Code](#claude-code) · [Codex CLI](#codex-cli) · [Claude Desktop](#claude-desktop) · [Cursor](#cursor) · [VS Code](#vs-code-github-copilot) · [Windsurf](#windsurf) · [Gemini CLI](#gemini-cli)
+- [Try it](#try-it)
+- [Tools](#tools) · [Resources](#resources) · [Prompts](#prompts)
+- [How it works](#how-it-works) · [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting) · [Security](#security)
+
+## Quick start
+
+**Requirement:** Node.js 18 or newer (`npx` ships with Node). After adding the
+server, **restart your client** so it spawns the process. No other setup —
+no API key, no sign-in.
 
 ### Claude Code
 
@@ -29,10 +41,27 @@ project's conventions.
 claude mcp add intuneautomation -- npx -y @ugurkocde/intuneautomation-mcp
 ```
 
-### Claude Desktop / Cursor / Windsurf / generic
+Add `--scope user` to enable it across all your projects, or `--scope project`
+to share it with your team via a checked-in `.mcp.json`.
 
-Add to the client's MCP config (`claude_desktop_config.json`, Cursor's
-`mcp.json`, etc.):
+### Codex CLI
+
+```bash
+codex mcp add intuneautomation -- npx -y @ugurkocde/intuneautomation-mcp
+```
+
+Or add it to `~/.codex/config.toml` (note: TOML, table name uses an underscore):
+
+```toml
+[mcp_servers.intuneautomation]
+command = "npx"
+args = ["-y", "@ugurkocde/intuneautomation-mcp"]
+```
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`,
+Windows: `%APPDATA%\Claude\`):
 
 ```json
 {
@@ -45,25 +74,82 @@ Add to the client's MCP config (`claude_desktop_config.json`, Cursor's
 }
 ```
 
-### VS Code
+### Cursor
+
+Edit `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
+
+```json
+{
+  "mcpServers": {
+    "intuneautomation": {
+      "command": "npx",
+      "args": ["-y", "@ugurkocde/intuneautomation-mcp"]
+    }
+  }
+}
+```
+
+### VS Code (GitHub Copilot)
 
 ```bash
-code --add-mcp '{"name":"intuneautomation","command":"npx","args":["-y","@ugurkocde/intuneautomation-mcp"]}'
+code --add-mcp "{\"name\":\"intuneautomation\",\"command\":\"npx\",\"args\":[\"-y\",\"@ugurkocde/intuneautomation-mcp\"]}"
 ```
 
-### Codex CLI
+Or create `.vscode/mcp.json` — note VS Code's top-level key is **`servers`** (not
+`mcpServers`):
 
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.intuneautomation]
-command = "npx"
-args = ["-y", "@ugurkocde/intuneautomation-mcp"]
+```json
+{
+  "servers": {
+    "intuneautomation": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@ugurkocde/intuneautomation-mcp"]
+    }
+  }
+}
 ```
 
-Restart your client afterwards.
+### Windsurf
+
+Edit `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "intuneautomation": {
+      "command": "npx",
+      "args": ["-y", "@ugurkocde/intuneautomation-mcp"]
+    }
+  }
+}
+```
+
+### Gemini CLI
+
+```bash
+gemini mcp add intuneautomation npx -y @ugurkocde/intuneautomation-mcp
+```
+
+Or edit `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "intuneautomation": {
+      "command": "npx",
+      "args": ["-y", "@ugurkocde/intuneautomation-mcp"]
+    }
+  }
+}
+```
+
+> Any other MCP client works too — point it at the command `npx` with args
+> `-y @ugurkocde/intuneautomation-mcp` over stdio.
 
 ## Try it
+
+Once installed, ask your assistant:
 
 - "What Intune scripts do you have for application inventory?"
 - "Find a script to rotate BitLocker keys — what permissions does it need?"
@@ -109,13 +195,13 @@ IntuneAutomation library instead of being improvised.
 
 ```
 Your MCP client  ──stdio──▶  intuneautomation-mcp  ──HTTPS──▶  raw.githubusercontent.com
-   (Claude Code)              (local Node process)             (IntuneAutomation repo)
+   (Claude, Codex, …)         (local Node process)            (IntuneAutomation repo)
 ```
 
-The server fetches a generated metadata index (`mcp/data/scripts-index.json`) and
-the authoring guide (`mcp/data/generator-instructions.md`) from the repository's
-`main` branch and caches them in memory (5 min). Full script source is fetched on
-demand. If GitHub is unreachable, it falls back to copies bundled in this package.
+The server fetches a generated metadata index and the authoring guide from the
+repository's `main` branch and caches them in memory (5 min). Full script source
+is fetched on demand. If GitHub is unreachable, it falls back to copies bundled in
+this package.
 
 New scripts added to the repository appear automatically — no reinstall or
 republish needed. The authoring guide is exported verbatim from the website
@@ -134,7 +220,7 @@ conventions.
 
 - **Requires Node.js 18+.** Check with `node --version`. `npx` ships with Node.
 - **Nothing happens after install:** fully restart the MCP client so it spawns
-  the server.
+  the server. In Claude Code, confirm it loaded with `claude mcp list`.
 - **Behind a proxy / offline:** the server falls back to the catalog bundled in
   the package, so search still works; only freshly-added scripts and live source
   fetches need network.
