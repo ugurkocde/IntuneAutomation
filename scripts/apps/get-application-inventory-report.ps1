@@ -17,19 +17,20 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.Read.All,DeviceManagementApps.Read.All
+    DeviceManagementManagedDevices.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
     1.0 - Initial release
+    1.1 - Enrich publisher/platform/size from aggregate detectedApps endpoint (per-device expand returns null/unknown), enforce MaxDevices as a hard cap, drop unused DeviceManagementApps.Read.All permission
 
 .LASTUPDATE
-    2025-05-29
+    2026-06-12
 
 .EXAMPLE
     .\get-application-inventory-report.ps1
@@ -197,8 +198,7 @@ try {
         # Local execution - Use interactive authentication
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(
-            "DeviceManagementManagedDevices.Read.All",
-            "DeviceManagementApps.Read.All"
+            "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
@@ -217,30 +217,38 @@ catch {
 function Get-MgGraphAllPage {
     param(
         [string]$Uri,
-        [int]$DelayMs = 100
+        [int]$DelayMs = 100,
+        [int]$MaxResults = 0
     )
-    
+
     $allResults = @()
     $nextLink = $Uri
     $requestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($requestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
-            
+
             if ($response.value) {
                 $allResults += $response.value
             }
             else {
                 $allResults += $response
             }
-            
+
+            # Stop paging once the requested maximum is reached ($top only sets
+            # page size, so without this the pager would follow every nextLink)
+            if ($MaxResults -gt 0 -and $allResults.Count -ge $MaxResults) {
+                $allResults = $allResults | Select-Object -First $MaxResults
+                break
+            }
+
             $nextLink = $response.'@odata.nextLink'
             
             # Show progress for large datasets
@@ -310,10 +318,25 @@ try {
     Write-Information "Retrieving managed devices..." -InformationAction Continue
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
     if ($MaxDevices -gt 0) {
-        $devicesUri += "?`$top=$MaxDevices"
+        # Graph caps page size at 1000; MaxResults enforces the actual device limit
+        $pageSize = [math]::Min($MaxDevices, 1000)
+        $devicesUri += "?`$top=$pageSize"
     }
-    $devices = Get-MgGraphAllPage -Uri $devicesUri
+    $devices = Get-MgGraphAllPage -Uri $devicesUri -MaxResults $MaxDevices
     Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
+
+    # Build a metadata lookup from the aggregate detectedApps endpoint. The
+    # per-device $expand=detectedApps response omits publisher (null), platform
+    # ("unknown") and size (0), so we enrich each app by joining on its id.
+    Write-Information "Building detected application metadata lookup..." -InformationAction Continue
+    $detectedAppLookup = @{}
+    $allDetectedApps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/detectedApps"
+    foreach ($detectedApp in $allDetectedApps) {
+        if ($detectedApp.id -and -not $detectedAppLookup.ContainsKey($detectedApp.id)) {
+            $detectedAppLookup[$detectedApp.id] = $detectedApp
+        }
+    }
+    Write-Information "✓ Loaded metadata for $($detectedAppLookup.Count) detected applications" -InformationAction Continue
 
     # Create application inventory array
     $applicationInventory = @()
@@ -347,8 +370,16 @@ try {
                         if ($isSystemApp) { continue }
                     }
                 
+                    # Enrich from the aggregate metadata lookup; the per-device
+                    # expand omits publisher/platform/size, so prefer the lookup
+                    # value and fall back to whatever the expand returned.
+                    $appMeta = $detectedAppLookup[$app.id]
+                    $resolvedPublisher = if ($appMeta -and $appMeta.publisher) { $appMeta.publisher } elseif ($app.publisher) { $app.publisher } else { $null }
+                    $resolvedPlatform = if ($appMeta -and $appMeta.platform -and $appMeta.platform -ne "unknown") { $appMeta.platform } elseif ($app.platform -and $app.platform -ne "unknown") { $app.platform } else { "Unknown" }
+                    $resolvedSize = if ($appMeta -and $appMeta.sizeInByte -gt 0) { $appMeta.sizeInByte } else { $app.sizeInByte }
+
                     # Apply filters if specified
-                    if ($FilterByPublisher -and $app.publisher -notlike "*$FilterByPublisher*") {
+                    if ($FilterByPublisher -and $resolvedPublisher -notlike "*$FilterByPublisher*") {
                         continue
                     }
                 
@@ -374,10 +405,10 @@ try {
                         OSVersion           = $device.osVersion
                         ApplicationName     = $app.displayName
                         ApplicationVersion  = $app.version
-                        Publisher           = if ($app.publisher) { $app.publisher } else { "Unknown" }
-                        ApplicationSize     = if ($app.sizeInByte -and $app.sizeInByte -gt 0) { [math]::Round($app.sizeInByte / 1MB, 2) } else { "Unknown" }
-                        ApplicationSizeUnit = if ($app.sizeInByte -and $app.sizeInByte -gt 0) { "MB" } else { "N/A" }
-                        Platform            = if ($app.platform) { $app.platform } else { "Unknown" }
+                        Publisher           = if ($resolvedPublisher) { $resolvedPublisher } else { "Unknown" }
+                        ApplicationSize     = if ($resolvedSize -and $resolvedSize -gt 0) { [math]::Round($resolvedSize / 1MB, 2) } else { "Unknown" }
+                        ApplicationSizeUnit = if ($resolvedSize -and $resolvedSize -gt 0) { "MB" } else { "N/A" }
+                        Platform            = $resolvedPlatform
                         LastSyncDateTime    = $device.lastSyncDateTime
                         DaysSinceLastSync   = $daysSinceLastSeen
                         DeviceModel         = $device.model
@@ -582,7 +613,7 @@ try {
         </table>
     </div>
     
-    <div class='footer'>Report generated by Intune Application Inventory Script v1.0</div>
+    <div class='footer'>Report generated by Intune Application Inventory Script v1.1</div>
 </body>
 </html>
 "@
