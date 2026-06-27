@@ -1,4 +1,4 @@
-# @ugurkocde/intuneautomation-mcp
+# IntuneAutomation MCP
 
 [![npm version](https://img.shields.io/npm/v/@ugurkocde/intuneautomation-mcp.svg)](https://www.npmjs.com/package/@ugurkocde/intuneautomation-mcp)
 [![npm downloads](https://img.shields.io/npm/dm/@ugurkocde/intuneautomation-mcp.svg)](https://www.npmjs.com/package/@ugurkocde/intuneautomation-mcp)

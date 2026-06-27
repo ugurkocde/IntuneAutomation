@@ -3,6 +3,12 @@
 All notable changes to `@ugurkocde/intuneautomation-mcp` are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.0.1
+
+### Changed
+
+- README title updated to "IntuneAutomation MCP".
+
 ## 1.0.0
 
 Initial public release.
