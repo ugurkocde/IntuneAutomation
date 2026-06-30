@@ -1,39 +1,25 @@
 {
-  "outputs": {
-    "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
-    },
-    "deploymentInstructions": {
-      "type": "string",
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
-    },
-    "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
-    },
-    "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
-    },
-    "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
-    }
+  "variables": {
+    "logVerbose": false,
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+    "logProgress": false,
+    "runbookType": "PowerShell"
   },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
   "parameters": {
-    "runbookName": {
-      "type": "string",
-      "defaultValue": "backup-bitlocker-keys-to-keyvault",
-      "metadata": {
-        "description": "Name for the new runbook (will be created in the Automation Account)"
-      }
-    },
     "location": {
       "type": "string",
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Location for the runbook deployment"
+      }
+    },
+    "runbookName": {
+      "type": "string",
+      "defaultValue": "backup-bitlocker-keys-to-keyvault",
+      "metadata": {
+        "description": "Name for the new runbook (will be created in the Automation Account)"
       }
     },
     "automationAccountName": {
@@ -50,46 +36,60 @@
       }
     }
   },
-  "contentVersion": "1.0.0.0",
   "resources": [
     {
+      "name": "[parameters('automationAccountName')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "type": "Microsoft.Automation/automationAccounts",
+      "location": "[parameters('location')]",
       "properties": {
         "sku": {
           "name": "Basic"
         }
       },
-      "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts",
-      "name": "[parameters('automationAccountName')]",
-      "location": "[parameters('location')]",
-      "identity": {
-        "type": "SystemAssigned"
-      }
+      "apiVersion": "2023-11-01"
     },
     {
+      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "location": "[parameters('location')]",
       "properties": {
-        "logProgress": "[variables('logProgress')]",
-        "description": "[parameters('runbookDescription')]",
         "logVerbose": "[variables('logVerbose')]",
-        "runbookType": "[variables('runbookType')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
-        }
+        },
+        "description": "[parameters('runbookDescription')]",
+        "logProgress": "[variables('logProgress')]",
+        "runbookType": "[variables('runbookType')]"
       },
       "apiVersion": "2023-11-01",
-      "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
       "dependsOn": [
         "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "location": "[parameters('location')]"
+      ]
     }
   ],
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "logProgress": false,
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1"
+  "outputs": {
+    "runbookUrl": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+    },
+    "runbookName": {
+      "type": "string",
+      "value": "[parameters('runbookName')]"
+    },
+    "automationAccountName": {
+      "type": "string",
+      "value": "[parameters('automationAccountName')]"
+    },
+    "scriptSourceUrl": {
+      "type": "string",
+      "value": "[variables('scriptUri')]"
+    },
+    "deploymentInstructions": {
+      "type": "string",
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook."
+    }
   }
 }
