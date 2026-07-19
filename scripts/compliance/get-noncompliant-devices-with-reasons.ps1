@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Output directory is created automatically when missing; per-device and per-policy Graph calls are spaced with a short delay to reduce throttling; summary counts are wrapped in @() so single-result queries report accurate totals; progress bar output is suppressed in Azure Automation
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
@@ -281,7 +282,9 @@ try {
 
     foreach ($device in $devices) {
         $processedCount++
-        Write-Progress -Activity "Analyzing non-compliant devices" -Status "Device $processedCount of $($devices.Count): $($device.deviceName)" -PercentComplete (($processedCount / [math]::Max($devices.Count, 1)) * 100)
+        if (-not $IsAzureAutomation) {
+            Write-Progress -Activity "Analyzing non-compliant devices" -Status "Device $processedCount of $($devices.Count): $($device.deviceName)" -PercentComplete (($processedCount / [math]::Max($devices.Count, 1)) * 100)
+        }
 
         # Common device fields reused for every emitted row
         $gracePeriodExpiry = if ($device.complianceGracePeriodExpirationDateTime) {
@@ -290,6 +293,8 @@ try {
         else { $null }
 
         try {
+            # Space out per-device calls to reduce throttling
+            Start-Sleep -Milliseconds 100
             $policyStatesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates"
             $policyStates = Get-MgGraphAllPage -Uri $policyStatesUri
 
@@ -300,6 +305,8 @@ try {
 
             foreach ($policy in $failingPolicies) {
                 try {
+                    # Space out per-policy calls to reduce throttling
+                    Start-Sleep -Milliseconds 100
                     $settingStatesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates/$($policy.id)/settingStates"
                     $settingStates = Get-MgGraphAllPage -Uri $settingStatesUri
 
@@ -380,7 +387,14 @@ try {
         }
     }
 
-    Write-Progress -Activity "Analyzing non-compliant devices" -Completed
+    if (-not $IsAzureAutomation) {
+        Write-Progress -Activity "Analyzing non-compliant devices" -Completed
+    }
+
+    # Create output directory if it doesn't exist
+    if (-not (Test-Path $OutputPath)) {
+        New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+    }
 
     # Generate timestamp for file names
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
@@ -397,8 +411,8 @@ try {
     }
 
     # Summary metrics
-    $distinctDevices = ($report | Select-Object -ExpandProperty DeviceId -Unique).Count
-    $totalReasons = ($report | Where-Object { $_.SettingId -ne "" }).Count
+    $distinctDevices = @($report | Select-Object -ExpandProperty DeviceId -Unique).Count
+    $totalReasons = @($report | Where-Object { $_.SettingId -ne "" }).Count
 
     # Top reasons across the estate
     $topReasons = $report |

@@ -29,9 +29,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - HTML-encode all report values to prevent markup injection and limit the initial device fetch with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -649,10 +650,10 @@ function New-HTMLReport {
 "@
 
     if ($IncludeTags) {
-        $HTMLContent += "            Included Scope Tags: $($IncludeTags -join ', ')<br>`n"
+        $HTMLContent += "            Included Scope Tags: $([System.Net.WebUtility]::HtmlEncode(($IncludeTags -join ', ')))<br>`n"
     }
     if ($ExcludeTags) {
-        $HTMLContent += "            Excluded Scope Tags: $($ExcludeTags -join ', ')<br>`n"
+        $HTMLContent += "            Excluded Scope Tags: $([System.Net.WebUtility]::HtmlEncode(($ExcludeTags -join ', ')))<br>`n"
     }
 
     $HTMLContent += @"
@@ -667,9 +668,10 @@ function New-HTMLReport {
 
     # Add platform summary cards
     foreach ($Platform in $DevicesByPlatform) {
+        $EncodedPlatformName = [System.Net.WebUtility]::HtmlEncode($Platform.Name)
         $HTMLContent += @"
             <div class="summary-card">
-                <h3>$($Platform.Name) Devices</h3>
+                <h3>$EncodedPlatformName Devices</h3>
                 <div class="value">$($Platform.Count)</div>
             </div>
 "@
@@ -690,7 +692,8 @@ function New-HTMLReport {
 "@
 
     foreach ($Platform in $DevicesByPlatform) {
-        $HTMLContent += "                    <option value=`"$($Platform.Name)`">$($Platform.Name)</option>`n"
+        $EncodedPlatformName = [System.Net.WebUtility]::HtmlEncode($Platform.Name)
+        $HTMLContent += "                    <option value=`"$EncodedPlatformName`">$EncodedPlatformName</option>`n"
     }
 
     $HTMLContent += @"
@@ -712,7 +715,8 @@ function New-HTMLReport {
 "@
 
     foreach ($ScopeTag in $DevicesByScopeTag | Sort-Object Name) {
-        $HTMLContent += "                    <option value=`"$($ScopeTag.Name)`">$($ScopeTag.Name) ($($ScopeTag.Count))</option>`n"
+        $EncodedScopeTagName = [System.Net.WebUtility]::HtmlEncode($ScopeTag.Name)
+        $HTMLContent += "                    <option value=`"$EncodedScopeTagName`">$EncodedScopeTagName ($($ScopeTag.Count))</option>`n"
     }
 
     $HTMLContent += @"
@@ -753,19 +757,28 @@ function New-HTMLReport {
                 default { "unknown" }
             }
             
-            $PlatformClass = "platform-$($Device.Platform.ToLower())"
-            
+            $PlatformClass = [System.Net.WebUtility]::HtmlEncode("platform-$($Device.Platform.ToLower())")
+            $EncodedScopeTags = [System.Net.WebUtility]::HtmlEncode([string]$Device.ScopeTags)
+            $EncodedDeviceName = [System.Net.WebUtility]::HtmlEncode([string]$Device.DeviceName)
+            $EncodedPlatform = [System.Net.WebUtility]::HtmlEncode([string]$Device.Platform)
+            $EncodedOSVersion = [System.Net.WebUtility]::HtmlEncode([string]$Device.OSVersion)
+            $EncodedOwner = [System.Net.WebUtility]::HtmlEncode([string]$Device.Owner)
+            $EncodedEnrollmentProfile = [System.Net.WebUtility]::HtmlEncode([string]$Device.EnrollmentProfile)
+            $EncodedLastCheckIn = [System.Net.WebUtility]::HtmlEncode([string]$Device.LastCheckIn)
+            $EncodedComplianceState = [System.Net.WebUtility]::HtmlEncode([string]$Device.ComplianceState)
+            $EncodedEnrollmentDate = [System.Net.WebUtility]::HtmlEncode([string]$Device.EnrollmentDate)
+
             $HTMLContent += @"
                 <tr>
-                    <td>$($Device.ScopeTags)</td>
-                    <td>$($Device.DeviceName)</td>
-                    <td class="$PlatformClass">$($Device.Platform)</td>
-                    <td>$($Device.OSVersion)</td>
-                    <td>$($Device.Owner)</td>
-                    <td>$($Device.EnrollmentProfile)</td>
-                    <td>$($Device.LastCheckIn)</td>
-                    <td class="$ComplianceClass">$($Device.ComplianceState)</td>
-                    <td>$($Device.EnrollmentDate)</td>
+                    <td>$EncodedScopeTags</td>
+                    <td>$EncodedDeviceName</td>
+                    <td class="$PlatformClass">$EncodedPlatform</td>
+                    <td>$EncodedOSVersion</td>
+                    <td>$EncodedOwner</td>
+                    <td>$EncodedEnrollmentProfile</td>
+                    <td>$EncodedLastCheckIn</td>
+                    <td class="$ComplianceClass">$EncodedComplianceState</td>
+                    <td>$EncodedEnrollmentDate</td>
                 </tr>
 "@
         }
@@ -891,11 +904,13 @@ try {
         $FilterParts += "complianceState eq '$($ComplianceState.ToLower())'"
     }
     
+    $SelectClause = "`$select=id,deviceName,operatingSystem,complianceState"
+
     $Uri = if ($FilterParts.Count -gt 0) {
-        "$BaseUri?`$filter=" + ($FilterParts -join ' and ')
+        "$BaseUri?`$filter=" + ($FilterParts -join ' and ') + "&$SelectClause"
     }
     else {
-        $BaseUri
+        "$BaseUri?$SelectClause"
     }
     
     # Retrieve all managed devices

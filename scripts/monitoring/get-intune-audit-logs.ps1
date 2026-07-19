@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Malformed audit entries are now skipped with a warning instead of aborting the report; date filter is built from UTC; output directory is created automatically before exports; removed unused Get-CategoryFromActivity function; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
@@ -249,24 +250,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($nextLink -and ($Top -eq 0 -or $retrievedCount -lt $Top))
-    
-    return $allResults
-}
 
-function Get-CategoryFromActivity {
-    param([string]$ActivityName)
-    
-    switch -Wildcard ($ActivityName) {
-        "*Application*" { return "Application" }
-        "*App*" { return "Application" }
-        "*Device*" { return "Device" }
-        "*Role*" { return "Role" }
-        "*User*" { return "User" }
-        "*Policy*" { return "Policy" }
-        "*Compliance*" { return "Compliance" }
-        "*Enrollment*" { return "Enrollment" }
-        default { return "Other" }
-    }
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $allResults
 }
 
 function Format-AuditEntry {
@@ -413,8 +399,8 @@ function Export-AuditToHtml {
 try {
     Write-Information "Retrieving Intune audit logs..." -InformationAction Continue
     
-    # Calculate date filter
-    $startDate = (Get-Date).AddDays(-$DaysBack).ToString("yyyy-MM-dd")
+    # Calculate date filter in UTC so it matches Graph timestamps
+    $startDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack).ToString("yyyy-MM-dd")
     $dateFilter = "activityDateTime ge $startDate"
     
     # Build filter query
@@ -456,10 +442,15 @@ try {
         $auditEvents = $auditEvents | Where-Object { $_.category -eq $FilterByCategory }
     }
     
-    # Format entries
+    # Format entries; skip malformed records instead of aborting the report
     $formattedEntries = @()
     foreach ($auditEvent in $auditEvents) {
-        $formattedEntries += Format-AuditEntry -Entry $auditEvent
+        try {
+            $formattedEntries += Format-AuditEntry -Entry $auditEvent
+        }
+        catch {
+            Write-Warning "Skipping malformed audit entry '$($auditEvent.id)': $($_.Exception.Message)"
+        }
     }
     
     # Display results
@@ -491,7 +482,13 @@ try {
     
     # Export if requested
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-    
+
+    # Create output directory if it does not exist
+    if (($ExportToCsv -or $ExportToHtml) -and -not (Test-Path $OutputPath)) {
+        New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+    }
+
     if ($ExportToCsv) {
         $csvPath = Join-Path $OutputPath "Intune_Audit_Log_$timestamp.csv"
         $formattedEntries | Select-Object Timestamp, Actor, Activity, Category, Resources, Result | 

@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Output directory is now created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -257,8 +258,9 @@ function Get-MgGraphPaginatedData {
             break
         }
     } while ($NextLink)
-    
-    return $AllResult
+
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $AllResult
 }
 
 # Function to determine token health status
@@ -476,6 +478,12 @@ try {
     # GENERATE CSV REPORT
     # ========================================================================
     
+    # Create output directory if it does not exist
+    if (-not (Test-Path $OutputPath)) {
+        New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+    }
+
     # Generate timestamp for file names
     $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $CsvPath = Join-Path $OutputPath "Apple_Token_Validity_Report_$Timestamp.csv"

@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Confirmation prompt is now local-only: Azure Automation runs require -Force and exit with an error instead of hanging on Read-Host; rotation calls retry once after 60 seconds on throttling; results collection switched to a generic list
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
@@ -320,6 +321,22 @@ function Invoke-LAPSPasswordRotation {
     catch {
         $errorMessage = $_.Exception.Message
 
+        # Retry once after throttling before classifying the failure
+        if ($errorMessage -like "*429*" -or $errorMessage -like "*throttled*") {
+            Write-Information "Rate limit hit, waiting 60 seconds..." -InformationAction Continue
+            Start-Sleep -Seconds 60
+            try {
+                $response = Invoke-MgGraphRequest -Uri $rotateUri -Method POST
+
+                $result.Status = "Success"
+                $result.Message = "LAPS password rotation initiated successfully"
+                return $result
+            }
+            catch {
+                $errorMessage = $_.Exception.Message
+            }
+        }
+
         # Handle specific error cases
         if ($errorMessage -like "*404*" -or $errorMessage -like "*Not Found*") {
             $result.Status = "Failed"
@@ -407,8 +424,13 @@ try {
         Write-Warning "RUNNING IN TEST MODE - No actual LAPS passwords will be rotated"
     }
 
-    # Confirmation prompt unless Force is specified
+    # Confirmation gate: local runs prompt unless -Force; Azure Automation
+    # cannot prompt, so -Force is required there
     if (-not $Force -and -not $TestMode) {
+        if ($IsAzureAutomation) {
+            Write-Error "Azure Automation runs cannot prompt for confirmation. Re-run with -Force to rotate LAPS passwords for $($devices.Count) device(s)."
+            exit 1
+        }
         Write-Information "`nYou are about to rotate LAPS passwords for $($devices.Count) device(s)." -InformationAction Continue
         $confirmation = Read-Host "Do you want to continue? (Y/N)"
         if ($confirmation -notmatch '^[Yy]') {
@@ -418,7 +440,7 @@ try {
     }
 
     # Process devices
-    $results = @()
+    [System.Collections.Generic.List[Object]]$results = @()
     $processedCount = 0
     $successCount = 0
     $failedCount = 0
@@ -464,7 +486,7 @@ try {
         $rotationResult | Add-Member -MemberType NoteProperty -Name "LastSyncDateTime" -Value $device.lastSyncDateTime
         $rotationResult | Add-Member -MemberType NoteProperty -Name "ComplianceState" -Value $device.complianceState
 
-        $results += $rotationResult
+        $results.Add($rotationResult)
 
         # Add delay between operations (except for last device)
         if ($processedCount -lt $devices.Count -and $DelaySeconds -gt 0) {

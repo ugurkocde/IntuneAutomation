@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Assignments now resolve their parent role via per-assignment $expand=roleDefinition (RoleName/RoleType were hardcoded to Unknown before); roles-with-assignments count and -ShowEmptyRoles listing are now accurate; added $select to role definition and principal lookups; principal lookups retry once after 60 seconds on throttling
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -209,32 +210,47 @@ function Get-PrincipalName {
         [string]$PrincipalId,
         [string]$PrincipalType
     )
-    
+
+    if ($PrincipalType -eq "user") {
+        $uri = "https://graph.microsoft.com/v1.0/users/${PrincipalId}?`$select=id,displayName,userPrincipalName,mail"
+    }
+    elseif ($PrincipalType -eq "group") {
+        $uri = "https://graph.microsoft.com/v1.0/groups/${PrincipalId}?`$select=id,displayName,mail"
+    }
+    else {
+        return @{
+            DisplayName = $PrincipalId
+            Email       = ""
+            Type        = "Unknown"
+        }
+    }
+
     try {
-        if ($PrincipalType -eq "user") {
-            $uri = "https://graph.microsoft.com/v1.0/users/$PrincipalId"
+        try {
             $principal = Invoke-MgGraphRequest -Uri $uri -Method GET
+        }
+        catch {
+            if ($_.Exception.Message -like "*429*") {
+                Write-Information "Rate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                $principal = Invoke-MgGraphRequest -Uri $uri -Method GET
+            }
+            else {
+                throw
+            }
+        }
+
+        if ($PrincipalType -eq "user") {
             return @{
                 DisplayName = $principal.displayName
                 Email       = $principal.userPrincipalName
                 Type        = "User"
             }
         }
-        elseif ($PrincipalType -eq "group") {
-            $uri = "https://graph.microsoft.com/v1.0/groups/$PrincipalId"
-            $principal = Invoke-MgGraphRequest -Uri $uri -Method GET
-            return @{
-                DisplayName = $principal.displayName
-                Email       = $principal.mail
-                Type        = "Group"
-            }
-        }
-        else {
-            return @{
-                DisplayName = $PrincipalId
-                Email       = ""
-                Type        = "Unknown"
-            }
+        return @{
+            DisplayName = $principal.displayName
+            Email       = $principal.mail
+            Type        = "Group"
         }
     }
     catch {
@@ -255,7 +271,7 @@ try {
     Write-Information "Retrieving Intune role definitions..." -InformationAction Continue
     
     # Get all role definitions first
-    $roleDefinitionsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions"
+    $roleDefinitionsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions?`$select=id,displayName,description,isBuiltIn"
     $roleDefinitions = Get-MgGraphAllPage -Uri $roleDefinitionsUri
     
     Write-Information "✓ Found $($roleDefinitions.Count) role definitions" -InformationAction Continue
@@ -283,20 +299,38 @@ try {
     
     foreach ($assignment in $roleAssignments) {
         Write-Verbose "Processing assignment: $($assignment.displayName)"
-        
-        # For simplified version, we'll show assignments without linking to role definitions
-        # since the API doesn't provide a direct link
-        
+
+        # The list endpoint does not link assignments to their role definition,
+        # so fetch each assignment individually with $expand=roleDefinition
+        $roleDefinition = $null
+        try {
+            $assignmentDetailUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleAssignments/$($assignment.id)?`$expand=roleDefinition"
+            $assignmentDetail = Invoke-MgGraphRequest -Uri $assignmentDetailUri -Method GET
+            $roleDefinition = $assignmentDetail.roleDefinition
+        }
+        catch {
+            Write-Warning "Could not resolve role definition for assignment '$($assignment.displayName)': $($_.Exception.Message)"
+        }
+
+        # Prefer the definition from the lookup table so the record matches the definitions list
+        if ($roleDefinition -and $roleLookup.ContainsKey($roleDefinition.id)) {
+            $roleDefinition = $roleLookup[$roleDefinition.id]
+        }
+
         # Create assignment record
         $assignmentRecord = @{
-            RoleId         = ""
-            RoleName       = "Unknown Role"  # We'll update this if we can determine it
-            RoleType       = "Assignment"
+            RoleId         = if ($roleDefinition) { $roleDefinition.id } else { "" }
+            RoleName       = if ($roleDefinition) { $roleDefinition.displayName } else { "Unknown Role" }
+            RoleType       = if ($roleDefinition) { if ($roleDefinition.isBuiltIn) { "Built-in" } else { "Custom" } } else { "Assignment" }
             Description    = $assignment.description
             AssignmentId   = $assignment.id
             AssignmentName = $assignment.displayName
             Scope          = if ($assignment.resourceScopes) { $assignment.resourceScopes -join "; " } else { "All" }
             Members        = @()
+        }
+
+        if ($roleDefinition) {
+            $processedRoles[$roleDefinition.id] = $true
         }
         
         # Process members
@@ -325,7 +359,7 @@ try {
     if ($ShowEmptyRoles) {
         foreach ($role in $roleDefinitions) {
             if (-not $processedRoles.ContainsKey($role.id)) {
-                $allAssignments += @{
+                $allAssignments.Add(@{
                     RoleId         = $role.id
                     RoleName       = $role.displayName
                     RoleType       = if ($role.isBuiltIn) { "Built-in" } else { "Custom" }
@@ -334,7 +368,7 @@ try {
                     AssignmentName = "No assignments"
                     Scope          = ""
                     Members        = @()
-                }
+                })
             }
         }
     }

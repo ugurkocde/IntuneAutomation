@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Apply -MinimumVersion to report-based rows, suppress progress bars in runbooks, flag apps with incomplete report data, use hashtable device lookup, and limit list calls with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
@@ -303,11 +304,13 @@ function Get-AppInstallStatusReportRow {
                 continue
             }
             Write-Warning "Error fetching install status report for app $AppId : $($_.Exception.Message)"
+            $script:incompleteReportApps[$AppId] = $true
             break
         }
     } while ($skip -lt $totalRows)
 
-    return $allRows
+    # Comma preserves a single-row result as an array so .Count is correct
+    return , $allRows
 }
 
 # Converts report InstallState values to install state names
@@ -390,9 +393,9 @@ try {
     
     # Get all managed devices
     Write-Information "Retrieving managed devices..." -InformationAction Continue
-    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,userPrincipalName,azureADDeviceId"
     if ($MaxDevices -gt 0) {
-        $devicesUri += "?`$top=$MaxDevices"
+        $devicesUri += "&`$top=$MaxDevices"
     }
     
     $devices = Get-MgGraphAllPage -Uri $devicesUri
@@ -405,17 +408,28 @@ try {
     }
     
     Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
-    
+
+    # Hashtable for fast device lookup by Intune device id
+    $deviceById = @{}
+    foreach ($device in $devices) {
+        $deviceById[$device.id] = $device
+    }
+
     # Dictionary to store app->devices mapping
     $appDeviceMap = @{}
     $processedDevices = 0
+
+    # Tracks apps whose install status report could not be fully retrieved
+    $script:incompleteReportApps = @{}
     
     # Process devices to get detected apps
     Write-Information "Processing device applications..." -InformationAction Continue
     
     foreach ($device in $devices) {
         $processedDevices++
-        Write-Progress -Activity "Processing Devices" -Status "$processedDevices of $($devices.Count)" -PercentComplete (($processedDevices / $devices.Count) * 100)
+        if (-not $IsAzureAutomation) {
+            Write-Progress -Activity "Processing Devices" -Status "$processedDevices of $($devices.Count)" -PercentComplete (($processedDevices / $devices.Count) * 100)
+        }
         
         try {
             # Get detected apps for the device
@@ -476,12 +490,14 @@ try {
         }
     }
     
-    Write-Progress -Activity "Processing Devices" -Completed
+    if (-not $IsAzureAutomation) {
+        Write-Progress -Activity "Processing Devices" -Completed
+    }
     
     # Get deployed apps if we need additional coverage
     if ($FilterByType -ne "All" -or $OnlySuccessfulInstalls) {
         Write-Information "Retrieving deployed application data..." -InformationAction Continue
-        $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps"
+        $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName"
         $deployedApps = Get-MgGraphAllPage -Uri $appsUri
         
         foreach ($app in $deployedApps) {
@@ -502,8 +518,19 @@ try {
                         continue
                     }
 
+                    # Check version if specified
+                    if ($MinimumVersion) {
+                        if ([string]::IsNullOrWhiteSpace($status.AppVersion)) {
+                            Write-Verbose "Skipping device $($status.DeviceName) for '$($app.displayName)': report row has no AppVersion to compare"
+                            continue
+                        }
+                        if (-not (Compare-Version -Version1 $status.AppVersion -Version2 $MinimumVersion)) {
+                            continue
+                        }
+                    }
+
                     # Find matching device
-                    $matchingDevice = $devices | Where-Object { $_.id -eq $status.DeviceId }
+                    $matchingDevice = $deviceById[$status.DeviceId]
                     if ($matchingDevice) {
                         $appKey = $app.displayName
                         if (-not $appDeviceMap.ContainsKey($appKey)) {
@@ -748,6 +775,10 @@ try {
     Write-Information "Total devices processed: $totalDevicesProcessed" -InformationAction Continue
     Write-Information "Groups created: $groupsCreated" -InformationAction Continue
     Write-Information "Groups updated: $groupsUpdated" -InformationAction Continue
+
+    if ($script:incompleteReportApps.Count -gt 0) {
+        Write-Warning "$($script:incompleteReportApps.Count) apps had incomplete report data - their device lists may be missing rows"
+    }
     
     if ($DryRun) {
         Write-Information "`n[DRY RUN] No changes were made" -InformationAction Continue

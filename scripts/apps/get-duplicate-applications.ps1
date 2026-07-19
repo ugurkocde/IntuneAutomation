@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -251,7 +252,8 @@ function Get-MgGraphAllPage {
         }
     } while ($NextLink)
     
-    return $AllResults
+    # The comma preserves single-element arrays (Invoke-MgGraphRequest hashtable rows otherwise unroll and .Count returns key count)
+    return , $AllResults
 }
 
 # Function to normalize application names for comparison
@@ -275,7 +277,8 @@ try {
     
     # Get all Intune applications
     Write-Information "Retrieving Intune applications..." -InformationAction Continue
-    $appsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
+    # $select trims the payload to the fields the report reads; @odata.type is always returned on typed collections
+    $appsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,description,createdDateTime,lastModifiedDateTime"
     $intuneApps = Get-MgGraphAllPage -Uri $appsUri
     Write-Information "`n✓ Found $($intuneApps.Count) Intune applications" -InformationAction Continue
     

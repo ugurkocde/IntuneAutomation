@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added -WhatIf dry run support; exit code 1 when any restart fails; 429 retry with 60s wait on restart calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -64,7 +65,7 @@
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
-[CmdletBinding(DefaultParameterSetName = 'DeviceNames')]
+[CmdletBinding(DefaultParameterSetName = 'DeviceNames', SupportsShouldProcess = $true)]
 param(
     [Parameter(Mandatory = $true, ParameterSetName = 'DeviceNames')]
     [string[]]$DeviceNames,
@@ -280,6 +281,19 @@ function Invoke-DeviceRestart {
         return $true
     }
     catch {
+        if ($_.Exception.Message -like '*429*' -or $_.Exception.Message -like '*throttled*') {
+            Write-Information "Rate limit hit for device $DeviceName, waiting 60 seconds before retry..." -InformationAction Continue
+            Start-Sleep -Seconds 60
+            try {
+                Invoke-MgGraphRequest -Uri $restartUri -Method POST
+                Write-Information "✓ Restart triggered successfully for device: $DeviceName" -InformationAction Continue
+                return $true
+            }
+            catch {
+                Write-Information "✗ Failed to restart device $DeviceName after retry: $($_.Exception.Message)" -InformationAction Continue
+                return $false
+            }
+        }
         Write-Information "✗ Failed to restart device $DeviceName : $($_.Exception.Message)" -InformationAction Continue
         return $false
     }
@@ -315,18 +329,24 @@ function Get-DevicesByEntraGroup {
 
         # Get all managed devices
         Write-Information 'Retrieving managed devices...' -InformationAction Continue
-        $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
         $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
 
-        # Filter devices by group members
+        # Filter devices by group members (device membership first, then user membership fallback)
         [System.Collections.Generic.List[PSCustomObject]]$targetDevices = @()
         foreach ($device in $allDevices) {
-            if ($device.id) {
-                # Test if device.id is in members
-                $deviceInGroup = $members.deviceID.contains($device.azureADDeviceId)
-                if ($deviceInGroup) {
-                    $targetDevices.Add($device)
+            $deviceInGroup = $false
+            if ($device.azureADDeviceId -and $members.deviceId -contains $device.azureADDeviceId) {
+                $deviceInGroup = $true
+            }
+            elseif ($device.userPrincipalName) {
+                $userInGroup = $members | Where-Object { $_.userPrincipalName -eq $device.userPrincipalName -or $_.mail -eq $device.userPrincipalName }
+                if ($userInGroup) {
+                    $deviceInGroup = $true
                 }
+            }
+            if ($deviceInGroup) {
+                $targetDevices.Add($device)
             }
         }
 
@@ -334,8 +354,7 @@ function Get-DevicesByEntraGroup {
         return $targetDevices
     }
     catch {
-        Write-Error "Failed to get devices by Entra ID group: $($_.Exception.Message)"
-        return @()
+        throw "Failed to get devices by Entra ID group: $($_.Exception.Message)"
     }
 }
 
@@ -375,7 +394,7 @@ try {
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
             Write-Information 'Retrieving devices by names...' -InformationAction Continue
-            $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
 
             foreach ($deviceName in $DeviceNames) {
@@ -394,7 +413,7 @@ try {
             Write-Information 'Retrieving devices by IDs...' -InformationAction Continue
             foreach ($deviceId in $DeviceIds) {
                 try {
-                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
+                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
                     Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
@@ -425,8 +444,8 @@ try {
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
 
-    # Confirmation prompt unless Force is specified
-    if (-not $Force -and -not $IsAzureAutomation) {
+    # Confirmation prompt unless Force or WhatIf is specified
+    if (-not $Force -and -not $IsAzureAutomation -and -not $WhatIfPreference) {
         Write-Information "`nCONFIRMATION REQUIRED" -InformationAction Continue
         Write-Information "This operation will restart $($targetDevices.Count) device(s)." -InformationAction Continue
         Write-Information "This will interrupt user work and should be coordinated with affected users." -InformationAction Continue
@@ -451,13 +470,15 @@ try {
         $processedDevices++
         Write-Progress -Activity 'Restarting Devices' -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
 
-        $restartSuccessful = Invoke-DeviceRestart -DeviceId $device.id -DeviceName $device.deviceName
+        if ($PSCmdlet.ShouldProcess($device.deviceName, 'Remote restart')) {
+            $restartSuccessful = Invoke-DeviceRestart -DeviceId $device.id -DeviceName $device.deviceName
 
-        if ($restartSuccessful) {
-            $successfulRestarts++
-        }
-        else {
-            $failedRestarts++
+            if ($restartSuccessful) {
+                $successfulRestarts++
+            }
+            else {
+                $failedRestarts++
+            }
         }
 
         # Add delay between restart operations to avoid overwhelming the service
@@ -478,6 +499,7 @@ try {
     # Show failed devices if any
     if ($failedRestarts -gt 0) {
         Write-Information "`nFailed restart operations require manual review." -InformationAction Continue
+        exit 1
     }
 
     if ($successfulRestarts -gt 0) {

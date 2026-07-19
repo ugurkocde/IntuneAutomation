@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Exit code 1 when any sync fails; 429 retry with 60s wait on sync calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
     1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
     1.1 - Improved authentication scopes and fixed group device members search
@@ -286,6 +287,19 @@ function Invoke-DeviceSync {
         return $true
     }
     catch {
+        if ($_.Exception.Message -like '*429*' -or $_.Exception.Message -like '*throttled*') {
+            Write-Information "Rate limit hit for device $DeviceName, waiting 60 seconds before retry..." -InformationAction Continue
+            Start-Sleep -Seconds 60
+            try {
+                Invoke-MgGraphRequest -Uri $syncUri -Method POST
+                Write-Information "✓ Sync triggered successfully for device: $DeviceName" -InformationAction Continue
+                return $true
+            }
+            catch {
+                Write-Information "✗ Failed to sync device $DeviceName after retry: $($_.Exception.Message)" -InformationAction Continue
+                return $false
+            }
+        }
         Write-Information "✗ Failed to sync device $DeviceName : $($_.Exception.Message)" -InformationAction Continue
         return $false
     }
@@ -321,27 +335,32 @@ function Get-DevicesByEntraGroup {
 
         # Get all managed devices
         Write-Information 'Retrieving managed devices...' -InformationAction Continue
-        $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
         $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
-        
-        # Filter devices by group members
+
+        # Filter devices by group members (device membership first, then user membership fallback)
         [System.Collections.Generic.List[PSCustomObject]]$targetDevices = @()
         foreach ($device in $allDevices) {
-            if ($device.id) {
-                # Test if device.id is in members
-                $deviceInGroup = $members.deviceID.contains($device.azureADDeviceId)
-                if ($deviceInGroup) {
-                    $targetDevices.Add($device)
+            $deviceInGroup = $false
+            if ($device.azureADDeviceId -and $members.deviceId -contains $device.azureADDeviceId) {
+                $deviceInGroup = $true
+            }
+            elseif ($device.userPrincipalName) {
+                $userInGroup = $members | Where-Object { $_.userPrincipalName -eq $device.userPrincipalName -or $_.mail -eq $device.userPrincipalName }
+                if ($userInGroup) {
+                    $deviceInGroup = $true
                 }
             }
+            if ($deviceInGroup) {
+                $targetDevices.Add($device)
+            }
         }
-        
+
         Write-Information "✓ Found $($targetDevices.Count) devices belonging to group members" -InformationAction Continue
         return $targetDevices
     }
     catch {
-        Write-Error "Failed to get devices by Entra ID group: $($_.Exception.Message)"
-        return @()
+        throw "Failed to get devices by Entra ID group: $($_.Exception.Message)"
     }
 }
 
@@ -356,7 +375,7 @@ try {
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
             Write-Information 'Retrieving devices by names...' -InformationAction Continue
-            $devicesUri = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices'
+            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
             
             foreach ($deviceName in $DeviceNames) {
@@ -375,7 +394,7 @@ try {
             Write-Information 'Retrieving devices by IDs...' -InformationAction Continue
             foreach ($deviceId in $DeviceIds) {
                 try {
-                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
+                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
                     Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
@@ -459,6 +478,7 @@ try {
     # Show failed devices if any
     if ($failedSyncs -gt 0) {
         Write-Information "`n❌ Failed sync operations require manual review." -InformationAction Continue
+        exit 1
     }
 
     Write-Information "`n🎉 Device synchronization completed successfully!" -InformationAction Continue

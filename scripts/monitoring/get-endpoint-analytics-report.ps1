@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - The ShowProgress switch now drives Write-Progress during metric collection; analytics queries select only the fields the report consumes; output directory is created automatically before exports; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); work from anywhere metrics now use the allDevices metricDevices endpoint
     1.0 - Initial release
 
@@ -265,7 +266,8 @@ function Get-MgGraphAllPage {
         }
     } while ($nextLink)
 
-    return $allResults
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $allResults
 }
 
 # ============================================================================
@@ -280,8 +282,11 @@ try {
 
     # Device Scores - Always collect for overview
     Write-Information "Retrieving device scores..." -InformationAction Continue
+    if ($ShowProgress -and -not $IsAzureAutomation) {
+        Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving device scores" -PercentComplete 10
+    }
     try {
-        $deviceScoresUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceScores"
+        $deviceScoresUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceScores?`$select=id,deviceName,model,endpointAnalyticsScore,startupPerformanceScore,appReliabilityScore,batteryHealthScore"
         $deviceScores = Get-MgGraphAllPage -Uri $deviceScoresUri
         $allMetrics['DeviceScores'] = $deviceScores
         Write-Information "✓ Retrieved $($deviceScores.Count) device score records" -InformationAction Continue
@@ -294,13 +299,16 @@ try {
     # Startup Performance
     if ($IncludeStartupPerformance) {
         Write-Information "Retrieving startup performance metrics..." -InformationAction Continue
+        if ($ShowProgress -and -not $IsAzureAutomation) {
+            Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving startup performance metrics" -PercentComplete 30
+        }
         try {
             $startupHistoryUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceStartupHistory"
             $startupHistory = Get-MgGraphAllPage -Uri $startupHistoryUri
             $allMetrics['StartupHistory'] = $startupHistory
             Write-Information "✓ Retrieved $($startupHistory.Count) startup history records" -InformationAction Continue
 
-            $devicePerformanceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDevicePerformance"
+            $devicePerformanceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDevicePerformance?`$select=id,deviceName,model,manufacturer,coreBootTimeInMs,groupPolicyBootTimeInMs"
             $devicePerformance = Get-MgGraphAllPage -Uri $devicePerformanceUri
             $allMetrics['DevicePerformance'] = $devicePerformance
             Write-Information "✓ Retrieved $($devicePerformance.Count) device performance records" -InformationAction Continue
@@ -315,13 +323,16 @@ try {
     # Application Reliability
     if ($IncludeAppReliability) {
         Write-Information "Retrieving application reliability metrics..." -InformationAction Continue
+        if ($ShowProgress -and -not $IsAzureAutomation) {
+            Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving application reliability metrics" -PercentComplete 50
+        }
         try {
             $appHealthDeviceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthDevicePerformanceDetails"
             $appHealthDevice = Get-MgGraphAllPage -Uri $appHealthDeviceUri
             $allMetrics['AppHealthDevice'] = $appHealthDevice
             Write-Information "✓ Retrieved $($appHealthDevice.Count) app health device records" -InformationAction Continue
 
-            $appHealthAppUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthApplicationPerformance"
+            $appHealthAppUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthApplicationPerformance?`$select=appDisplayName,appCrashCount,activeDeviceCount"
             $appHealthApp = Get-MgGraphAllPage -Uri $appHealthAppUri
             $allMetrics['AppHealthApplication'] = $appHealthApp
             Write-Information "✓ Retrieved $($appHealthApp.Count) app health application records" -InformationAction Continue
@@ -336,13 +347,16 @@ try {
     # Battery Health
     if ($IncludeBatteryHealth) {
         Write-Information "Retrieving battery health metrics..." -InformationAction Continue
+        if ($ShowProgress -and -not $IsAzureAutomation) {
+            Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving battery health metrics" -PercentComplete 70
+        }
         try {
             $batteryOsUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthOsPerformance"
             $batteryOs = Get-MgGraphAllPage -Uri $batteryOsUri
             $allMetrics['BatteryOsPerformance'] = $batteryOs
             Write-Information "✓ Retrieved $($batteryOs.Count) battery OS performance records" -InformationAction Continue
 
-            $batteryDeviceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthDevicePerformance"
+            $batteryDeviceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthDevicePerformance?`$select=id,deviceName,model,deviceBatteryHealthScore,maxCapacityPercentage,batteryAgeInDays"
             $batteryDevice = Get-MgGraphAllPage -Uri $batteryDeviceUri
             $allMetrics['BatteryDevicePerformance'] = $batteryDevice
             Write-Information "✓ Retrieved $($batteryDevice.Count) battery device performance records" -InformationAction Continue
@@ -357,6 +371,9 @@ try {
     # Work From Anywhere
     if ($IncludeWorkFromAnywhere) {
         Write-Information "Retrieving work from anywhere metrics..." -InformationAction Continue
+        if ($ShowProgress -and -not $IsAzureAutomation) {
+            Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving work from anywhere metrics" -PercentComplete 90
+        }
         try {
             $wfaUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics('allDevices')/metricDevices"
             $wfaMetrics = Get-MgGraphAllPage -Uri $wfaUri
@@ -367,6 +384,16 @@ try {
             Write-Warning "Failed to retrieve work from anywhere metrics: $($_.Exception.Message)"
             $allMetrics['WorkFromAnywhere'] = @()
         }
+    }
+
+    if ($ShowProgress -and -not $IsAzureAutomation) {
+        Write-Progress -Activity "Endpoint Analytics Report" -Completed
+    }
+
+    # Create output directory if it does not exist
+    if (-not (Test-Path $OutputPath)) {
+        New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
     }
 
     # Export results to CSV

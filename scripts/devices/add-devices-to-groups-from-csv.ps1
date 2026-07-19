@@ -31,9 +31,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Cache group memberships once per group instead of refetching per CSV row and suppress progress bars in runbooks
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -474,10 +475,20 @@ function Test-DeviceInGroup {
     )
 
     try {
-        $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members"
-        $members = Get-MgGraphAllPage -Uri $uri
+        if (-not $script:groupMemberCache.ContainsKey($GroupId)) {
+            $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id"
+            $members = Get-MgGraphAllPage -Uri $uri
 
-        return ($members.id -contains $DeviceId)
+            $memberIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($member in $members) {
+                if ($member.id) {
+                    [void]$memberIds.Add($member.id)
+                }
+            }
+            $script:groupMemberCache[$GroupId] = $memberIds
+        }
+
+        return $script:groupMemberCache[$GroupId].Contains($DeviceId)
     }
     catch {
         Write-Warning "Error checking group membership: $($_.Exception.Message)"
@@ -582,6 +593,7 @@ try {
     # Check which groups exist
     Write-Information "Checking group existence..." -InformationAction Continue
     $groupCache = @{}
+    $script:groupMemberCache = @{}
     $missingGroups = @()
 
     foreach ($groupData in $groupedData) {
@@ -646,7 +658,9 @@ try {
 
     foreach ($row in $csvData) {
         $processedCount++
-        Write-Progress -Activity "Processing CSV rows" -Status "$processedCount of $($csvData.Count)" -PercentComplete (($processedCount / $csvData.Count) * 100)
+        if (-not $IsAzureAutomation) {
+            Write-Progress -Activity "Processing CSV rows" -Status "$processedCount of $($csvData.Count)" -PercentComplete (($processedCount / $csvData.Count) * 100)
+        }
 
         $groupName = $row.GroupName
 
@@ -709,6 +723,9 @@ try {
 
             if ($success) {
                 Write-Information "Added device '$($device.deviceName)' to group '$groupName'" -InformationAction Continue
+                if ($script:groupMemberCache.ContainsKey($group.id)) {
+                    [void]$script:groupMemberCache[$group.id].Add($entraDevice.id)
+                }
                 $stats.DevicesAdded++
             }
             else {
@@ -720,7 +737,9 @@ try {
         Start-Sleep -Milliseconds 100
     }
 
-    Write-Progress -Activity "Processing CSV rows" -Completed
+    if (-not $IsAzureAutomation) {
+        Write-Progress -Activity "Processing CSV rows" -Completed
+    }
 
     # Display summary
     Write-Information "`n========================================" -InformationAction Continue

@@ -28,9 +28,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Treat 0001-01-01 last contact as Never, require -Force for removals in Azure Automation, suppress progress bars in runbooks, and limit Graph list calls with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -275,7 +276,7 @@ function Get-MgGraphAllPage {
 function Get-AutopilotDevice {
     try {
         Write-Information "Retrieving Autopilot devices..." -InformationAction Continue
-        $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities"
+        $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?`$select=id,serialNumber,model,manufacturer,productKey,groupTag,purchaseOrderIdentifier,enrollmentState,lastContactedDateTime"
         $AutopilotDevices = Get-MgGraphAllPage -Uri $Uri
         Write-Information "✓ Retrieved $($AutopilotDevices.Count) Autopilot devices" -InformationAction Continue
         return $AutopilotDevices
@@ -290,7 +291,7 @@ function Get-AutopilotDevice {
 function Get-IntuneDevice {
     try {
         Write-Information "Retrieving Intune managed devices..." -InformationAction Continue
-        $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'"
+        $Uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,serialNumber"
         $IntuneDevices = Get-MgGraphAllPage -Uri $Uri
         Write-Information "✓ Retrieved $($IntuneDevices.Count) Windows managed devices" -InformationAction Continue
         return $IntuneDevices
@@ -326,7 +327,7 @@ function Find-OrphanedAutopilotDevice {
     foreach ($AutopilotDevice in $AutopilotDevices) {
         $ProcessedCount++
         
-        if ($ShowProgressBar) {
+        if ($ShowProgressBar -and -not $IsAzureAutomation) {
             $PercentComplete = [math]::Round(($ProcessedCount / $AutopilotDevices.Count) * 100)
             Write-Progress -Activity "Analyzing Autopilot devices" -Status "Processing device $ProcessedCount of $($AutopilotDevices.Count)" -PercentComplete $PercentComplete
         }
@@ -338,7 +339,7 @@ function Find-OrphanedAutopilotDevice {
         }
     }
     
-    if ($ShowProgressBar) {
+    if ($ShowProgressBar -and -not $IsAzureAutomation) {
         Write-Progress -Activity "Analyzing Autopilot devices" -Completed
     }
     
@@ -363,7 +364,7 @@ function Format-AutopilotDeviceInfo {
         GroupTag              = $Device.groupTag
         PurchaseOrderId       = $Device.purchaseOrderIdentifier
         EnrollmentState       = $Device.enrollmentState
-        LastContactedDateTime = if ($Device.lastContactedDateTime) { 
+        LastContactedDateTime = if ($Device.lastContactedDateTime -and $Device.lastContactedDateTime -ne "0001-01-01T00:00:00Z") {
             ([DateTime]::Parse($Device.lastContactedDateTime)).ToString("yyyy-MM-dd HH:mm:ss") 
         }
         else { 
@@ -488,6 +489,11 @@ try {
         if ($RemoveOrphaned) {
             Write-Information "" -InformationAction Continue
             
+            if ($IsAzureAutomation -and -not $Force) {
+                Write-Error "Removing devices in Azure Automation requires the -Force parameter. No devices were removed."
+                exit 1
+            }
+
             if (-not $Force -and -not $IsAzureAutomation) {
                 $Confirmation = Read-Host "Do you want to remove $($OrphanedDevices.Count) orphaned Autopilot devices? (y/N)"
                 if ($Confirmation -notmatch '^[Yy]') {
@@ -504,7 +510,7 @@ try {
             foreach ($Device in $OrphanedDevices) {
                 $ProcessedCount++
                 
-                if ($ShowProgressBar) {
+                if ($ShowProgressBar -and -not $IsAzureAutomation) {
                     $PercentComplete = [math]::Round(($ProcessedCount / $OrphanedDevices.Count) * 100)
                     Write-Progress -Activity "Removing Autopilot devices" -Status "Processing device $ProcessedCount of $($OrphanedDevices.Count)" -PercentComplete $PercentComplete
                 }
@@ -521,7 +527,7 @@ try {
                 Start-Sleep -Milliseconds 200
             }
             
-            if ($ShowProgressBar) {
+            if ($ShowProgressBar -and -not $IsAzureAutomation) {
                 Write-Progress -Activity "Removing Autopilot devices" -Completed
             }
             

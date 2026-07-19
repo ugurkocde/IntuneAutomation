@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-app report and assignment calls are paced and the app listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
@@ -48,17 +49,18 @@
     Notification
 
 .EXAMPLE
-    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "admin@company.com"
+    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
     Alerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com
 
 .EXAMPLE
-    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients "admin@company.com,appsupport@company.com"
+    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients "admin@company.com,appsupport@company.com" -SenderUPN "intune-alerts@company.com"
     Alerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
-    - Uses Microsoft Graph Mail API for email notifications only
+    - Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox
+    - The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox
     - Recommended to run as scheduled runbook (daily)
     - Consider your organization's application deployment requirements when setting threshold
     - Review application packages and deployment settings based on findings
@@ -75,7 +77,11 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
-    
+
+    [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SenderUPN,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
     [switch]$ForceModuleInstall
 )
@@ -247,8 +253,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma keeps PowerShell from unrolling a single-item array on return
+    return , $AllResults
 }
 
 # Retrieves app installation status rows from the reports endpoint with paging
@@ -318,7 +325,8 @@ function Get-AppInstallStatusReportRow {
         }
     } while ($Skip -lt $TotalRows)
 
-    return $AllRows
+    # Comma preserves a single-row result as an array so .Count is correct
+    return , $AllRows
 }
 
 function Get-AppType {
@@ -420,14 +428,16 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
             
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
         }
+        return $true
     }
     catch {
         Write-Error "Failed to send email notification: $($_.Exception.Message)"
+        return $false
     }
 }
 
@@ -715,6 +725,7 @@ try {
     $AllApps = @()
     $FailedApps = @()
     $RequiredFailedApps = @()
+    $NotificationFailed = $false
     
     # Initialize statistics
     $AppStats = @{
@@ -731,7 +742,7 @@ try {
     Write-Information "Retrieving mobile applications..." -InformationAction Continue
     
     try {
-        $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
+        $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,isFeatured,isAssigned,createdDateTime,lastModifiedDateTime"
         $Apps = Get-MgGraphAllPage -Uri $AppsUri
         Write-Information "Found $($Apps.Count) applications" -InformationAction Continue
         
@@ -834,6 +845,9 @@ try {
                         $RequiredFailedApps += $AppInfo
                     }
                 }
+
+                # Pace per-app report and assignment calls to avoid throttling
+                Start-Sleep -Milliseconds 200
             }
             catch {
                 Write-Verbose "Error processing app '$($App.displayName)' (ID: $($App.id)): $($_.Exception.Message)"
@@ -887,9 +901,15 @@ try {
         
         $EmailBody = New-EmailBody -AllApps $AllApps -FailedApps $FailedApps -RequiredFailedApps $RequiredFailedApps -AppStats $AppStats -FailureThreshold $FailureThresholdPercent
         
-        Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
-        
-        Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
+
+        if ($EmailSent) {
+            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        }
+        else {
+            Write-Warning "Email notification could not be delivered to all recipients"
+            $NotificationFailed = $true
+        }
     }
     else {
         Write-Information "✓ No significant app deployment failures detected. All applications are deploying successfully." -InformationAction Continue
@@ -967,3 +987,8 @@ Email Recipients: $($EmailRecipientList.Count)
 Status: Completed
 ========================================
 " -InformationAction Continue
+
+# Fail the run if notification delivery failed
+if ($NotificationFailed) {
+    exit 1
+}

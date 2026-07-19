@@ -36,9 +36,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); request expiry now derives from the real expirationDateTime property instead of an assumed 30-day lifetime; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); pending request fields now map to real operationApprovalRequest properties (requestor identitySet, requiredOperationApprovalPolicyTypes)
     1.0 - Initial release
 
@@ -58,18 +59,19 @@
     2026-07-19
 
 .EXAMPLE
-    .\maa-pending-requests-monitor.ps1 -EmailRecipients "security@company.com" -UrgentThresholdHours 24
+    .\maa-pending-requests-monitor.ps1 -EmailRecipients "security@company.com" -SenderUPN "intune-alerts@company.com" -UrgentThresholdHours 24
     Monitors MAA requests and alerts security team, marking requests older than 24 hours as urgent
 
 .EXAMPLE
-    .\maa-pending-requests-monitor.ps1 -EmailRecipients "admin@company.com,security@company.com" -UrgentThresholdHours 48 -EscalationThresholdHours 72
+    .\maa-pending-requests-monitor.ps1 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com" -UrgentThresholdHours 48 -EscalationThresholdHours 72
     Monitors MAA requests with multiple recipients and escalation for requests older than 72 hours
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
     - This script is designed specifically for Azure Automation runbooks
-    - Email notifications are sent via Microsoft Graph Mail API
+    - Email notifications are sent via Microsoft Graph Mail API from the SenderUPN mailbox
+    - The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox
     - Recommended to run hourly to ensure timely notifications
     - Stores state in Azure Automation variables to track notified requests
     - Critical for maintaining MAA compliance and security posture
@@ -89,7 +91,12 @@ param(
             }
         })]
     [string]$EmailRecipients,
-    
+
+    # Mailbox used as the notification sender
+    [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SenderUPN,
+
     # Threshold for marking requests as urgent
     [Parameter(Mandatory = $false, HelpMessage = "Hours before marking a request as urgent")]
     [ValidateRange(1, 168)]
@@ -256,9 +263,8 @@ catch {
 
 # Email configuration
 $EmailConfig = @{
-    Subject     = "[MAA ALERT] Pending Approval Requests Require Action"
-    FromAddress = "noreply@yourdomain.com"
-    Priority    = "High"
+    Subject  = "[MAA ALERT] Pending Approval Requests Require Action"
+    Priority = "High"
 }
 
 # Portal URLs
@@ -309,8 +315,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma keeps PowerShell from unrolling a single-item array on return
+    return , $AllResults
 }
 
 # Function to get MAA pending requests
@@ -338,7 +345,13 @@ function Get-MAAPendingRequest {
                     else { [DateTime]::Now }
                     
                     $AgeInHours = [Math]::Round(((Get-Date) - $RequestDateTime).TotalHours, 1)
-                    $DaysUntilExpiry = [Math]::Round((30 - ((Get-Date) - $RequestDateTime).TotalDays), 1)
+
+                    # Use the real expirationDateTime from the request (MAA requests expire after 3 days)
+                    $DaysUntilExpiry = if ($Request.expirationDateTime) {
+                        $RemainingDays = [Math]::Round((([DateTime]$Request.expirationDateTime) - (Get-Date)).TotalDays, 1)
+                        if ($RemainingDays -lt 0) { "Expired" } else { $RemainingDays }
+                    }
+                    else { "Unknown" }
                     
                     # Get requester information (requestor is an identitySet; no userPrincipalName is exposed)
                     $RequesterName = if ($Request.requestor.user.displayName) { $Request.requestor.user.displayName }
@@ -404,7 +417,7 @@ function Get-MAAPendingRequest {
                             BusinessJustification = "See audit log for details"
                             Status                = "Pending"
                             AgeInHours            = [Math]::Round(((Get-Date) - [DateTime]$Log.activityDateTime).TotalHours, 1)
-                            DaysUntilExpiry       = [Math]::Round((30 - ((Get-Date) - [DateTime]$Log.activityDateTime).TotalDays), 1)
+                            DaysUntilExpiry       = "Unknown"
                             ApprovalPolicy        = "N/A"
                         }
                         
@@ -651,7 +664,7 @@ function New-EmailBody {
 "@
             }
             
-            if ($Request.DaysUntilExpiry -lt 7) {
+            if ($Request.DaysUntilExpiry -is [double] -and $Request.DaysUntilExpiry -lt 7) {
                 $EmailBody += @"
                         <div class="expiry-warning">
                             ⚠️ This request will expire in $($Request.DaysUntilExpiry) days
@@ -717,7 +730,7 @@ function New-EmailBody {
                     <li>Verify business justifications align with organizational policies</li>
                     <li>Consider the security implications before approving changes</li>
                     <li>Document any concerns or questions in the approver notes</li>
-                    <li>Requests expire after 30 days and will need to be resubmitted</li>
+                    <li>Requests expire after 3 days and will need to be resubmitted</li>
                 </ul>
             </div>
             
@@ -780,7 +793,7 @@ function Send-EmailNotification {
             saveToSentItems = $false
         } | ConvertTo-Json -Depth 10
         
-        $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
+        $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
         Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
         
         Write-Information "✓ Email notification sent successfully to: $($Recipients -join ', ')" -InformationAction Continue
@@ -819,7 +832,7 @@ try {
         TotalPending   = $PendingRequests.Count
         UrgentCount    = ($PendingRequests | Where-Object { $_.AgeInHours -gt $UrgentThresholdHours -and $_.AgeInHours -le $EscalationThresholdHours }).Count
         EscalatedCount = ($PendingRequests | Where-Object { $_.AgeInHours -gt $EscalationThresholdHours }).Count
-        ExpiringSoon   = ($PendingRequests | Where-Object { $_.DaysUntilExpiry -lt 7 }).Count
+        ExpiringSoon   = ($PendingRequests | Where-Object { $_.DaysUntilExpiry -is [double] -and $_.DaysUntilExpiry -lt 7 }).Count
         ProcessedCount = $ProcessedRequests.Count
     }
     

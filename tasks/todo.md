@@ -140,3 +140,18 @@ Endpoint audit of 29 scripts (2026-07-19, live via Lokka + msgraph docs): auth m
 Audit fixes applied (2026-07-19): all 9 audit findings fixed. Scope additions (PrivilegedOperations.All) in wipe-devices, rotate-macos-laps-passwords, check-filevault-keys. Schema fixes live-verified via Lokka in get-maa-compliance-report (beta scripts endpoint + group member resolution), get-endpoint-analytics-report (WFA metricDevices route), maa-pending-requests-monitor (real operationApprovalRequest schema), device-compliance-drift-alert (per-device policy states). deviceStatuses retirement: three scripts rewritten onto POST deviceManagement/reports/retrieveDeviceAppInstallationStatusReport (columnar schema mapped by name, InstallState enum from resultantAppState docs, confirmed live incl. localized state column). 30 files parse clean. Reviewer pass pending. Not committed.
 
 Reviewer round on audit fixes (2026-07-19): groups 1 and 2 (7 scripts) passed outright. Two findings in the deviceStatuses rewrite fixed per reviewer prescription and simulation-verified: paging sentinel ([int]::MaxValue) so a first-page 429 retries instead of silently returning empty, and FilterByInstallState wildcard match so "pending" matches "pendingInstall". All 30 modified scripts parse clean. Batch complete, awaiting commit.
+
+## Library-wide quality pass v1.2 (2026-07-19)
+
+Batch A (now): all verified bugs from the 8-category review + $select trimming + HTML encoding. Mail fix uses mandatory SenderUPN. rotate-bitlocker-keys gains confirmation gating. Deferred (chips): $batch conversions, alert delta-tracking, shared helper module, token re-auth checkpoints.
+
+Acceptance criteria:
+1. Pagination helpers return ,$array in every script that has one; no single-item unrolling remains.
+2. Notification scripts send via /users/{SenderUPN}/sendMail with mandatory param; send failures propagate (no false success logs).
+3. Destructive scripts: wipe (ShouldProcess, runbook Force gate, exit codes, 429 retry), rotate-bitlocker (gated), LAPS (runbook gate), cleanup-autopilot (runbook Force gate).
+4. Detection/remediation exit-code contract restored for disk-cleanup pair.
+5. All date/UTC/casing/count/OutputPath/Write-Progress findings fixed as itemized in review reports.
+6. Every modified script: minor version bump (new release), new changelog entry, zero parse errors.
+7. Reviewer agent passes all categories; spot Lokka verification for Graph-behavior changes.
+
+Adversarial review of v1.2 batch (2026-07-19): reviewer found 4 real issues (3 missed-comma/wrap of the single-item unrolling class in report-row helpers + wipe group lookup + MAA counts; 1 business-logic overreach in MAA policyType mapping). All 4 fixed and verified: comma-helper pairs with bare consumers, bare-helper pairs with @() consumers, no comma+@() double-wrap anywhere (audited all 31 files). PowerShell unrolling semantics reproduced to confirm 0/1/2 counts correct. MAA policyType map restricted to inventoried categories only. 31 files parse clean. Final reviewer confirmation pending, then commit.

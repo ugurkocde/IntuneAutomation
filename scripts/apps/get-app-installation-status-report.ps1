@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), -MaxApps now truly caps processed apps instead of only setting page size, genuinely retry an app after a 429 with max 3 attempts (continue was skipping it), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
@@ -227,7 +228,8 @@ catch {
 function Get-MgGraphAllPage {
     param(
         [string]$Uri,
-        [int]$DelayMs = 100
+        [int]$DelayMs = 100,
+        [int]$MaxResults = 0
     )
 
     $allResults = @()
@@ -251,6 +253,13 @@ function Get-MgGraphAllPage {
                 $allResults += $response
             }
 
+            # Stop paging once the requested maximum is reached ($top only sets
+            # page size, so without this the pager would follow every nextLink)
+            if ($MaxResults -gt 0 -and $allResults.Count -ge $MaxResults) {
+                $allResults = $allResults | Select-Object -First $MaxResults
+                break
+            }
+
             $nextLink = $response.'@odata.nextLink'
 
             # Show progress for large datasets
@@ -269,7 +278,8 @@ function Get-MgGraphAllPage {
         }
     } while ($nextLink)
 
-    return $allResults
+    # The comma preserves single-element arrays (Invoke-MgGraphRequest hashtable rows otherwise unroll and .Count returns key count)
+    return , $allResults
 }
 
 # Function to get app installation status rows from the reports endpoint with paging
@@ -340,7 +350,8 @@ function Get-AppInstallStatusReportRow {
         }
     } while ($skip -lt $totalRows)
 
-    return $allRows
+    # Comma preserves a single-row result as an array so .Count is correct
+    return , $allRows
 }
 
 # Function to convert report InstallState values to install state names
@@ -387,13 +398,15 @@ try {
 
     # Get all mobile apps
     Write-Information "Retrieving managed applications..." -InformationAction Continue
-    $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps"
+    # $select trims the payload to the fields the report reads; @odata.type is always returned on typed collections
+    $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,isAssigned"
 
     if ($MaxApps -gt 0) {
-        $appsUri += "?`$top=$MaxApps"
+        $appsUri += "&`$top=$MaxApps"
     }
 
-    $allApps = Get-MgGraphAllPage -Uri $appsUri
+    # MaxResults enforces the actual app limit ($top only sets page size)
+    $allApps = Get-MgGraphAllPage -Uri $appsUri -MaxResults $MaxApps
 
     # Filter apps if needed
     if ($FilterByAppName) {
@@ -408,8 +421,12 @@ try {
 
     Write-Information "Processing application installation status..." -InformationAction Continue
 
-    foreach ($app in $allApps) {
-        $processedApps++
+    # Index-based loop so a throttled app can be retried without being skipped
+    $appIndex = 0
+    $throttleAttempts = 0
+    while ($appIndex -lt $allApps.Count) {
+        $app = $allApps[$appIndex]
+        $processedApps = $appIndex + 1
         Write-Progress -Activity "Processing Application Installation Status" -Status "Processing app $processedApps of $($allApps.Count): $($app.displayName)" -PercentComplete (($processedApps / $allApps.Count) * 100)
 
         try {
@@ -464,13 +481,21 @@ try {
         }
         catch {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
-                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
-                Start-Sleep -Seconds 60
-                $processedApps--
-                continue
+                $throttleAttempts++
+                if ($throttleAttempts -lt 3) {
+                    Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                    Start-Sleep -Seconds 60
+                    # Retry the same app without advancing the index
+                    continue
+                }
+                Write-Warning "Rate limit persisted after 3 attempts for app $($app.displayName), skipping"
             }
-            Write-Warning "Error processing app $($app.displayName): $($_.Exception.Message)"
+            else {
+                Write-Warning "Error processing app $($app.displayName): $($_.Exception.Message)"
+            }
         }
+        $throttleAttempts = 0
+        $appIndex++
     }
 
     Write-Progress -Activity "Processing Application Installation Status" -Completed

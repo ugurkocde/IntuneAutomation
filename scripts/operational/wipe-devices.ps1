@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added -WhatIf dry run support; Azure Automation now requires -Force instead of hanging on a prompt; exit code 1 when any wipe fails; 429 retry with 60s wait on wipe calls; PIN now applies only to macOS devices with a warning otherwise; group lookup failures abort with a distinct error; list-based result accumulation; added $select to managed device queries
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
@@ -64,7 +65,7 @@
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
-[CmdletBinding(DefaultParameterSetName = 'DeviceNames')]
+[CmdletBinding(DefaultParameterSetName = 'DeviceNames', SupportsShouldProcess = $true)]
 param(
     [Parameter(Mandatory = $true, ParameterSetName = 'DeviceNames')]
     [string[]]$DeviceNames,
@@ -182,6 +183,12 @@ else {
     $IsAzureAutomation = $false
 }
 
+# Azure Automation runs are unattended - require -Force so the script cannot hang on a confirmation prompt
+if ($IsAzureAutomation -and -not $Force) {
+    Write-Error "-Force is required for unattended wipe in Azure Automation"
+    exit 1
+}
+
 # Initialize required modules
 $RequiredModules = @(
     "Microsoft.Graph.Authentication"
@@ -235,25 +242,27 @@ function Get-MgGraphAllPage {
         [int]$DelayMs = 100
     )
     
-    $allResults = @()
+    [System.Collections.Generic.List[PSCustomObject]]$allResults = @()
     $nextLink = $Uri
     $requestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($requestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
-            
+
             if ($response.value) {
-                $allResults += $response.value
+                $response.value | ForEach-Object {
+                    $allResults.Add($_)
+                }
             }
             else {
-                $allResults += $response
+                $allResults.Add($response)
             }
             
             $nextLink = $response.'@odata.nextLink'
@@ -279,21 +288,27 @@ function Invoke-DeviceWipe {
         [string]$DeviceName,
         [string]$WipeType,
         [bool]$KeepEnrollmentData,
-        [string]$PIN
+        [string]$PIN,
+        [string]$OperatingSystem
     )
-    
+
     try {
         # Prepare wipe request body
         $wipeBody = @{
             keepEnrollmentData = $KeepEnrollmentData
         }
-        
-        # Add PIN if provided for full wipe
+
+        # Add PIN if provided for full wipe (macOsUnlockCode applies to macOS devices only)
         if ($WipeType -eq 'Full' -and -not [string]::IsNullOrEmpty($PIN)) {
-            $wipeBody['useProtectedWipe'] = $true
-            $wipeBody['macOsUnlockCode'] = $PIN
+            if ($OperatingSystem -eq 'macOS') {
+                $wipeBody['useProtectedWipe'] = $true
+                $wipeBody['macOsUnlockCode'] = $PIN
+            }
+            else {
+                Write-Warning "PIN applies only to macOS devices and will be ignored for $DeviceName ($OperatingSystem)"
+            }
         }
-        
+
         # Determine endpoint based on wipe type
         if ($WipeType -eq 'Selective') {
             $wipeUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$DeviceId')/retire"
@@ -301,12 +316,25 @@ function Invoke-DeviceWipe {
         else {
             $wipeUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$DeviceId')/wipe"
         }
-        
+
         Invoke-MgGraphRequest -Uri $wipeUri -Method POST -Body ($wipeBody | ConvertTo-Json)
         Write-Information "✓ $WipeType wipe initiated for device: $DeviceName" -InformationAction Continue
         return $true
     }
     catch {
+        if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
+            Write-Information "Rate limit hit for device $DeviceName, waiting 60 seconds before retry..." -InformationAction Continue
+            Start-Sleep -Seconds 60
+            try {
+                Invoke-MgGraphRequest -Uri $wipeUri -Method POST -Body ($wipeBody | ConvertTo-Json)
+                Write-Information "✓ $WipeType wipe initiated for device: $DeviceName" -InformationAction Continue
+                return $true
+            }
+            catch {
+                Write-Information "✗ Failed to wipe device $DeviceName after retry: $($_.Exception.Message)" -InformationAction Continue
+                return $false
+            }
+        }
         Write-Information "✗ Failed to wipe device $DeviceName : $($_.Exception.Message)" -InformationAction Continue
         return $false
     }
@@ -321,7 +349,7 @@ function Get-DevicesByEntraGroup {
         
         # Find the group
         $groupUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$GroupName'"
-        $groups = Get-MgGraphAllPage -Uri $groupUri
+        $groups = @(Get-MgGraphAllPage -Uri $groupUri)
         
         if ($groups.Count -eq 0) {
             throw "Group '$GroupName' not found"
@@ -336,32 +364,31 @@ function Get-DevicesByEntraGroup {
         # Get group members
         Write-Information "Retrieving group members..." -InformationAction Continue
         $membersUri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/members"
-        $members = Get-MgGraphAllPage -Uri $membersUri
+        $members = @(Get-MgGraphAllPage -Uri $membersUri)
         
         Write-Information "✓ Found $($members.Count) members in group" -InformationAction Continue
         
         # Get all managed devices
         Write-Information "Retrieving managed devices..." -InformationAction Continue
-        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        $allDevices = Get-MgGraphAllPage -Uri $devicesUri
-        
+        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
+        $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
+
         # Filter devices by group members
-        $targetDevices = @()
+        [System.Collections.Generic.List[PSCustomObject]]$targetDevices = @()
         foreach ($device in $allDevices) {
             if ($device.userPrincipalName) {
                 $userInGroup = $members | Where-Object { $_.userPrincipalName -eq $device.userPrincipalName -or $_.mail -eq $device.userPrincipalName }
                 if ($userInGroup) {
-                    $targetDevices += $device
+                    $targetDevices.Add($device)
                 }
             }
         }
-        
+
         Write-Information "✓ Found $($targetDevices.Count) devices belonging to group members" -InformationAction Continue
         return $targetDevices
     }
     catch {
-        Write-Error "Failed to get devices by Entra ID group: $($_.Exception.Message)"
-        return @()
+        throw "Failed to get devices by Entra ID group: $($_.Exception.Message)"
     }
 }
 
@@ -401,8 +428,8 @@ try {
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
             Write-Information "Retrieving devices by names..." -InformationAction Continue
-            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-            $allDevices = Get-MgGraphAllPage -Uri $devicesUri
+            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
+            $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
             
             foreach ($deviceName in $DeviceNames) {
                 $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
@@ -420,7 +447,7 @@ try {
             Write-Information "Retrieving devices by IDs..." -InformationAction Continue
             foreach ($deviceId in $DeviceIds) {
                 try {
-                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId"
+                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
                     Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
@@ -432,7 +459,7 @@ try {
         }
         
         'EntraGroup' {
-            $targetDevices = Get-DevicesByEntraGroup -GroupName $EntraGroupName
+            $targetDevices = @(Get-DevicesByEntraGroup -GroupName $EntraGroupName)
         }
     }
 
@@ -459,8 +486,9 @@ try {
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
 
-    # Confirmation prompt unless Force is specified
-    if (-not $Force) {
+    # Confirmation prompt for local runs unless Force or WhatIf is specified
+    # (Azure Automation without -Force already exited during environment detection)
+    if (-not $Force -and -not $WhatIfPreference) {
         Write-Information "`n🛑 CONFIRMATION REQUIRED" -InformationAction Continue
         Write-Information "This operation will perform a $($WipeType.ToLower()) wipe on $($targetDevices.Count) device(s)." -InformationAction Continue
         
@@ -488,13 +516,15 @@ try {
         $processedDevices++
         Write-Progress -Activity "Wiping Devices" -Status "Processing device $processedDevices of $($targetDevices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $targetDevices.Count) * 100)
         
-        $wipeSuccessful = Invoke-DeviceWipe -DeviceId $device.id -DeviceName $device.deviceName -WipeType $WipeType -KeepEnrollmentData $KeepEnrollmentData -PIN $PIN
-        
-        if ($wipeSuccessful) {
-            $successfulWipes++
-        }
-        else {
-            $failedWipes++
+        if ($PSCmdlet.ShouldProcess($device.deviceName, "$WipeType wipe")) {
+            $wipeSuccessful = Invoke-DeviceWipe -DeviceId $device.id -DeviceName $device.deviceName -WipeType $WipeType -KeepEnrollmentData $KeepEnrollmentData -PIN $PIN -OperatingSystem $device.operatingSystem
+
+            if ($wipeSuccessful) {
+                $successfulWipes++
+            }
+            else {
+                $failedWipes++
+            }
         }
         
         # Add delay between wipe operations
@@ -516,6 +546,7 @@ try {
     # Show failed devices if any
     if ($failedWipes -gt 0) {
         Write-Information "`n❌ Failed wipe operations require manual review." -InformationAction Continue
+        exit 1
     }
 
     if ($successfulWipes -gt 0) {

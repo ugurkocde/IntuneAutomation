@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Managed device query now requests only the fields used by the report; output directory is created automatically when missing; per-device policy state calls are spaced with a short delay to reduce throttling; policy-state and summary counts are wrapped in @() so single-result queries report accurate totals; progress bar output is suppressed in Azure Automation
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
@@ -254,9 +255,10 @@ function Get-MgGraphAllPage {
 try {
     Write-Information "Starting device compliance report generation..." -InformationAction Continue
 
-    # Get all managed devices
+    # Get all managed devices (only the fields used by the report)
     Write-Information "Retrieving managed devices..." -InformationAction Continue
-    $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    $deviceSelect = "id,deviceName,userPrincipalName,userDisplayName,operatingSystem,osVersion,model,manufacturer,serialNumber,lastSyncDateTime,enrolledDateTime,managementState,managedDeviceOwnerType,complianceGracePeriodExpirationDateTime"
+    $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=$deviceSelect"
     Write-Information "✓ Found $($devices.Count) managed devices" -InformationAction Continue
 
     # Get compliance policies
@@ -278,18 +280,23 @@ try {
 
     foreach ($device in $devices) {
         $processedCount++
-        Write-Progress -Activity "Processing Devices" -Status "Processing device $processedCount of $($devices.Count)" -PercentComplete (($processedCount / $devices.Count) * 100)
-        
+        if (-not $IsAzureAutomation) {
+            Write-Progress -Activity "Processing Devices" -Status "Processing device $processedCount of $($devices.Count)" -PercentComplete (($processedCount / $devices.Count) * 100)
+        }
+
         try {
+            # Space out per-device calls to reduce throttling
+            Start-Sleep -Milliseconds 100
+
             # Get device compliance details
             $complianceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates"
             $deviceCompliance = Get-MgGraphAllPage -Uri $complianceUri
-            
+
             # Calculate compliance summary
-            $compliantPolicies = ($deviceCompliance | Where-Object { $_.state -eq "compliant" }).Count
-            $nonCompliantPolicies = ($deviceCompliance | Where-Object { $_.state -eq "nonCompliant" }).Count
-            $errorPolicies = ($deviceCompliance | Where-Object { $_.state -eq "error" }).Count
-            $totalPolicies = $deviceCompliance.Count
+            $compliantPolicies = @($deviceCompliance | Where-Object { $_.state -eq "compliant" }).Count
+            $nonCompliantPolicies = @($deviceCompliance | Where-Object { $_.state -eq "nonCompliant" }).Count
+            $errorPolicies = @($deviceCompliance | Where-Object { $_.state -eq "error" }).Count
+            $totalPolicies = @($deviceCompliance).Count
             
             # Determine overall compliance status
             $overallCompliance = if ($nonCompliantPolicies -gt 0 -or $errorPolicies -gt 0) { 
@@ -342,7 +349,14 @@ try {
         }
     }
 
-    Write-Progress -Activity "Processing Devices" -Completed
+    if (-not $IsAzureAutomation) {
+        Write-Progress -Activity "Processing Devices" -Completed
+    }
+
+    # Create output directory if it doesn't exist
+    if (-not (Test-Path $OutputPath)) {
+        New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+    }
 
     # Generate timestamp for file names
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
@@ -397,15 +411,15 @@ try {
                 <div>Total Devices</div>
             </div>
             <div class="summary-item">
-                <div class="summary-number">$(($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)</div>
+                <div class="summary-number">$(@($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)</div>
                 <div>Compliant Devices</div>
             </div>
             <div class="summary-item">
-                <div class="summary-number">$(($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)</div>
+                <div class="summary-number">$(@($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)</div>
                 <div>Non-Compliant Devices</div>
             </div>
             <div class="summary-item">
-                <div class="summary-number">$(($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)</div>
+                <div class="summary-number">$(@($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)</div>
                 <div>Stale Devices (>7 days)</div>
             </div>
         </div>
@@ -462,10 +476,10 @@ try {
     Write-Information "📊 COMPLIANCE REPORT SUMMARY" -InformationAction Continue
     Write-Information "================================" -InformationAction Continue
     Write-Information "Total Devices: $($report.Count)" -InformationAction Continue
-    Write-Information "Compliant Devices: $(($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)" -InformationAction Continue
-    Write-Information "Non-Compliant Devices: $(($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)" -InformationAction Continue
-    Write-Information "Unknown Status: $(($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count)" -InformationAction Continue
-    Write-Information "Stale Devices (>7 days): $(($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)" -InformationAction Continue
+    Write-Information "Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)" -InformationAction Continue
+    Write-Information "Non-Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)" -InformationAction Continue
+    Write-Information "Unknown Status: $(@($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count)" -InformationAction Continue
+    Write-Information "Stale Devices (>7 days): $(@($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)" -InformationAction Continue
 
     Write-Information "`nReports saved to:" -InformationAction Continue
     Write-Information "📄 CSV: $csvPath" -InformationAction Continue

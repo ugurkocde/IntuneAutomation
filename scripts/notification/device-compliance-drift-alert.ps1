@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-device policy state calls are paced and fetch failures are summarized in a warning; device listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); assigned compliance policy is now resolved via per-device deviceCompliancePolicyStates for reported devices
     1.0 - Initial release
 
@@ -47,17 +48,18 @@
     Notification
 
 .EXAMPLE
-    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "admin@company.com"
+    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
     Alerts when overall compliance falls below 85% and sends notifications to admin@company.com
 
 .EXAMPLE
-    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients "admin@company.com,security@company.com"
+    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
     Alerts when overall compliance falls below 90% and sends notifications to multiple recipients
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
-    - Uses Microsoft Graph Mail API for email notifications only
+    - Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox
+    - The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox
     - Recommended to run as scheduled runbook (daily)
     - Consider your organization's compliance requirements when setting threshold
     - Review compliance policies and device configurations based on findings
@@ -74,7 +76,11 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
-    
+
+    [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SenderUPN,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
     [switch]$ForceModuleInstall
 )
@@ -246,8 +252,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma keeps PowerShell from unrolling a single-item array on return
+    return , $AllResults
 }
 
 function Get-DevicePlatform {
@@ -338,14 +345,16 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
             
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
         }
+        return $true
     }
     catch {
         Write-Error "Failed to send email notification: $($_.Exception.Message)"
+        return $false
     }
 }
 
@@ -690,6 +699,8 @@ try {
     $ErrorDevices = @()
     $GracePeriodDevices = @()
     $CompliancePolicies = @()
+    $NotificationFailed = $false
+    $PolicyStateFetchFailures = 0
     
     # ========================================================================
     # GET COMPLIANCE POLICIES
@@ -713,7 +724,7 @@ try {
     Write-Information "Retrieving managed devices with compliance status..." -InformationAction Continue
     
     try {
-        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer,jailBroken,managementAgent"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
         
@@ -743,8 +754,12 @@ try {
                         }
                     }
                     catch {
+                        $PolicyStateFetchFailures++
                         Write-Verbose "Could not retrieve compliance policy states for device $($Device.id): $($_.Exception.Message)"
                     }
+
+                    # Pace per-device policy state calls to avoid throttling
+                    Start-Sleep -Milliseconds 100
                 }
                 
                 $DeviceInfo = [PSCustomObject]@{
@@ -786,6 +801,10 @@ try {
         }
         
         Write-Information "✓ Processed $($AllDevices.Count) devices successfully" -InformationAction Continue
+
+        if ($PolicyStateFetchFailures -gt 0) {
+            Write-Warning "Could not retrieve compliance policy states for $PolicyStateFetchFailures device(s); their assigned policy is reported as Unknown"
+        }
     }
     catch {
         Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
@@ -841,9 +860,15 @@ try {
         
         $EmailBody = New-EmailBody -AllDevices $AllDevices -NonCompliantDevices $NonCompliantDevices -ConflictDevices $ConflictDevices -ErrorDevices $ErrorDevices -GracePeriodDevices $GracePeriodDevices -ComplianceThreshold $ComplianceThresholdPercent
         
-        Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
-        
-        Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
+
+        if ($EmailSent) {
+            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        }
+        else {
+            Write-Warning "Email notification could not be delivered to all recipients"
+            $NotificationFailed = $true
+        }
     }
     else {
         Write-Information "✓ No compliance drift detected. All devices meet compliance requirements." -InformationAction Continue
@@ -917,3 +942,8 @@ Email Recipients: $($EmailRecipientList.Count)
 Status: Completed
 ========================================
 " -InformationAction Continue
+
+# Fail the run if notification delivery failed
+if ($NotificationFailed) {
+    exit 1
+}

@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added a confirmation prompt before tenant-wide rotation (skippable with -Force; Azure Automation runbooks now require -Force); rotation calls retry once after 60 seconds on throttling
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -40,9 +41,14 @@
     .\rotate-bitlocker-keys.ps1 -DelaySeconds 5
     Rotates BitLocker keys with a 5-second delay between operations
 
+.EXAMPLE
+    .\rotate-bitlocker-keys.ps1 -Force
+    Rotates BitLocker keys without the confirmation prompt (required when running as an Azure Automation runbook)
+
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
     - Requires appropriate permissions in Azure AD
+    - Local runs prompt for confirmation before rotating unless -Force is specified; Azure Automation runbooks require -Force
     - BitLocker key rotation is triggered immediately but may take time to complete on the device
     - The script will show real-time progress and results
     - Only Windows devices with BitLocker enabled will be processed
@@ -56,7 +62,10 @@ param(
     [int]$DelaySeconds = 2,
     
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [switch]$ForceModuleInstall,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Skip confirmation prompt before rotation")]
+    [switch]$Force
 )
 
 # ============================================================================
@@ -257,6 +266,21 @@ function Invoke-BitLockerKeyRotation {
         return $true
     }
     catch {
+        # Retry once after throttling before treating the rotation as failed
+        if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
+            Write-Information "Rate limit hit, waiting 60 seconds..." -InformationAction Continue
+            Start-Sleep -Seconds 60
+            try {
+                Invoke-MgGraphRequest -Method POST -Uri $rotateUri -ContentType "application/json"
+
+                Write-Information "✓ Successfully rotated BitLocker keys for device: $DeviceName" -InformationAction Continue
+                return $true
+            }
+            catch {
+                Write-Warning "✗ Failed to rotate BitLocker keys for device $DeviceName : $($_.Exception.Message)"
+                return $false
+            }
+        }
         Write-Warning "✗ Failed to rotate BitLocker keys for device $DeviceName : $($_.Exception.Message)"
         return $false
     }
@@ -280,7 +304,22 @@ try {
     }
     
     Write-Information "✓ Found $($managedDevices.Count) Windows devices" -InformationAction Continue
-    
+
+    # Confirmation gate: local runs prompt unless -Force; Azure Automation
+    # cannot prompt, so -Force is required there
+    if (-not $Force) {
+        if ($IsAzureAutomation) {
+            Write-Error "Azure Automation runs cannot prompt for confirmation. Re-run with -Force to rotate BitLocker keys for $($managedDevices.Count) device(s)."
+            exit 1
+        }
+        Write-Information "`nYou are about to rotate BitLocker keys for $($managedDevices.Count) device(s)." -InformationAction Continue
+        $confirmation = Read-Host "Do you want to continue? (Y/N)"
+        if ($confirmation -notmatch '^[Yy]') {
+            Write-Information "Operation cancelled by user" -InformationAction Continue
+            exit 0
+        }
+    }
+
     # Initialize counters
     $successCount = 0
     $failureCount = 0

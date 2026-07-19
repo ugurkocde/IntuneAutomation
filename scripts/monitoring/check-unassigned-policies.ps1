@@ -27,9 +27,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added a small delay between per-policy assignment checks to respect rate limits; policy list queries now select only needed fields; output directory is created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -252,8 +253,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $AllResults
 }
 
 # Function to get policy assignments
@@ -372,17 +374,17 @@ try {
     
     try {
         # Get traditional device configuration policies
-        $DeviceConfigUri = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations"
+        $DeviceConfigUri = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?`$select=id,displayName,description,createdDateTime,lastModifiedDateTime"
         $DeviceConfigurations = Get-MgGraphAllPage -Uri $DeviceConfigUri
         Write-Information "Retrieved $($DeviceConfigurations.Count) device configuration policies" -InformationAction Continue
-        
-        # Get Settings Catalog policies (Configuration Policies)
-        $ConfigPoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
+
+        # Get Settings Catalog policies (settings catalog uses name instead of displayName)
+        $ConfigPoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$select=id,name,description,createdDateTime,lastModifiedDateTime,templateReference,platforms,technologies,settingCount"
         $ConfigurationPolicies = Get-MgGraphAllPage -Uri $ConfigPoliciesUri
         Write-Information "Retrieved $($ConfigurationPolicies.Count) settings catalog policies" -InformationAction Continue
-        
+
         # Get Administrative Templates (Group Policy Configurations)
-        $GroupPolicyUri = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations"
+        $GroupPolicyUri = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$select=id,displayName,description,createdDateTime,lastModifiedDateTime"
         $GroupPolicyConfigurations = Get-MgGraphAllPage -Uri $GroupPolicyUri
         Write-Information "Retrieved $($GroupPolicyConfigurations.Count) administrative template policies" -InformationAction Continue
     }
@@ -409,6 +411,8 @@ try {
                 }
             }
             
+            # Delay between per-policy assignment checks to respect rate limits
+            Start-Sleep -Milliseconds 100
             $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "DeviceConfiguration"
             
             if ($Assignments.Count -eq 0) {
@@ -447,6 +451,8 @@ try {
                 }
             }
             
+            # Delay between per-policy assignment checks to respect rate limits
+            Start-Sleep -Milliseconds 100
             $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "ConfigurationPolicy"
             
             if ($Assignments.Count -eq 0) {
@@ -485,6 +491,8 @@ try {
                 }
             }
             
+            # Delay between per-policy assignment checks to respect rate limits
+            Start-Sleep -Milliseconds 100
             $Assignments = Get-PolicyAssignment -PolicyId $Policy.id -PolicyType "GroupPolicyConfiguration"
             
             if ($Assignments.Count -eq 0) {
@@ -570,6 +578,12 @@ try {
     # ========================================================================
     
     if ($AllUnassignedPolicies.Count -gt 0) {
+        # Create output directory if it does not exist
+        if (-not (Test-Path $OutputPath)) {
+            New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+            Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        }
+
         $OutputFile = Join-Path -Path $OutputPath -ChildPath "UnassignedPolicies_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
         try {
             $AllUnassignedPolicies | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8

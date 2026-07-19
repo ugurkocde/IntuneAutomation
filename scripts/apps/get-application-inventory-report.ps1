@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), genuinely retry a device after a 429 with max 3 attempts (continue was skipping it), request only needed device fields via $select
     1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
     1.1 - Enrich publisher/platform/size from aggregate detectedApps endpoint (per-device expand returns null/unknown), enforce MaxDevices as a hard cap, drop unused DeviceManagementApps.Read.All permission
@@ -274,7 +275,8 @@ function Get-MgGraphAllPage {
         }
     } while ($nextLink)
     
-    return $allResults
+    # The comma preserves single-element arrays (Invoke-MgGraphRequest hashtable rows otherwise unroll and .Count returns key count)
+    return , $allResults
 }
 
 # System applications to exclude by default
@@ -323,11 +325,12 @@ try {
 
     # Get all managed devices
     Write-Information "Retrieving managed devices..." -InformationAction Continue
-    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    # $select trims the payload to the fields the report reads
+    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userPrincipalName,userDisplayName,model,manufacturer,lastSyncDateTime,managementState,managedDeviceOwnerType,complianceState"
     if ($MaxDevices -gt 0) {
         # Graph caps page size at 1000; MaxResults enforces the actual device limit
         $pageSize = [math]::Min($MaxDevices, 1000)
-        $devicesUri += "?`$top=$pageSize"
+        $devicesUri += "&`$top=$pageSize"
     }
     $devices = Get-MgGraphAllPage -Uri $devicesUri -MaxResults $MaxDevices
     Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
@@ -352,8 +355,12 @@ try {
 
     Write-Information "Processing device applications..." -InformationAction Continue
 
-    foreach ($device in $devices) {
-        $processedDevices++
+    # Index-based loop so a throttled device can be retried without being skipped
+    $deviceIndex = 0
+    $throttleAttempts = 0
+    while ($deviceIndex -lt $devices.Count) {
+        $device = $devices[$deviceIndex]
+        $processedDevices = $deviceIndex + 1
         Write-Progress -Activity "Processing Device Applications" -Status "Processing device $processedDevices of $($devices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $devices.Count) * 100)
     
         try {
@@ -436,14 +443,21 @@ try {
         }
         catch {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
-                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
-                Start-Sleep -Seconds 60
-                # Retry the same device
-                $processedDevices--
-                continue
+                $throttleAttempts++
+                if ($throttleAttempts -lt 3) {
+                    Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                    Start-Sleep -Seconds 60
+                    # Retry the same device without advancing the index
+                    continue
+                }
+                Write-Warning "Rate limit persisted after 3 attempts for device $($device.deviceName), skipping"
             }
-            Write-Warning "Error processing applications for device $($device.deviceName): $($_.Exception.Message)"
+            else {
+                Write-Warning "Error processing applications for device $($device.deviceName): $($_.Exception.Message)"
+            }
         }
+        $throttleAttempts = 0
+        $deviceIndex++
     }
 
     Write-Progress -Activity "Processing Device Applications" -Completed

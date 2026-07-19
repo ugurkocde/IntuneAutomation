@@ -19,15 +19,16 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementManagedDevices.Read.All,DeviceManagementRBAC.Read.All,AuditLog.Read.All,Directory.Read.All
+    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementManagedDevices.Read.All,DeviceManagementRBAC.Read.All,Directory.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Approver status is now resolved from MAA policy approver groups (transitive membership) to populate IsApprover, ApproversCount and AdminsWithoutMAA; resource coverage table computes per-category protected counts from MAA policy types instead of a hardcoded zero; role assignment group members are resolved via transitiveMembers; resource list calls request only the fields used; single-result Graph collections are wrapped in @() so counts are accurate; unused -DetailedAnalysis switch and AuditLog.Read.All permission removed
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; device management scripts are queried via the beta endpoint and approvers are resolved by enumerating role assignment group members
     1.0 - Initial release
 
@@ -43,8 +44,8 @@
     Generates reports with 90-day analysis period and saves to specified directory
 
 .EXAMPLE
-    .\get-maa-compliance-report.ps1 -OutputPath "C:\Reports" -IncludeRecommendations -DetailedAnalysis
-    Generates detailed reports with security recommendations and in-depth analysis
+    .\get-maa-compliance-report.ps1 -OutputPath "C:\Reports" -IncludeRecommendations
+    Generates detailed reports with security recommendations
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
@@ -53,7 +54,6 @@
     - HTML report includes charts and visualizations
     - CSV exports enable further analysis in Excel or Power BI
     - Consider running monthly for compliance tracking
-    - Use -DetailedAnalysis for security audits
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
@@ -69,10 +69,7 @@ param(
     
     [Parameter(Mandatory = $false, HelpMessage = "Include detailed security recommendations")]
     [switch]$IncludeRecommendations,
-    
-    [Parameter(Mandatory = $false, HelpMessage = "Perform detailed analysis including audit logs")]
-    [switch]$DetailedAnalysis,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Export individual CSV files for each section")]
     [switch]$ExportDetailedCSV,
     
@@ -197,7 +194,6 @@ try {
             "DeviceManagementApps.Read.All",
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementRBAC.Read.All",
-            "AuditLog.Read.All",
             "Directory.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome
@@ -319,9 +315,9 @@ function Get-ProtectedResource {
         
         # Get Apps
         try {
-            $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
+            $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName"
             $Apps = Get-MgGraphAllPage -Uri $AppsUri
-            $Resources.Apps = $Apps | Select-Object id, displayName, '@odata.type'
+            $Resources.Apps = @($Apps | Select-Object id, displayName, '@odata.type')
             Write-Information "  Found $($Resources.Apps.Count) applications" -InformationAction Continue
         }
         catch {
@@ -330,20 +326,23 @@ function Get-ProtectedResource {
         
         # Get Scripts
         try {
-            $ScriptsUri = "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts"
+            $ScriptsUri = "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts?`$select=id,displayName,fileName"
             $Scripts = Get-MgGraphAllPage -Uri $ScriptsUri
-            $Resources.Scripts = $Scripts | Select-Object id, displayName, fileName
+            $Resources.Scripts = @($Scripts | Select-Object id, displayName, fileName)
             Write-Information "  Found $($Resources.Scripts.Count) scripts" -InformationAction Continue
         }
         catch {
             Write-Warning "Could not retrieve scripts: $($_.Exception.Message)"
         }
         
-        # Get Configuration Policies
+        # Get Settings Catalog configuration policies. This is the resource the MAA
+        # 'configurationPolicy' approval type actually gates, so the Policies bucket
+        # must inventory configurationPolicies (beta), not the legacy deviceConfigurations
+        # endpoint (which is a different, non-matching resource set).
         try {
-            $PoliciesUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations"
+            $PoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$select=id,name"
             $Policies = Get-MgGraphAllPage -Uri $PoliciesUri
-            $Resources.Policies = $Policies | Select-Object id, displayName, '@odata.type'
+            $Resources.Policies = @($Policies | Select-Object id, name, '@odata.type')
             Write-Information "  Found $($Resources.Policies.Count) configuration policies" -InformationAction Continue
         }
         catch {
@@ -352,9 +351,9 @@ function Get-ProtectedResource {
         
         # Get RBAC roles
         try {
-            $RBACUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions"
+            $RBACUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions?`$select=id,displayName,isBuiltIn"
             $RBAC = Get-MgGraphAllPage -Uri $RBACUri
-            $Resources.RBAC = $RBAC | Select-Object id, displayName, isBuiltIn
+            $Resources.RBAC = @($RBAC | Select-Object id, displayName, isBuiltIn)
             Write-Information "  Found $($Resources.RBAC.Count) RBAC roles" -InformationAction Continue
         }
         catch {
@@ -371,11 +370,30 @@ function Get-ProtectedResource {
 
 # Function to get approvers and admins
 function Get-ApproverAndAdmin {
+    param(
+        [array]$ApproverGroupIds = @()
+    )
+
     try {
         Write-Information "Retrieving administrators and approvers..." -InformationAction Continue
-        
+
         $Admins = @()
-        
+
+        # Resolve approver user ids from the MAA policy approver groups (transitive membership)
+        $ApproverUserIds = @{}
+        foreach ($GroupId in ($ApproverGroupIds | Where-Object { $_ } | Select-Object -Unique)) {
+            try {
+                $ApproverMembersUri = "https://graph.microsoft.com/v1.0/groups/$GroupId/transitiveMembers?`$select=id,displayName,userPrincipalName"
+                $ApproverMembers = Get-MgGraphAllPage -Uri $ApproverMembersUri
+                foreach ($Member in @($ApproverMembers | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.user' })) {
+                    $ApproverUserIds[$Member.id] = $true
+                }
+            }
+            catch {
+                Write-Warning "Could not retrieve approver group members for $GroupId"
+            }
+        }
+
         # Get Intune role assignments
         try {
             $RoleAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleAssignments"
@@ -390,7 +408,7 @@ function Get-ApproverAndAdmin {
                 $Members = $Assignment.members
                 foreach ($MemberId in $Members) {
                     try {
-                        $GroupMembersUri = "https://graph.microsoft.com/v1.0/groups/$MemberId/members?`$select=id,displayName,userPrincipalName"
+                        $GroupMembersUri = "https://graph.microsoft.com/v1.0/groups/$MemberId/transitiveMembers?`$select=id,displayName,userPrincipalName"
                         $GroupMembers = Get-MgGraphAllPage -Uri $GroupMembersUri
 
                         foreach ($User in $GroupMembers) {
@@ -401,7 +419,7 @@ function Get-ApproverAndAdmin {
                                 Role              = $Role.displayName
                                 RoleId            = $Role.id
                                 AssignmentId      = $Assignment.id
-                                IsApprover        = $false  # Will be updated based on MAA policies
+                                IsApprover        = $ApproverUserIds.ContainsKey($User.id)
                             }
                         }
                     }
@@ -435,17 +453,18 @@ function Get-MAAComplianceMetric {
     
     $Metrics = @{
         TotalPolicies             = $Policies.Count
-        ActivePolicies            = ($Policies | Where-Object { $_.isEnabled -eq $true }).Count
+        ActivePolicies            = @($Policies | Where-Object { $_.isEnabled -eq $true }).Count
         TotalRequests             = $Requests.Count
-        PendingRequests           = ($Requests | Where-Object { $_.status -eq 0 -or $_.status -eq "pending" }).Count
-        ApprovedRequests          = ($Requests | Where-Object { $_.status -eq 1 -or $_.status -eq "approved" }).Count
-        RejectedRequests          = ($Requests | Where-Object { $_.status -eq 2 -or $_.status -eq "rejected" }).Count
-        CancelledRequests         = ($Requests | Where-Object { $_.status -eq 3 -or $_.status -eq "cancelled" }).Count
-        CompletedRequests         = ($Requests | Where-Object { $_.status -eq 4 -or $_.status -eq "completed" }).Count
+        PendingRequests           = @($Requests | Where-Object { $_.status -eq 0 -or $_.status -eq "pending" }).Count
+        ApprovedRequests          = @($Requests | Where-Object { $_.status -eq 1 -or $_.status -eq "approved" }).Count
+        RejectedRequests          = @($Requests | Where-Object { $_.status -eq 2 -or $_.status -eq "rejected" }).Count
+        CancelledRequests         = @($Requests | Where-Object { $_.status -eq 3 -or $_.status -eq "cancelled" }).Count
+        CompletedRequests         = @($Requests | Where-Object { $_.status -eq 4 -or $_.status -eq "completed" }).Count
         
         # Resource coverage
         TotalProtectableResources = 0
         ProtectedResources        = 0
+        ProtectedByCategory       = @{}
         CoverageGaps              = @()
         
         # Approval metrics
@@ -456,28 +475,41 @@ function Get-MAAComplianceMetric {
         
         # Admin metrics
         TotalAdmins               = $Admins.Count
-        ApproversCount            = 0
-        AdminsWithoutMAA          = @()
+        ApproversCount            = @($Admins | Where-Object { $_.IsApprover } | Select-Object -ExpandProperty UserId -Unique).Count
+        AdminsWithoutMAA          = @($Admins | Where-Object { -not $_.IsApprover } | Select-Object -ExpandProperty UserPrincipalName -Unique)
     }
     
     # Calculate resource coverage
     foreach ($Category in $Resources.Keys) {
         $Metrics.TotalProtectableResources += $Resources[$Category].Count
+        $Metrics.ProtectedByCategory[$Category] = 0
     }
-    
-    # Analyze policy coverage
+
+    # Analyze policy coverage: an MAA policy protects every resource of its policy type
+    # Only map policy types whose resources are actually inventoried in $Resources.
+    # MAA approval is enforced per operation type (tenant-wide), so an existing
+    # approval policy of a mapped type protects every resource in that category.
+    # compliancePolicy/endpointSecurityPolicy/device* are intentionally omitted:
+    # their resource instances are not inventoried here, so counting them against
+    # the deviceConfigurations-backed 'Policies' bucket would overstate coverage.
+    $PolicyTypeCategoryMap = @{
+        app                 = 'Apps'
+        script              = 'Scripts'
+        configurationPolicy = 'Policies'
+        role                = 'RBAC'
+    }
     foreach ($Policy in $Policies) {
-        if ($Policy.isEnabled) {
-            # Count resources protected by this policy
-            if ($Policy.targetedResources) {
-                $Metrics.ProtectedResources += $Policy.targetedResources.Count
-            }
+        $PolicyType = [string]$Policy.policyType
+        $Category = $PolicyTypeCategoryMap[$PolicyType]
+        if ($Category -and $Metrics.ProtectedByCategory.ContainsKey($Category)) {
+            $Metrics.ProtectedByCategory[$Category] = @($Resources[$Category]).Count
         }
     }
+    $Metrics.ProtectedResources = ($Metrics.ProtectedByCategory.Values | Measure-Object -Sum).Sum
     
     # Calculate approval times
     $ApprovalTimes = @()
-    foreach ($Request in $Requests | Where-Object { $_.status -eq 1 -or $_.status -eq "approved" }) {
+    foreach ($Request in @($Requests | Where-Object { $_.status -eq 1 -or $_.status -eq "approved" })) {
         if ($Request.requestDateTime -and $Request.approvalDateTime) {
             $TimeDiff = ([DateTime]$Request.approvalDateTime - [DateTime]$Request.requestDateTime).TotalHours
             $ApprovalTimes += $TimeDiff
@@ -819,7 +851,7 @@ function New-HTMLReport {
     # Add resource coverage details
     foreach ($ResourceType in $Resources.Keys) {
         $Total = $Resources[$ResourceType].Count
-        $Protected = 0  # This would need actual calculation based on policies
+        $Protected = if ($Metrics.ProtectedByCategory.ContainsKey($ResourceType)) { $Metrics.ProtectedByCategory[$ResourceType] } else { 0 }
         $Unprotected = $Total - $Protected
         $Coverage = if ($Total -gt 0) { [Math]::Round(($Protected / $Total) * 100, 2) } else { 0 }
         
@@ -1056,10 +1088,11 @@ try {
     }
     
     # Step 1: Gather MAA data
-    $MAAPolicies = Get-MAAPolicy
-    $MAARequests = Get-MAARequest -DaysBack $DaysToAnalyze
+    $MAAPolicies = @(Get-MAAPolicy)
+    $MAARequests = @(Get-MAARequest -DaysBack $DaysToAnalyze)
     $ProtectedResources = Get-ProtectedResource
-    $Administrators = Get-ApproverAndAdmin
+    $ApproverGroupIds = @($MAAPolicies | ForEach-Object { $_.approverGroupIds } | Where-Object { $_ } | Select-Object -Unique)
+    $Administrators = Get-ApproverAndAdmin -ApproverGroupIds $ApproverGroupIds
     
     # Step 2: Analyze compliance metrics
     $ComplianceMetrics = Get-MAAComplianceMetric -Policies $MAAPolicies -Requests $MAARequests -Resources $ProtectedResources -Admins $Administrators

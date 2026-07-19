@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; device listing uses select and device fields are HTML-encoded in the email; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -47,17 +48,18 @@
     Notification
 
 .EXAMPLE
-    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "admin@company.com"
+    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
     Identifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com
 
 .EXAMPLE
-    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients "admin@company.com,security@company.com"
+    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
     Identifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
-    - Uses Microsoft Graph Mail API for email notifications only
+    - Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox
+    - The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox
     - Recommended to run as scheduled runbook (weekly or monthly)
     - Consider your organization's device usage patterns when setting staleness threshold
     - Review cleanup recommendations before taking action on devices
@@ -74,7 +76,11 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
-    
+
+    [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SenderUPN,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
     [switch]$ForceModuleInstall
 )
@@ -245,8 +251,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma keeps PowerShell from unrolling a single-item array on return
+    return , $AllResults
 }
 
 function Get-DevicePlatform {
@@ -328,14 +335,16 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
             
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
         }
+        return $true
     }
     catch {
         Write-Error "Failed to send email notification: $($_.Exception.Message)"
+        return $false
     }
 }
 
@@ -439,9 +448,9 @@ function New-EmailBody {
         foreach ($Device in ($StaleDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 20)) {
             $Body += @"
             <tr>
-                <td>$($Device.DeviceName)</td>
+                <td>$([System.Net.WebUtility]::HtmlEncode($Device.DeviceName))</td>
                 <td>$($Device.Platform)</td>
-                <td>$($Device.UserDisplayName)</td>
+                <td>$([System.Net.WebUtility]::HtmlEncode($Device.UserDisplayName))</td>
                 <td>$($Device.LastSyncDateTime.ToString('yyyy-MM-dd'))</td>
                 <td class="center">$($Device.DaysSinceLastSync)</td>
                 <td>$($Device.ComplianceState)</td>
@@ -479,9 +488,9 @@ function New-EmailBody {
         foreach ($Device in ($WarningDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
-                <td>$($Device.DeviceName)</td>
+                <td>$([System.Net.WebUtility]::HtmlEncode($Device.DeviceName))</td>
                 <td>$($Device.Platform)</td>
-                <td>$($Device.UserDisplayName)</td>
+                <td>$([System.Net.WebUtility]::HtmlEncode($Device.UserDisplayName))</td>
                 <td>$($Device.LastSyncDateTime.ToString('yyyy-MM-dd'))</td>
                 <td class="center">$($Device.DaysSinceLastSync)</td>
             </tr>
@@ -561,6 +570,7 @@ try {
     $AllDevices = @()
     $StaleDevices = @()
     $WarningDevices = @()
+    $NotificationFailed = $false
     
     # Calculate cutoff date for stale devices
     $StaleThresholdDate = (Get-Date).AddDays(-$StaleAfterDays)
@@ -576,7 +586,7 @@ try {
     Write-Information "Retrieving all managed devices from Intune..." -InformationAction Continue
     
     try {
-        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
         
@@ -656,9 +666,15 @@ try {
         
         $EmailBody = New-EmailBody -AllDevices $AllDevices -StaleDevices $StaleDevices -WarningDevices $WarningDevices -StaleThreshold $StaleAfterDays
         
-        Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
-        
-        Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
+
+        if ($EmailSent) {
+            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        }
+        else {
+            Write-Warning "Email notification could not be delivered to all recipients"
+            $NotificationFailed = $true
+        }
     }
     else {
         Write-Information "✓ No stale or warning devices found. All devices are actively checking in." -InformationAction Continue
@@ -732,3 +748,8 @@ Staleness Threshold: $StaleAfterDays days
 Status: Completed
 ========================================
 " -InformationAction Continue
+
+# Fail the run if notification delivery failed
+if ($NotificationFailed) {
+    exit 1
+}

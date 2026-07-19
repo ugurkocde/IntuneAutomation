@@ -31,13 +31,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Fixed invalid return statement in Get-FolderSize that caused folder sizes to always report 0 bytes
     1.0 - Initial version
 
 .LASTUPDATE
-    2025-06-09
+    2026-07-19
 
 .EXAMPLE
     .\detect-disk-cleanup-needed.ps1
@@ -56,7 +57,8 @@ function Get-FolderSize {
         try {
             $size = (Get-ChildItem -Path $Path -Recurse -Force -ErrorAction SilentlyContinue | 
                 Measure-Object -Property Length -Sum).Sum
-            return if ($null -eq $size) { 0 } else { $size }
+            if ($null -eq $size) { return 0 }
+            return $size
         }
         catch { return 0 }
     }

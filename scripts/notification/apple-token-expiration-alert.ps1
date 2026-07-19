@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; APNS certificates without an expiration date are recorded as Unknown expiry instead of failing; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -46,17 +47,18 @@
     Notification
 
 .EXAMPLE
-    .\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "admin@company.com"
+    .\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
     Checks for tokens expiring within 30 days and sends alerts to admin@company.com
 
 .EXAMPLE
-    .\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients "admin@company.com,security@company.com"
+    .\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
     Checks for tokens expiring within 7 days and sends alerts to multiple recipients
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
-    - Uses Microsoft Graph Mail API for email notifications only
+    - Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox
+    - The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox
     - Recommended to run as scheduled runbook (daily or weekly)
     - DEP tokens are valid for one year from creation
     - APNS certificates are valid for one year from creation
@@ -73,7 +75,11 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
-    
+
+    [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SenderUPN,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
     [switch]$ForceModuleInstall
 )
@@ -245,8 +251,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma keeps PowerShell from unrolling a single-item array on return
+    return , $AllResults
 }
 
 function Get-TokenHealthStatus {
@@ -322,14 +329,16 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
             
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
-                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
+                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
         }
+        return $true
     }
     catch {
         Write-Error "Failed to send email notification: $($_.Exception.Message)"
+        return $false
     }
 }
 
@@ -451,6 +460,7 @@ try {
     # Initialize results arrays
     $AllTokens = @()
     $TokensRequiringAttention = @()
+    $NotificationFailed = $false
     
     # ========================================================================
     # GET DEP TOKENS
@@ -518,40 +528,58 @@ try {
         $ApnsCert = Invoke-MgGraphRequest -Uri $ApnsCertUri -Method GET
         
         if ($ApnsCert) {
-            $ExpirationDate = [datetime]$ApnsCert.expirationDateTime
             $LastModifiedDate = if ($ApnsCert.lastModifiedDateTime) { [datetime]$ApnsCert.lastModifiedDateTime } else { $null }
-            
-            $State = if ($ExpirationDate -lt (Get-Date)) { 
-                "expired" 
-            }
-            elseif ([string]::IsNullOrEmpty($ApnsCert.certificateUploadFailureReason)) { 
-                "valid" 
-            }
-            else { 
-                "invalid" 
-            }
-            
             $LastSyncStatus = if ([string]::IsNullOrEmpty($ApnsCert.certificateUploadFailureReason)) { "completed" } else { "failed" }
-            
-            $HealthStatus = Get-TokenHealthStatus -State $State -ExpirationDate $ExpirationDate -LastSyncStatus $LastSyncStatus -WarningDays $NotificationDays
-            
-            $TokenInfo = [PSCustomObject]@{
-                TokenType           = "APNS"
-                TokenName           = "Apple Push Notification Certificate"
-                AppleId             = $ApnsCert.appleIdentifier
-                State               = $State
-                ExpirationDateTime  = $ExpirationDate
-                DaysUntilExpiration = ($ExpirationDate - (Get-Date)).Days
-                ExpirationStatus    = Format-TimeSpan -Date $ExpirationDate
-                LastSyncDateTime    = $LastModifiedDate
-                LastSyncStatus      = $LastSyncStatus
-                HealthStatus        = $HealthStatus
-                TokenId             = $ApnsCert.id
+
+            if ($ApnsCert.expirationDateTime) {
+                $ExpirationDate = [datetime]$ApnsCert.expirationDateTime
+
+                $State = if ($ExpirationDate -lt (Get-Date)) {
+                    "expired"
+                }
+                elseif ([string]::IsNullOrEmpty($ApnsCert.certificateUploadFailureReason)) {
+                    "valid"
+                }
+                else {
+                    "invalid"
+                }
+
+                $HealthStatus = Get-TokenHealthStatus -State $State -ExpirationDate $ExpirationDate -LastSyncStatus $LastSyncStatus -WarningDays $NotificationDays
+
+                $TokenInfo = [PSCustomObject]@{
+                    TokenType           = "APNS"
+                    TokenName           = "Apple Push Notification Certificate"
+                    AppleId             = $ApnsCert.appleIdentifier
+                    State               = $State
+                    ExpirationDateTime  = $ExpirationDate
+                    DaysUntilExpiration = ($ExpirationDate - (Get-Date)).Days
+                    ExpirationStatus    = Format-TimeSpan -Date $ExpirationDate
+                    LastSyncDateTime    = $LastModifiedDate
+                    LastSyncStatus      = $LastSyncStatus
+                    HealthStatus        = $HealthStatus
+                    TokenId             = $ApnsCert.id
+                }
             }
-            
+            else {
+                # No expiration date reported - record the certificate instead of letting the cast throw
+                $TokenInfo = [PSCustomObject]@{
+                    TokenType           = "APNS"
+                    TokenName           = "Apple Push Notification Certificate"
+                    AppleId             = $ApnsCert.appleIdentifier
+                    State               = "Unknown expiry"
+                    ExpirationDateTime  = $null
+                    DaysUntilExpiration = $null
+                    ExpirationStatus    = "Unknown expiry"
+                    LastSyncDateTime    = $LastModifiedDate
+                    LastSyncStatus      = $LastSyncStatus
+                    HealthStatus        = "Unknown"
+                    TokenId             = $ApnsCert.id
+                }
+            }
+
             $AllTokens += $TokenInfo
-            
-            if ($HealthStatus -in @("Critical", "Warning")) {
+
+            if ($TokenInfo.HealthStatus -in @("Critical", "Warning")) {
                 $TokensRequiringAttention += $TokenInfo
             }
         }
@@ -582,9 +610,15 @@ try {
         
         $EmailBody = New-EmailBody -Tokens $AllTokens -NotificationDays $NotificationDays
         
-        Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
-        
-        Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
+
+        if ($EmailSent) {
+            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+        }
+        else {
+            Write-Warning "Email notification could not be delivered to all recipients"
+            $NotificationFailed = $true
+        }
     }
     else {
         Write-Information "✓ All tokens are healthy. No notification required." -InformationAction Continue
@@ -652,3 +686,8 @@ Notification Threshold: $NotificationDays days
 Status: Completed
 ========================================
 " -InformationAction Continue
+
+# Fail the run if notification delivery failed
+if ($NotificationFailed) {
+    exit 1
+}

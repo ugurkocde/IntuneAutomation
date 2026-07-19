@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Audit log filter timestamp is now built from UTC; severity check on activityResult is now case-insensitive (Graph returns "Success"/"Failure" capitalized); output directory is created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -262,8 +263,9 @@ function Get-MgGraphAllPage {
             break
         }
     } while ($NextLink)
-    
-    return $AllResults
+
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $AllResults
 }
 
 # Function to format change details
@@ -299,7 +301,8 @@ function Get-ChangeSeverity {
         [string]$Result
     )
     
-    if ($Result -eq "failure") {
+    # Graph returns "Success"/"Failure" capitalized; normalize so casing never matters
+    if ($Result.ToLower() -eq "failure") {
         return "High"
     }
     
@@ -319,8 +322,8 @@ function Get-ChangeSeverity {
 try {
     Write-Information "Starting Policies changes analysis..." -InformationAction Continue
     
-    # Calculate start date
-    $StartDate = (Get-Date).AddDays(-$DaysBack)
+    # Calculate start date in UTC so the filter matches Graph timestamps
+    $StartDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack)
     $StartDateFormatted = $StartDate.ToString("yyyy-MM-ddTHH:mm:ssZ")
     
     Write-Information "Analyzing changes from: $($StartDate.ToString('yyyy-MM-dd HH:mm:ss'))" -InformationAction Continue
@@ -448,6 +451,12 @@ try {
     # ========================================================================
     
     if ($CsvData.Count -gt 0) {
+        # Create output directory if it does not exist
+        if (-not (Test-Path $OutputPath)) {
+            New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+            Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        }
+
         $OutputFile = Join-Path -Path $OutputPath -ChildPath "PolicyChanges_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
         try {
             $CsvData | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8

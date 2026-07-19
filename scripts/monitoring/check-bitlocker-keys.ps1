@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Summary now reuses collected results instead of re-querying every device; key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields (isEncrypted replaces the invalid encryptionState property); pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
@@ -255,8 +256,9 @@ function Get-MgGraphPaginatedData {
             break
         }
     } while ($NextLink)
-    
-    return $AllResult
+
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $AllResult
 }
 
 # Function to check BitLocker key availability for a device
@@ -277,25 +279,36 @@ function Test-BitLockerKeyAvailability {
         }
     }
 
-    try {
-        $keyIdUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$filter=deviceId eq '$AzureADDeviceId'"
-        $keyIdResponse = Invoke-MgGraphRequest -Uri $keyIdUri -Method GET
+    $maxRetries = 2
+    $retryCount = 0
+    while ($true) {
+        try {
+            $keyIdUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$filter=deviceId eq '$AzureADDeviceId'"
+            $keyIdResponse = Invoke-MgGraphRequest -Uri $keyIdUri -Method GET
 
-        $keyCount = $keyIdResponse.value.Count
-        $hasKey = $keyCount -gt 0
+            $keyCount = $keyIdResponse.value.Count
+            $hasKey = $keyCount -gt 0
 
-        return @{
-            HasKey   = $hasKey
-            KeyCount = $keyCount
-            Status   = if ($hasKey) { "Key Available" } else { "No Key Found" }
+            return @{
+                HasKey   = $hasKey
+                KeyCount = $keyCount
+                Status   = if ($hasKey) { "Key Available" } else { "No Key Found" }
+            }
         }
-    }
-    catch {
-        Write-Warning "Error checking BitLocker key for device $DeviceName : $($_.Exception.Message)"
-        return @{
-            HasKey   = $false
-            KeyCount = 0
-            Status   = "Error Checking"
+        catch {
+            # Retry on throttling instead of reporting a false "Error Checking"
+            if (($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") -and $retryCount -lt $maxRetries) {
+                $retryCount++
+                Write-Information "Rate limit hit checking device $DeviceName, waiting 60 seconds (retry $retryCount of $maxRetries)..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                continue
+            }
+            Write-Warning "Error checking BitLocker key for device $DeviceName : $($_.Exception.Message)"
+            return @{
+                HasKey   = $false
+                KeyCount = 0
+                Status   = "Error Checking"
+            }
         }
     }
 }
@@ -336,7 +349,7 @@ try {
     
     # Get all Windows devices from Intune
     Write-Information "Retrieving Windows devices from Intune..." -InformationAction Continue
-    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'"
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,serialNumber,model,manufacturer,osVersion,azureADDeviceId,complianceState,isEncrypted,lastSyncDateTime"
     $devices = Get-MgGraphPaginatedData -Uri $devicesUri
     
     if ($devices.Count -eq 0) {
@@ -348,17 +361,27 @@ try {
     
     $results = @()
     $processedCount = 0
-    
+    $devicesWithKeys = 0
+
     foreach ($device in $devices) {
         $processedCount++
-        
+
         if ($ShowProgress) {
             $percentComplete = [math]::Round(($processedCount / $devices.Count) * 100, 1)
             Write-Progress -Activity "Checking BitLocker Keys" -Status "Processing device: $($device.deviceName)" -PercentComplete $percentComplete
         }
-        
+
+        # Delay between per-device key checks to respect rate limits
+        if ($processedCount -gt 1) {
+            Start-Sleep -Milliseconds 100
+        }
+
         # Check BitLocker key availability
         $bitlockerCheck = Test-BitLockerKeyAvailability -AzureADDeviceId $device.azureADDeviceId -DeviceName $device.deviceName
+
+        if ($bitlockerCheck.HasKey) {
+            $devicesWithKeys++
+        }
         
         # Prepare result object
         $deviceResult = [PSCustomObject]@{
@@ -372,13 +395,23 @@ try {
             "Key Count"                 = $bitlockerCheck.KeyCount
             Status                      = $bitlockerCheck.Status
             ComplianceState             = $device.complianceState
-            EncryptionState             = $device.encryptionState
+            EncryptionState             = $device.isEncrypted
         }
-        
+
         # Add last sync information if requested
         if ($IncludeLastSync) {
-            $deviceResult | Add-Member -MemberType NoteProperty -Name "Last Sync" -Value $device.lastSyncDateTime.ToString("yyyy-MM-dd HH:mm")
-            $deviceResult | Add-Member -MemberType NoteProperty -Name "Sync Status" -Value (Format-LastSyncDate -LastSyncDateTime $device.lastSyncDateTime)
+            # lastSyncDateTime arrives as a string from Graph; cast with a guard
+            if (-not [string]::IsNullOrEmpty($device.lastSyncDateTime)) {
+                $lastSyncDate = [datetime]$device.lastSyncDateTime
+                $lastSyncDisplay = $lastSyncDate.ToString("yyyy-MM-dd HH:mm")
+                $syncStatusDisplay = Format-LastSyncDate -LastSyncDateTime $lastSyncDate
+            }
+            else {
+                $lastSyncDisplay = "Unknown"
+                $syncStatusDisplay = "Unknown"
+            }
+            $deviceResult | Add-Member -MemberType NoteProperty -Name "Last Sync" -Value $lastSyncDisplay
+            $deviceResult | Add-Member -MemberType NoteProperty -Name "Sync Status" -Value $syncStatusDisplay
         }
         
         # Add to results (filter if only showing missing keys)
@@ -395,12 +428,8 @@ try {
     Write-Information "`nBitLocker Key Storage Results:" -InformationAction Continue
     $results | Format-Table -AutoSize
     
-    # Calculate and display summary statistics
+    # Calculate and display summary statistics from the results collected above
     $totalDevices = $devices.Count
-    $devicesWithKeys = ($devices | ForEach-Object { 
-            $check = Test-BitLockerKeyAvailability -AzureADDeviceId $_.azureADDeviceId
-            $check.HasKey 
-        } | Where-Object { $_ -eq $true }).Count
     $devicesWithoutKeys = $totalDevices - $devicesWithKeys
     $compliancePercentage = [math]::Round(($devicesWithKeys / $totalDevices) * 100, 1)
     

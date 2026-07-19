@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
@@ -257,7 +258,8 @@ function Get-MgGraphPaginatedData {
         }
     } while ($NextLink)
 
-    return $AllResult
+    # Comma prevents unrolling so single-element results stay arrays
+    return , $AllResult
 }
 
 # Function to check FileVault key availability for a device
@@ -281,83 +283,95 @@ function Test-FileVaultKeyAvailability {
         }
     }
 
-    try {
-        # Use the getFileVaultKey endpoint
-        $keyUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$DeviceId')/getFileVaultKey"
-        $keyResponse = Invoke-MgGraphRequest -Uri $keyUri -Method GET
+    $maxRetries = 2
+    $retryCount = 0
+    while ($true) {
+        try {
+            # Use the getFileVaultKey endpoint
+            $keyUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$DeviceId')/getFileVaultKey"
+            $keyResponse = Invoke-MgGraphRequest -Uri $keyUri -Method GET
 
-        # Check if response contains a recovery key
-        if ($keyResponse -and $keyResponse.value) {
-            return @{
-                HasKey   = $true
-                KeyAvailable = $true
-                Status   = "Key Available"
-                ErrorDetails = $null
-            }
-        }
-        else {
-            return @{
-                HasKey   = $false
-                KeyAvailable = $false
-                Status   = "No Key Found"
-                ErrorDetails = $null
-            }
-        }
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-
-        # Handle specific error cases
-        if ($errorMessage -like "*404*" -or $errorMessage -like "*Not Found*") {
-            return @{
-                HasKey   = $false
-                KeyAvailable = $false
-                Status   = "No Key Stored"
-                ErrorDetails = "FileVault key not found in Intune"
-            }
-        }
-        elseif ($errorMessage -like "*403*" -or $errorMessage -like "*Forbidden*") {
-            return @{
-                HasKey   = $false
-                KeyAvailable = $false
-                Status   = "Access Denied"
-                ErrorDetails = "Insufficient permissions"
-            }
-        }
-        elseif ($errorMessage -like "*BadRequest*" -or $errorMessage -like "*400*") {
-            # BadRequest typically indicates personal device or unsupported operation
-            if ($OwnerType -eq "personal") {
+            # Check if response contains a recovery key
+            if ($keyResponse -and $keyResponse.value) {
                 return @{
-                    HasKey   = $false
-                    KeyAvailable = $false
-                    Status   = "Personal Device"
-                    ErrorDetails = "FileVault keys not accessible for personal devices"
+                    HasKey   = $true
+                    KeyAvailable = $true
+                    Status   = "Key Available"
+                    ErrorDetails = $null
                 }
             }
             else {
                 return @{
                     HasKey   = $false
                     KeyAvailable = $false
-                    Status   = "Not Supported"
-                    ErrorDetails = "FileVault key retrieval not supported for this device"
+                    Status   = "No Key Found"
+                    ErrorDetails = $null
                 }
             }
         }
-        elseif ($errorMessage -like "*Personal*") {
-            return @{
-                HasKey   = $false
-                KeyAvailable = $false
-                Status   = "Personal Device"
-                ErrorDetails = "Cannot retrieve key for personal device"
+        catch {
+            $errorMessage = $_.Exception.Message
+
+            # Retry on throttling instead of reporting a false "Error Checking"
+            if (($errorMessage -like "*429*" -or $errorMessage -like "*throttled*") -and $retryCount -lt $maxRetries) {
+                $retryCount++
+                Write-Information "Rate limit hit checking device $DeviceName, waiting 60 seconds (retry $retryCount of $maxRetries)..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                continue
             }
-        }
-        else {
-            Write-Verbose "Error checking FileVault key for device $DeviceName : $errorMessage"
-            return @{
-                HasKey   = $false
-                KeyAvailable = $false
-                Status   = "Error Checking"
-                ErrorDetails = $errorMessage
+
+            # Handle specific error cases
+            if ($errorMessage -like "*404*" -or $errorMessage -like "*Not Found*") {
+                return @{
+                    HasKey   = $false
+                    KeyAvailable = $false
+                    Status   = "No Key Stored"
+                    ErrorDetails = "FileVault key not found in Intune"
+                }
+            }
+            elseif ($errorMessage -like "*403*" -or $errorMessage -like "*Forbidden*") {
+                return @{
+                    HasKey   = $false
+                    KeyAvailable = $false
+                    Status   = "Access Denied"
+                    ErrorDetails = "Insufficient permissions"
+                }
+            }
+            elseif ($errorMessage -like "*BadRequest*" -or $errorMessage -like "*400*") {
+                # BadRequest typically indicates personal device or unsupported operation
+                if ($OwnerType -eq "personal") {
+                    return @{
+                        HasKey   = $false
+                        KeyAvailable = $false
+                        Status   = "Personal Device"
+                        ErrorDetails = "FileVault keys not accessible for personal devices"
+                    }
+                }
+                else {
+                    return @{
+                        HasKey   = $false
+                        KeyAvailable = $false
+                        Status   = "Not Supported"
+                        ErrorDetails = "FileVault key retrieval not supported for this device"
+                    }
+                }
+            }
+            elseif ($errorMessage -like "*Personal*") {
+                return @{
+                    HasKey   = $false
+                    KeyAvailable = $false
+                    Status   = "Personal Device"
+                    ErrorDetails = "Cannot retrieve key for personal device"
+                }
+            }
+            else {
+                Write-Verbose "Error checking FileVault key for device $DeviceName : $errorMessage"
+                return @{
+                    HasKey   = $false
+                    KeyAvailable = $false
+                    Status   = "Error Checking"
+                    ErrorDetails = $errorMessage
+                }
             }
         }
     }
@@ -399,7 +413,7 @@ try {
 
     # Get all macOS devices from Intune
     Write-Information "Retrieving macOS devices from Intune..." -InformationAction Continue
-    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'macOS'"
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'macOS'&`$select=id,deviceName,serialNumber,model,manufacturer,osVersion,complianceState,isEncrypted,managementState,ownerType,lastSyncDateTime"
     $devices = Get-MgGraphPaginatedData -Uri $devicesUri
 
     if ($devices.Count -eq 0) {
@@ -418,6 +432,11 @@ try {
         if ($ShowProgress) {
             $percentComplete = [math]::Round(($processedCount / $devices.Count) * 100, 1)
             Write-Progress -Activity "Checking FileVault Keys" -Status "Processing device: $($device.deviceName)" -PercentComplete $percentComplete
+        }
+
+        # Delay between per-device key checks to respect rate limits
+        if ($processedCount -gt 1) {
+            Start-Sleep -Milliseconds 100
         }
 
         # Check FileVault key availability
@@ -446,8 +465,18 @@ try {
 
         # Add last sync information if requested
         if ($IncludeLastSync) {
-            $deviceResult | Add-Member -MemberType NoteProperty -Name "Last Sync" -Value $device.lastSyncDateTime.ToString("yyyy-MM-dd HH:mm")
-            $deviceResult | Add-Member -MemberType NoteProperty -Name "Sync Status" -Value (Format-LastSyncDate -LastSyncDateTime $device.lastSyncDateTime)
+            # lastSyncDateTime arrives as a string from Graph; cast with a guard
+            if (-not [string]::IsNullOrEmpty($device.lastSyncDateTime)) {
+                $lastSyncDate = [datetime]$device.lastSyncDateTime
+                $lastSyncDisplay = $lastSyncDate.ToString("yyyy-MM-dd HH:mm")
+                $syncStatusDisplay = Format-LastSyncDate -LastSyncDateTime $lastSyncDate
+            }
+            else {
+                $lastSyncDisplay = "Unknown"
+                $syncStatusDisplay = "Unknown"
+            }
+            $deviceResult | Add-Member -MemberType NoteProperty -Name "Last Sync" -Value $lastSyncDisplay
+            $deviceResult | Add-Member -MemberType NoteProperty -Name "Sync Status" -Value $syncStatusDisplay
         }
 
         # Add to results (filter if only showing missing keys)

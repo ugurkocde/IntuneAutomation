@@ -30,9 +30,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - A failure on one key no longer discards a device's other keys: successfully fetched keys are kept and the device is reported as Partial; secret names now always carry the volume type suffix so they stay stable across runs (previously the suffix was only added when multiple keys existed; unsuffixed secrets written by earlier versions remain untouched); results table now shows the Key Vault secret version
     1.1 - Reworked authentication: MgGraphCommunity acquires separate Graph and Key Vault audience tokens (WAM-free). Fixed key retrieval: keys are now read from the Entra ID recovery key store (informationProtection/bitlocker); the previous Intune-side path checked a nonexistent property and could never return keys
     1.0 - Initial release
 
@@ -54,7 +55,7 @@
     - Two sign-ins are required per session: a device code sign-in for Key Vault and a browser sign-in for Graph (the two APIs need tokens with different audiences)
     - Interactive only: this script cannot run as an Azure Automation runbook
     - Uses REST API directly for Key Vault operations
-    - Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}
+    - Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}-{VolumeType}
     - Each secret includes tags for easy identification and management
     - Consider implementing retention policies in Key Vault
     - Regular backups ensure recovery key availability
@@ -274,18 +275,27 @@ function Get-BitLockerRecoveryKeyFromAzureAD {
         # Get the key IDs from Azure AD
         $keyIdUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$filter=deviceId eq '$AzureADDeviceId'"
         $keyIdResponse = Invoke-MgGraphRequest -Uri $keyIdUri -Method GET
-        
-        if ($keyIdResponse.value.Count -eq 0) {
-            Write-Verbose "No BitLocker keys found in Azure AD for device $DeviceName"
-            return $null
-        }
-        
-        $keys = @()
-        foreach ($keyInfo in $keyIdResponse.value) {
+    }
+    catch {
+        Write-Warning "Error retrieving BitLocker key list from Azure AD for device $DeviceName : $($_.Exception.Message)"
+        return $null
+    }
+
+    if ($keyIdResponse.value.Count -eq 0) {
+        Write-Verbose "No BitLocker keys found in Azure AD for device $DeviceName"
+        return $null
+    }
+
+    # Fetch each key individually so one failure does not discard the
+    # keys that were already retrieved successfully
+    $keys = @()
+    $failedKeyCount = 0
+    foreach ($keyInfo in $keyIdResponse.value) {
+        try {
             # Get the actual recovery key
             $keyUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys/$($keyInfo.id)?`$select=key"
             $keyResponse = Invoke-MgGraphRequest -Uri $keyUri -Method GET
-            
+
             $keys += @{
                 Id = $keyInfo.id
                 Key = $keyResponse.key
@@ -293,14 +303,15 @@ function Get-BitLockerRecoveryKeyFromAzureAD {
                 CreatedDateTime = $keyInfo.createdDateTime
             }
         }
-
-        # Comma operator keeps a single-element result as an array so the
-        # caller's .Count check sees the number of keys, not hashtable entries
-        return ,$keys
+        catch {
+            Write-Warning "Error retrieving BitLocker key $($keyInfo.id) from Azure AD for device $DeviceName : $($_.Exception.Message)"
+            $failedKeyCount++
+        }
     }
-    catch {
-        Write-Warning "Error retrieving BitLocker key from Azure AD for device $DeviceName : $($_.Exception.Message)"
-        return $null
+
+    return @{
+        Keys = $keys
+        FailedKeyCount = $failedKeyCount
     }
 }
 
@@ -423,6 +434,7 @@ try {
                 SerialNumber = $device.serialNumber
                 Status = $reason
                 KeyVaultSecret = "N/A"
+                Version = "N/A"
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             }
             $skippedCount++
@@ -430,27 +442,26 @@ try {
         }
 
         # Get BitLocker recovery keys from the Entra ID recovery key store
-        $recoveryKeys = Get-BitLockerRecoveryKeyFromAzureAD -AzureADDeviceId $device.azureADDeviceId -DeviceName $device.deviceName
+        $keyResult = Get-BitLockerRecoveryKeyFromAzureAD -AzureADDeviceId $device.azureADDeviceId -DeviceName $device.deviceName
 
-        if (-not $recoveryKeys) {
+        if (-not $keyResult) {
             Write-Verbose "No BitLocker keys found for device: $($device.deviceName)"
             $results += [PSCustomObject]@{
                 DeviceName = $device.deviceName
                 SerialNumber = $device.serialNumber
                 Status = "No Keys Found"
                 KeyVaultSecret = "N/A"
+                Version = "N/A"
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             }
             $skippedCount++
             continue
         }
-        
-        foreach ($recoveryKey in $recoveryKeys) {
-            $secretName = "BitLocker-$($device.deviceName)-$($device.serialNumber)"
-            if ($recoveryKeys.Count -gt 1) {
-                $secretName += "-$($recoveryKey.VolumeType)"
-            }
-            
+
+        foreach ($recoveryKey in $keyResult.Keys) {
+            # Volume type is always part of the name so it stays stable across runs
+            $secretName = "BitLocker-$($device.deviceName)-$($device.serialNumber)-$($recoveryKey.VolumeType)"
+
             $tags = @{
                 DeviceName = if ($device.deviceName) { $device.deviceName } else { "Unknown" }
                 SerialNumber = if ($device.serialNumber) { $device.serialNumber } else { "NoSerial" }
@@ -481,6 +492,21 @@ try {
                 SerialNumber = $device.serialNumber
                 Status = $status
                 KeyVaultSecret = $secretName
+                Version = if ($kvResult.Success) { $kvResult.Version } else { "N/A" }
+                Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            }
+        }
+
+        # Some keys could not be retrieved: record the device as Partial
+        if ($keyResult.FailedKeyCount -gt 0) {
+            Write-Warning "✗ $($keyResult.FailedKeyCount) key(s) could not be retrieved for $($device.deviceName)"
+            $failedCount++
+            $results += [PSCustomObject]@{
+                DeviceName = $device.deviceName
+                SerialNumber = $device.serialNumber
+                Status = "Partial: $($keyResult.FailedKeyCount) key(s) could not be retrieved"
+                KeyVaultSecret = "N/A"
+                Version = "N/A"
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             }
         }
