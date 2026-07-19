@@ -34,19 +34,21 @@ function niceCeil(value: number): number {
   return 10 * magnitude;
 }
 
-export function MonthlyTrendsChart({
+// The SVG plot with its own hover state, so the full and compact variants can
+// be rendered side by side (visibility toggled by CSS breakpoints) without
+// sharing crosshair geometry.
+function TrendChartSvg({
   data,
-  compact = false,
+  compact,
 }: {
   data: MonthlyAnalytics[];
-  // Compact mode targets narrow containers (dialog sidebar): smaller viewBox
-  // so text stays legible after scaling, no end-of-line labels.
-  compact?: boolean;
+  compact: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  // SVG coordinate space (scales responsively via viewBox)
+  // SVG coordinate space (scales responsively via viewBox). Compact keeps the
+  // viewBox close to narrow container widths so text stays legible.
   const W = compact ? 340 : 720;
   const H = compact ? 190 : 300;
   const PAD = compact
@@ -54,14 +56,6 @@ export function MonthlyTrendsChart({
     : { top: 16, right: 96, bottom: 30, left: 48 };
   const PLOT_W = W - PAD.left - PAD.right;
   const PLOT_H = H - PAD.top - PAD.bottom;
-
-  if (data.length === 0) {
-    return (
-      <p className="text-muted-foreground py-12 text-center text-sm">
-        No analytics data available yet.
-      </p>
-    );
-  }
 
   const maxValue = niceCeil(
     Math.max(...data.map((d) => Math.max(d.views, d.downloads))),
@@ -86,44 +80,14 @@ export function MonthlyTrendsChart({
 
   const hovered = hoverIndex === null ? null : data[hoverIndex];
 
-  // Period totals shown in the legend so the headline numbers live inside
-  // the chart card itself
-  const totals = data.reduce(
-    (acc, d) => ({
-      views: acc.views + d.views,
-      downloads: acc.downloads + d.downloads,
-    }),
-    { views: 0, downloads: 0 },
-  );
-
   return (
     <div className="relative">
-      {/* Legend with period totals */}
-      <div className="mb-2 flex items-center gap-4">
-        {SERIES.map((s) => (
-          <span
-            key={s.key}
-            className="text-muted-foreground inline-flex items-center gap-1.5 text-xs"
-          >
-            <span
-              aria-hidden="true"
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: s.color }}
-            />
-            {s.label}
-            <span className="text-foreground font-medium tabular-nums">
-              {totals[s.key].toLocaleString("en-US")}
-            </span>
-          </span>
-        ))}
-      </div>
-
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label="Monthly views and downloads over the last 12 months"
+        aria-label="Monthly views and downloads over the charted period"
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
       >
@@ -281,6 +245,73 @@ export function MonthlyTrendsChart({
             </p>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+export function MonthlyTrendsChart({
+  data,
+  compact = false,
+}: {
+  data: MonthlyAnalytics[];
+  // Compact mode targets containers that are narrow at every breakpoint
+  // (dialog sidebar). Without it, the compact variant is still used below the
+  // sm breakpoint so the chart stays legible on phones.
+  compact?: boolean;
+}) {
+  if (data.length === 0) {
+    return (
+      <p className="text-muted-foreground py-12 text-center text-sm">
+        No analytics data available yet.
+      </p>
+    );
+  }
+
+  // Period totals shown in the legend so the headline numbers live inside
+  // the chart card itself
+  const totals = data.reduce(
+    (acc, d) => ({
+      views: acc.views + d.views,
+      downloads: acc.downloads + d.downloads,
+    }),
+    { views: 0, downloads: 0 },
+  );
+
+  return (
+    <div>
+      {/* Legend with period totals */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {SERIES.map((s) => (
+          <span
+            key={s.key}
+            className="text-muted-foreground inline-flex items-center gap-1.5 text-xs"
+          >
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: s.color }}
+            />
+            {s.label}
+            <span className="text-foreground font-medium tabular-nums">
+              {totals[s.key].toLocaleString("en-US")}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {compact ? (
+        <TrendChartSvg data={data} compact />
+      ) : (
+        <>
+          {/* Full chart from the sm breakpoint up, compact variant on phones */}
+          <div className="hidden sm:block">
+            <TrendChartSvg data={data} compact={false} />
+          </div>
+          <div className="sm:hidden">
+            <TrendChartSvg data={data} compact />
+          </div>
+        </>
       )}
 
       {/* Table view of the same data */}
