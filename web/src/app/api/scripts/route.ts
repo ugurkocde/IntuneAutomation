@@ -2,22 +2,11 @@ import { NextResponse } from "next/server";
 import { githubService } from "~/lib/github";
 import { AnalyticsService } from "~/lib/supabase-analytics";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const forceRecalculate = searchParams.get("recalculate") === "true";
-
-    // Reset weekly analytics on Monday or if explicitly requested
-    const now = new Date();
-    const isMonday = now.getDay() === 1;
-
-    if (isMonday) {
-      // Reset weekly stats in the background on Mondays
-      AnalyticsService.resetWeeklyAnalytics().catch(console.error);
-    } else if (forceRecalculate) {
-      // Only do full recalculation if explicitly requested (use with caution!)
-      AnalyticsService.recalculateAllAnalytics().catch(console.error);
-    }
+    // Weekly and total aggregates are maintained by database triggers and
+    // pg_cron jobs (refresh_weekly_analytics hourly, recalculate_all_analytics
+    // nightly) - no app-side maintenance needed here.
 
     // Fetch scripts (which includes cached file data)
     const scripts = await githubService.fetchAllScripts();

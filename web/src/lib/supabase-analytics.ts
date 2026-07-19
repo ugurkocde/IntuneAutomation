@@ -49,6 +49,12 @@ export interface ScriptAnalytics {
   updated_at: string;
 }
 
+export interface MonthlyAnalytics {
+  month: string;
+  views: number;
+  downloads: number;
+}
+
 // Analytics service class
 export class AnalyticsService {
   // Track when a user views a script
@@ -118,107 +124,6 @@ export class AnalyticsService {
       return true;
     } catch (error) {
       return false;
-    }
-  }
-
-  // Update aggregated analytics for a script
-  private static async updateScriptAnalytics(scriptId: string) {
-    try {
-      // First, let's see if we can read ANY data from the tables
-      const { data: allViewsTest, error: allViewsError } = await supabase
-        .from("script_views")
-        .select("*")
-        .limit(5);
-
-      if (allViewsError) {
-        return;
-      }
-
-      const { data: allDownloadsTest, error: allDownloadsError } =
-        await supabase.from("script_downloads").select("*").limit(5);
-
-      if (allDownloadsError) {
-        return;
-      }
-
-      // Use a more reliable method: get the actual data and count it
-      const { data: allViews, error: viewError } = await supabase
-        .from("script_views")
-        .select("*")
-        .eq("script_id", scriptId);
-
-      if (viewError) {
-        return;
-      }
-
-      const totalViews = allViews?.length || 0;
-
-      // Get downloads
-      const { data: allDownloads, error: downloadError } = await supabase
-        .from("script_downloads")
-        .select("*")
-        .eq("script_id", scriptId);
-
-      if (downloadError) {
-        return;
-      }
-
-      const totalDownloads = allDownloads?.length || 0;
-
-      // Get weekly data (current week starting Monday)
-      const now = new Date();
-      const currentDay = now.getDay();
-      const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1; // Sunday = 0, so we need 6 days back
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - daysFromMonday);
-      weekStart.setHours(0, 0, 0, 0); // Start of Monday
-
-      const weeklyViews =
-        allViews?.filter((view) => new Date(view.created_at) >= weekStart)
-          .length || 0;
-
-      const weeklyDownloads =
-        allDownloads?.filter(
-          (download) => new Date(download.created_at) >= weekStart,
-        ).length || 0;
-
-      // Get last viewed time
-      const lastView = allViews?.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      )[0];
-
-      // Prepare the analytics data
-      const analyticsData = {
-        script_id: scriptId,
-        total_views: totalViews,
-        total_downloads: totalDownloads,
-        weekly_views: weeklyViews,
-        weekly_downloads: weeklyDownloads,
-        last_viewed_at: lastView?.created_at,
-        updated_at: new Date().toISOString(),
-      };
-
-      // Upsert analytics record with proper conflict resolution
-      const { error } = await supabase
-        .from("script_analytics")
-        .upsert(analyticsData, {
-          onConflict: "script_id",
-          ignoreDuplicates: false,
-        });
-
-      if (error) {
-        return;
-      }
-
-      // Verify the update by reading it back
-      await supabase
-        .from("script_analytics")
-        .select("*")
-        .eq("script_id", scriptId)
-        .single();
-    } catch (error) {
-      // Silently fail
     }
   }
 
@@ -305,51 +210,54 @@ export class AnalyticsService {
     }
   }
 
-  // Reset weekly analytics using the database function
-  static async resetWeeklyAnalytics() {
+  // Monthly rollup of deduplicated, bot-filtered events (see get_monthly_analytics in Supabase)
+  static async getMonthlyAnalytics(
+    monthsBack: number = 12,
+  ): Promise<MonthlyAnalytics[]> {
     try {
-      // Check if Supabase is properly configured
       if (!supabaseUrl || !supabaseAnonKey) {
-        return false;
+        return [];
       }
 
-      // Call the existing database function that recalculates weekly stats
-      const { error } = await supabase.rpc("refresh_weekly_analytics");
+      const { data, error } = await supabase.rpc("get_monthly_analytics", {
+        months_back: monthsBack,
+      });
 
       if (error) {
-        console.error("Failed to refresh weekly analytics:", error);
-        return false;
+        return [];
       }
 
-      return true;
+      return (data as MonthlyAnalytics[]) ?? [];
     } catch (error) {
-      console.error("Failed to reset weekly analytics:", error);
-      return false;
+      return [];
     }
   }
 
-  // Recalculate analytics for all scripts (use with caution - can overwrite correct values!)
-  static async recalculateAllAnalytics() {
+  // Monthly rollup for a single script (see get_script_monthly_analytics in Supabase)
+  static async getScriptMonthlyAnalytics(
+    scriptId: string,
+    monthsBack: number = 12,
+  ): Promise<MonthlyAnalytics[]> {
     try {
-      // Get all unique script IDs from analytics table
-      const { data: analyticsData } = await supabase
-        .from("script_analytics")
-        .select("script_id");
-
-      if (!analyticsData || analyticsData.length === 0) {
-        return true; // No analytics to update
+      if (!supabaseUrl || !supabaseAnonKey) {
+        return [];
       }
 
-      // Update analytics for each script
-      const updates = analyticsData.map((item) =>
-        this.updateScriptAnalytics(item.script_id),
+      const { data, error } = await supabase.rpc(
+        "get_script_monthly_analytics",
+        {
+          p_script_id: scriptId,
+          months_back: monthsBack,
+        },
       );
 
-      await Promise.all(updates);
-      return true;
+      if (error) {
+        return [];
+      }
+
+      return (data as MonthlyAnalytics[]) ?? [];
     } catch (error) {
-      console.error("Failed to recalculate analytics:", error);
-      return false;
+      return [];
     }
   }
 

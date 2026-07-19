@@ -112,6 +112,10 @@
   --brand-warn: oklch(0.60 0.16 75);
   --brand-azure: oklch(0.55 0.18 244);
   --brand-rule: oklch(0.78 0.018 250);
+
+  /* Stats page series colors — CVD-validated pair per theme. */
+  --stat-downloads: oklch(0.62 0.18 244);
+  --stat-views: oklch(0.70 0.16 100);
 }
 
 .dark {
@@ -154,6 +158,10 @@
   --brand-warn: oklch(0.75 0.16 75);
   --brand-azure: oklch(0.70 0.18 244);
   --brand-rule: oklch(0.36 0.030 250);
+
+  /* Stats page series colors — CVD-validated pair per theme. */
+  --stat-downloads: oklch(0.62 0.18 244);
+  --stat-views: oklch(0.66 0.14 100);
 }
 
 @layer base {

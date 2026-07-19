@@ -7,7 +7,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Github, Library, Menu, X, Search, Sparkles } from "lucide-react";
+import {
+  BarChart3,
+  Github,
+  Library,
+  Menu,
+  X,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { useScripts } from "~/components/scripts-provider";
@@ -108,6 +116,14 @@ export default function Navbar() {
               <span className="border-accent/40 text-accent rounded border px-1 py-0.5 font-mono text-[9px] leading-none tracking-wider uppercase">
                 New
               </span>
+            </Link>
+
+            <Link
+              href="/stats/"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <BarChart3 className="h-3.5 w-3.5" strokeWidth={2} />
+              Stats
             </Link>
 
             {isHome ? (
@@ -211,6 +227,15 @@ export default function Navbar() {
                 <span className="border-accent/40 text-accent ml-auto rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none tracking-wider uppercase">
                   New
                 </span>
+              </Link>
+
+              <Link
+                href="/stats/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-foreground hover:bg-card flex items-center gap-2 rounded-md px-3 py-2.5 transition-colors"
+              >
+                <BarChart3 className="h-4 w-4" strokeWidth={2} />
+                Stats
               </Link>
 
               {isHome ? (

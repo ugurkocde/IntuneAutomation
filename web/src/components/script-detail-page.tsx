@@ -37,6 +37,7 @@ import { ScriptsProvider } from "~/components/scripts-provider";
 import SearchDialog from "~/components/search-dialog";
 import { AnalyticsService } from "~/lib/supabase-analytics";
 import { RelatedScripts } from "~/components/related-scripts";
+import { ScriptUsageTrends } from "~/components/script-usage-trends";
 import { QualityChecks } from "~/components/quality-checks";
 
 interface ScriptDetailPageProps {
@@ -1085,6 +1086,28 @@ export function ScriptDetailPage({
                 </HairlinePanel>
               </section>
             )}
+
+            {/* ───────────── Usage trends ───────────── */}
+            <ScriptUsageTrends scriptId={script.id}>
+              {(chart) => (
+                <section className="mt-12" aria-labelledby="usage-heading">
+                  <SectionKicker label="USAGE" />
+                  <h2
+                    id="usage-heading"
+                    className="font-display text-foreground mt-3 text-2xl leading-tight tracking-[-0.02em] sm:text-3xl"
+                  >
+                    Usage trends
+                  </h2>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    Views and downloads for this script per month, deduplicated
+                    and bot-filtered.
+                  </p>
+                  <HairlinePanel className="mt-5 px-5 py-5">
+                    {chart}
+                  </HairlinePanel>
+                </section>
+              )}
+            </ScriptUsageTrends>
 
             {/* ───────────── Related scripts ───────────── */}
             {allScripts && allScripts.length > 1 && (

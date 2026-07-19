@@ -53,6 +53,7 @@ import { AnalyticsService } from "~/lib/supabase-analytics";
 import "prismjs/themes/prism-tomorrow.css";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { QualityChecks } from "~/components/quality-checks";
+import { ScriptUsageTrends } from "~/components/script-usage-trends";
 
 // GitHub repository constants
 const REPO_OWNER = "ugurkocde";
@@ -886,6 +887,31 @@ export function ScriptDetail({
                             )}
                           </Button>
                         </div>
+
+                        {/* Usage trends — compact 6-month chart, hidden when
+                            there is no counted activity for this script. */}
+                        <ScriptUsageTrends
+                          scriptId={script.id}
+                          months={6}
+                          compact
+                        >
+                          {(chart) => (
+                            <div
+                              className="rounded-md border p-3"
+                              style={{ borderColor: "var(--brand-rule)" }}
+                            >
+                              <div className="mb-2 flex items-center gap-2">
+                                <BarChart3
+                                  className="text-muted-foreground h-3.5 w-3.5"
+                                  strokeWidth={2}
+                                  aria-hidden="true"
+                                />
+                                <SectionKicker>// USAGE TRENDS</SectionKicker>
+                              </div>
+                              {chart}
+                            </div>
+                          )}
+                        </ScriptUsageTrends>
                       </div>
                     </div>
 
