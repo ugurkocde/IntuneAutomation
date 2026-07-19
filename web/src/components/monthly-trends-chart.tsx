@@ -86,9 +86,19 @@ export function MonthlyTrendsChart({
 
   const hovered = hoverIndex === null ? null : data[hoverIndex];
 
+  // Period totals shown in the legend so the headline numbers live inside
+  // the chart card itself
+  const totals = data.reduce(
+    (acc, d) => ({
+      views: acc.views + d.views,
+      downloads: acc.downloads + d.downloads,
+    }),
+    { views: 0, downloads: 0 },
+  );
+
   return (
     <div className="relative">
-      {/* Legend */}
+      {/* Legend with period totals */}
       <div className="mb-2 flex items-center gap-4">
         {SERIES.map((s) => (
           <span
@@ -101,6 +111,9 @@ export function MonthlyTrendsChart({
               style={{ backgroundColor: s.color }}
             />
             {s.label}
+            <span className="text-foreground font-medium tabular-nums">
+              {totals[s.key].toLocaleString("en-US")}
+            </span>
           </span>
         ))}
       </div>
