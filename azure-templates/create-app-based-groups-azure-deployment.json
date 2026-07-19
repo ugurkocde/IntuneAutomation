@@ -1,10 +1,10 @@
 {
   "resources": [
     {
-      "apiVersion": "2023-11-01",
       "type": "Microsoft.Automation/automationAccounts",
-      "location": "[parameters('location')]",
       "name": "[parameters('automationAccountName')]",
+      "apiVersion": "2023-11-01",
+      "location": "[parameters('location')]",
       "identity": {
         "type": "SystemAssigned"
       },
@@ -15,31 +15,55 @@
       }
     },
     {
-      "apiVersion": "2023-11-01",
-      "dependsOn": [
-        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
       "type": "Microsoft.Automation/automationAccounts/runbooks",
-      "location": "[parameters('location')]",
       "name": "[concat(parameters('automationAccountName'), '/', parameters('runbookName'))]",
+      "apiVersion": "2023-11-01",
       "properties": {
-        "logVerbose": "[variables('logVerbose')]",
         "description": "[parameters('runbookDescription')]",
-        "runbookType": "[variables('runbookType')]",
+        "logProgress": "[variables('logProgress')]",
         "publishContentLink": {
           "uri": "[variables('scriptUri')]"
         },
-        "logProgress": "[variables('logProgress')]"
-      }
+        "logVerbose": "[variables('logVerbose')]",
+        "runbookType": "[variables('runbookType')]"
+      },
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+      ]
     }
   ],
-  "parameters": {
-    "automationAccountName": {
-      "metadata": {
-        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
-      },
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "outputs": {
+    "runbookName": {
+      "value": "[parameters('runbookName')]",
       "type": "string"
     },
+    "runbookUrl": {
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
+    },
+    "scriptSourceUrl": {
+      "value": "[variables('scriptUri')]",
+      "type": "string"
+    },
+    "automationAccountName": {
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
+    },
+    "deploymentInstructions": {
+      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook.",
+      "type": "string"
+    }
+  },
+  "variables": {
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/create-app-based-groups.ps1",
+    "logProgress": false,
+    "logVerbose": false,
+    "runbookType": "PowerShell"
+  },
+  "parameters": {
     "runbookName": {
       "defaultValue": "create-app-based-groups",
       "type": "string",
@@ -60,36 +84,12 @@
       "metadata": {
         "description": "Description of the runbook"
       }
-    }
-  },
-  "outputs": {
+    },
     "automationAccountName": {
-      "value": "[parameters('automationAccountName')]",
-      "type": "string"
-    },
-    "scriptSourceUrl": {
-      "value": "[variables('scriptUri')]",
-      "type": "string"
-    },
-    "runbookName": {
-      "value": "[parameters('runbookName')]",
-      "type": "string"
-    },
-    "runbookUrl": {
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
-      "type": "string"
-    },
-    "deploymentInstructions": {
-      "value": "Runbook created and published successfully! If the runbook content appears empty, manually import from the source URL provided in the outputs. Next steps: 1) Assign required Microsoft Graph permissions to the Automation Account's system-assigned Managed Identity, 2) Test the runbook.",
-      "type": "string"
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Azure Automation Account. If it does not exist in the selected resource group, it will be created with a system-assigned managed identity."
+      }
     }
-  },
-  "contentVersion": "1.0.0.0",
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "variables": {
-    "logVerbose": false,
-    "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/create-app-based-groups.ps1",
-    "logProgress": false
   }
 }

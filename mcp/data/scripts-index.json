@@ -1,7 +1,7 @@
 {
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
-  "generated": "2026-07-19T21:42:18+02:00",
+  "generated": "2026-07-19T22:48:11+02:00",
   "count": 34,
   "categories": [
     "apps",
@@ -33,7 +33,7 @@
       "minRole": "Intune Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -115,7 +115,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
@@ -136,6 +136,12 @@
           "switch": false
         },
         {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
           "name": "ForceModuleInstall",
           "type": "switch",
           "mandatory": false,
@@ -143,10 +149,10 @@
         }
       ],
       "examples": [
-        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients \"admin@company.com\"\nAlerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com",
-        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients \"admin@company.com,appsupport@company.com\"\nAlerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients"
+        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com",
+        ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients \"admin@company.com,appsupport@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's application deployment requirements when setting threshold\n- Review application packages and deployment settings based on findings\n- Critical for maintaining application availability and user productivity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's application deployment requirements when setting threshold\n- Review application packages and deployment settings based on findings\n- Critical for maintaining application availability and user productivity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/app-deployment-failure-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/app-deployment-failure-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/app-deployment-failure-alert.ps1"
@@ -169,7 +175,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
@@ -190,6 +196,12 @@
           "switch": false
         },
         {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
           "name": "ForceModuleInstall",
           "type": "switch",
           "mandatory": false,
@@ -197,10 +209,10 @@
         }
       ],
       "examples": [
-        ".\\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients \"admin@company.com\"\nChecks for tokens expiring within 30 days and sends alerts to admin@company.com",
-        ".\\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients \"admin@company.com,security@company.com\"\nChecks for tokens expiring within 7 days and sends alerts to multiple recipients"
+        ".\\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nChecks for tokens expiring within 30 days and sends alerts to admin@company.com",
+        ".\\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients \"admin@company.com,security@company.com\" -SenderUPN \"intune-alerts@company.com\"\nChecks for tokens expiring within 7 days and sends alerts to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily or weekly)\n- DEP tokens are valid for one year from creation\n- APNS certificates are valid for one year from creation\n- Critical for maintaining iOS/macOS device and app management continuity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Recommended to run as scheduled runbook (daily or weekly)\n- DEP tokens are valid for one year from creation\n- APNS certificates are valid for one year from creation\n- Critical for maintaining iOS/macOS device and app management continuity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/apple-token-expiration-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/apple-token-expiration-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/apple-token-expiration-alert.ps1"
@@ -224,7 +236,7 @@
       "minRole": "Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -268,7 +280,7 @@
         ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://bitlockerfilevaultkeys.vault.azure.net\"\nBacks up all BitLocker keys to the specified Azure Key Vault",
         ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://myvault.vault.azure.net\" -OverwriteExisting -ShowProgress\nBacks up keys with overwrite option and progress display"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and MgGraphCommunity modules (no Az modules needed; auto-installed if missing)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows\n- Two sign-ins are required per session: a device code sign-in for Key Vault and a browser sign-in for Graph (the two APIs need tokens with different audiences)\n- Interactive only: this script cannot run as an Azure Automation runbook\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
+      "notes": "- Requires Microsoft.Graph.Authentication and MgGraphCommunity modules (no Az modules needed; auto-installed if missing)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows\n- Two sign-ins are required per session: a device code sign-in for Key Vault and a browser sign-in for Graph (the two APIs need tokens with different audiences)\n- Interactive only: this script cannot run as an Azure Automation runbook\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}-{VolumeType}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
       "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1"
@@ -290,7 +302,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -366,7 +378,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -441,7 +453,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -514,7 +526,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -594,7 +606,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -657,7 +669,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -738,7 +750,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -879,8 +891,8 @@
       "minRole": "Intune Service Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-09",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -920,7 +932,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
@@ -941,6 +953,12 @@
           "switch": false
         },
         {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
           "name": "ForceModuleInstall",
           "type": "switch",
           "mandatory": false,
@@ -948,10 +966,10 @@
         }
       ],
       "examples": [
-        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients \"admin@company.com\"\nAlerts when overall compliance falls below 85% and sends notifications to admin@company.com",
-        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients \"admin@company.com,security@company.com\"\nAlerts when overall compliance falls below 90% and sends notifications to multiple recipients"
+        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts when overall compliance falls below 85% and sends notifications to admin@company.com",
+        ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients \"admin@company.com,security@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts when overall compliance falls below 90% and sends notifications to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's compliance requirements when setting threshold\n- Review compliance policies and device configurations based on findings\n- Critical for maintaining security posture and regulatory compliance\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's compliance requirements when setting threshold\n- Review compliance policies and device configurations based on findings\n- Critical for maintaining security posture and regulatory compliance\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/device-compliance-drift-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/device-compliance-drift-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/device-compliance-drift-alert.ps1"
@@ -974,7 +992,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1058,7 +1076,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.2",
+      "version": "1.3",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1143,7 +1161,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1199,7 +1217,7 @@
       "minRole": "Intune Service Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1287,7 +1305,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1337,7 +1355,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1429,7 +1447,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1543,7 +1561,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1606,13 +1624,12 @@
         "DeviceManagementApps.Read.All",
         "DeviceManagementManagedDevices.Read.All",
         "DeviceManagementRBAC.Read.All",
-        "AuditLog.Read.All",
         "Directory.Read.All"
       ],
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1641,12 +1658,6 @@
           "switch": true
         },
         {
-          "name": "DetailedAnalysis",
-          "type": "switch",
-          "mandatory": false,
-          "switch": true
-        },
-        {
           "name": "ExportDetailedCSV",
           "type": "switch",
           "mandatory": false,
@@ -1662,9 +1673,9 @@
       "examples": [
         ".\\get-maa-compliance-report.ps1\nGenerates MAA compliance reports in current directory with default 30-day analysis period",
         ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -DaysToAnalyze 90\nGenerates reports with 90-day analysis period and saves to specified directory",
-        ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -IncludeRecommendations -DetailedAnalysis\nGenerates detailed reports with security recommendations and in-depth analysis"
+        ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -IncludeRecommendations\nGenerates detailed reports with security recommendations"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports both local execution and Azure Automation Runbook environments\n- Generates both HTML dashboard and CSV data exports\n- HTML report includes charts and visualizations\n- CSV exports enable further analysis in Excel or Power BI\n- Consider running monthly for compliance tracking\n- Use -DetailedAnalysis for security audits\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports both local execution and Azure Automation Runbook environments\n- Generates both HTML dashboard and CSV data exports\n- HTML report includes charts and visualizations\n- CSV exports enable further analysis in Excel or Power BI\n- Consider running monthly for compliance tracking\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/compliance/get-maa-compliance-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-maa-compliance-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-maa-compliance-report.ps1"
@@ -1688,7 +1699,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -1840,7 +1851,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "Hourly",
       "execution": "RunbookOnly",
@@ -1850,6 +1861,12 @@
       "parameters": [
         {
           "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "SenderUPN",
           "type": "string",
           "mandatory": true,
           "switch": false
@@ -1888,10 +1905,10 @@
         }
       ],
       "examples": [
-        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"security@company.com\" -UrgentThresholdHours 24\nMonitors MAA requests and alerts security team, marking requests older than 24 hours as urgent",
-        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"admin@company.com,security@company.com\" -UrgentThresholdHours 48 -EscalationThresholdHours 72\nMonitors MAA requests with multiple recipients and escalation for requests older than 72 hours"
+        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"security@company.com\" -SenderUPN \"intune-alerts@company.com\" -UrgentThresholdHours 24\nMonitors MAA requests and alerts security team, marking requests older than 24 hours as urgent",
+        ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"admin@company.com,security@company.com\" -SenderUPN \"intune-alerts@company.com\" -UrgentThresholdHours 48 -EscalationThresholdHours 72\nMonitors MAA requests with multiple recipients and escalation for requests older than 72 hours"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- This script is designed specifically for Azure Automation runbooks\n- Email notifications are sent via Microsoft Graph Mail API\n- Recommended to run hourly to ensure timely notifications\n- Stores state in Azure Automation variables to track notified requests\n- Critical for maintaining MAA compliance and security posture\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- This script is designed specifically for Azure Automation runbooks\n- Email notifications are sent via Microsoft Graph Mail API from the SenderUPN mailbox\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Recommended to run hourly to ensure timely notifications\n- Stores state in Azure Automation variables to track notified requests\n- Critical for maintaining MAA compliance and security posture\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/maa-pending-requests-monitor.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/maa-pending-requests-monitor.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/maa-pending-requests-monitor.ps1"
@@ -1946,8 +1963,8 @@
       "minRole": "Intune Service Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-09",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1989,7 +2006,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -2063,7 +2080,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -2083,13 +2100,20 @@
           "type": "switch",
           "mandatory": false,
           "switch": true
+        },
+        {
+          "name": "Force",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
         }
       ],
       "examples": [
         ".\\rotate-bitlocker-keys.ps1\nRotates BitLocker keys for all Windows devices in Intune",
-        ".\\rotate-bitlocker-keys.ps1 -DelaySeconds 5\nRotates BitLocker keys with a 5-second delay between operations"
+        ".\\rotate-bitlocker-keys.ps1 -DelaySeconds 5\nRotates BitLocker keys with a 5-second delay between operations",
+        ".\\rotate-bitlocker-keys.ps1 -Force\nRotates BitLocker keys without the confirmation prompt (required when running as an Azure Automation runbook)"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- BitLocker key rotation is triggered immediately but may take time to complete on the device\n- The script will show real-time progress and results\n- Only Windows devices with BitLocker enabled will be processed\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Local runs prompt for confirmation before rotating unless -Force is specified; Azure Automation runbooks require -Force\n- BitLocker key rotation is triggered immediately but may take time to complete on the device\n- The script will show real-time progress and results\n- Only Windows devices with BitLocker enabled will be processed\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/security/rotate-bitlocker-keys.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-bitlocker-keys.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/rotate-bitlocker-keys.ps1"
@@ -2113,7 +2137,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -2213,7 +2237,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
@@ -2234,6 +2258,12 @@
           "switch": false
         },
         {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
           "name": "ForceModuleInstall",
           "type": "switch",
           "mandatory": false,
@@ -2241,10 +2271,10 @@
         }
       ],
       "examples": [
-        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients \"admin@company.com\"\nIdentifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com",
-        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients \"admin@company.com,security@company.com\"\nIdentifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients"
+        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nIdentifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com",
+        ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients \"admin@company.com,security@company.com\" -SenderUPN \"intune-alerts@company.com\"\nIdentifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (weekly or monthly)\n- Consider your organization's device usage patterns when setting staleness threshold\n- Review cleanup recommendations before taking action on devices\n- Critical for maintaining accurate device inventory and license optimization\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only, sent from the SenderUPN mailbox\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Recommended to run as scheduled runbook (weekly or monthly)\n- Consider your organization's device usage patterns when setting staleness threshold\n- Review cleanup recommendations before taking action on devices\n- Critical for maintaining accurate device inventory and license optimization\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/stale-device-cleanup-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/stale-device-cleanup-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/stale-device-cleanup-alert.ps1"
@@ -2269,7 +2299,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.2",
+      "version": "1.3",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
@@ -2347,7 +2377,7 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
+      "version": "1.2",
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
