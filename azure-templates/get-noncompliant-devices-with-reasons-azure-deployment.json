@@ -41,7 +41,7 @@
       "type": "string"
     },
     "runbookName": {
-      "defaultValue": "get-intune-role-assignments",
+      "defaultValue": "get-noncompliant-devices-with-reasons",
       "type": "string",
       "metadata": {
         "description": "Name for the new runbook (will be created in the Automation Account)"
@@ -55,7 +55,7 @@
       }
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph to retrieve all Intune role definitions",
+      "defaultValue": "This script connects to Microsoft Graph, retrieves every managed device whose compliance state",
       "type": "string",
       "metadata": {
         "description": "Description of the runbook"
@@ -89,7 +89,7 @@
   "variables": {
     "logVerbose": false,
     "runbookType": "PowerShell",
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/security/get-intune-role-assignments.ps1",
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/compliance/get-noncompliant-devices-with-reasons.ps1",
     "logProgress": false
   }
 }

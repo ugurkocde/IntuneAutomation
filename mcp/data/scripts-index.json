@@ -1,8 +1,8 @@
 {
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
-  "generated": "2026-07-18T03:04:45Z",
-  "count": 33,
+  "generated": "2026-07-19T21:42:18+02:00",
+  "count": 34,
   "categories": [
     "apps",
     "compliance",
@@ -33,8 +33,8 @@
       "minRole": "Intune Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -92,7 +92,7 @@
         ".\\add-devices-to-groups-from-csv.ps1 -CsvPath \"C:\\devices.csv\" -DryRun\nPreview what changes would be made without actually making them",
         ".\\add-devices-to-groups-from-csv.ps1 -CsvPath \"C:\\devices.csv\" -CreateMissingGroups -Force\nAdd devices to groups and automatically create missing groups without prompting"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- CSV file should contain columns: DeviceName, SerialNumber, DeviceId (Azure AD), GroupName\n- At least one device identifier (DeviceName, SerialNumber, or DeviceId) must be provided per row\n- The GroupName column is required for all rows\n- Devices already in target groups will be skipped\n- Device matching priority: DeviceId > SerialNumber > DeviceName\n- CSV import: Automatically detects comma or semicolon delimiters\n- Template generation: Automatically uses your system's regional delimiter (comma for US/UK, semicolon for Europe)\n- Templates will open correctly in Excel on the system where they were generated\n\nCSV Format Example:\nDeviceName,SerialNumber,DeviceId,GroupName\nDESKTOP-ABC123,VMW12345,,IT-Department-Devices\n,VMW67890,,Finance-Devices\n,,a1b2c3d4-e5f6-7890-abcd-ef1234567890,Executive-Devices",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- CSV file should contain columns: DeviceName, SerialNumber, DeviceId (Azure AD), GroupName\n- At least one device identifier (DeviceName, SerialNumber, or DeviceId) must be provided per row\n- The GroupName column is required for all rows\n- Devices already in target groups will be skipped\n- Device matching priority: DeviceId > SerialNumber > DeviceName\n- CSV import: Automatically detects comma or semicolon delimiters\n- Template generation: Automatically uses your system's regional delimiter (comma for US/UK, semicolon for Europe)\n- Templates will open correctly in Excel on the system where they were generated\n\nCSV Format Example:\nDeviceName,SerialNumber,DeviceId,GroupName\nDESKTOP-ABC123,VMW12345,,IT-Department-Devices\n,VMW67890,,Finance-Devices\n,,a1b2c3d4-e5f6-7890-abcd-ef1234567890,Executive-Devices\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/add-devices-to-groups-from-csv.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/add-devices-to-groups-from-csv.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/add-devices-to-groups-from-csv.ps1"
@@ -115,8 +115,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-30",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
       "output": "Email",
@@ -146,7 +146,7 @@
         ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients \"admin@company.com\"\nAlerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com",
         ".\\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients \"admin@company.com,appsupport@company.com\"\nAlerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's application deployment requirements when setting threshold\n- Review application packages and deployment settings based on findings\n- Critical for maintaining application availability and user productivity",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's application deployment requirements when setting threshold\n- Review application packages and deployment settings based on findings\n- Critical for maintaining application availability and user productivity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/app-deployment-failure-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/app-deployment-failure-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/app-deployment-failure-alert.ps1"
@@ -169,8 +169,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-30",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
       "output": "Email",
@@ -200,7 +200,7 @@
         ".\\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients \"admin@company.com\"\nChecks for tokens expiring within 30 days and sends alerts to admin@company.com",
         ".\\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients \"admin@company.com,security@company.com\"\nChecks for tokens expiring within 7 days and sends alerts to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily or weekly)\n- DEP tokens are valid for one year from creation\n- APNS certificates are valid for one year from creation\n- Critical for maintaining iOS/macOS device and app management continuity",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily or weekly)\n- DEP tokens are valid for one year from creation\n- APNS certificates are valid for one year from creation\n- Critical for maintaining iOS/macOS device and app management continuity\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/apple-token-expiration-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/apple-token-expiration-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/apple-token-expiration-alert.ps1"
@@ -209,7 +209,7 @@
       "id": "backup-bitlocker-keys-to-keyvault",
       "title": "BitLocker Keys Backup to Azure Key Vault",
       "synopsis": "Backs up BitLocker recovery keys from Entra ID (Azure AD) to Azure Key Vault using REST API.",
-      "description": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,\nthen stores them securely in Azure Key Vault using REST API. Each key is stored as a secret with\ndevice information (name and serial number) included in tags. The script ensures secure storage\nThe script uses Microsoft Graph authentication for both Graph API and Key Vault API calls,\neliminating the need for the large Az.Accounts module. Simply provide your Key Vault URI\nand the script handles the rest. On first run, you will be prompted to consent to the required\npermissions including Key Vault access.",
+      "description": "This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,\nthen stores them securely in Azure Key Vault using REST API. Each key is stored as a secret with\ndevice information (name and serial number) included in tags.\nAuthentication uses the MgGraphCommunity module (WAM-free) and acquires two separate tokens with\nthe correct audiences: a device code sign-in for Azure Key Vault (https://vault.azure.net) and an\ninteractive browser sign-in for Microsoft Graph. No Az modules are needed. On first run, you will\nbe prompted to consent to the required permissions including Key Vault access.",
       "category": "security",
       "categoryLabel": "security",
       "tags": [
@@ -224,8 +224,8 @@
       "minRole": "Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -249,13 +249,26 @@
           "type": "switch",
           "mandatory": false,
           "switch": true
+        },
+        {
+          "name": "TenantId",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
         }
       ],
       "examples": [
         ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://bitlockerfilevaultkeys.vault.azure.net\"\nBacks up all BitLocker keys to the specified Azure Key Vault",
         ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://myvault.vault.azure.net\" -OverwriteExisting -ShowProgress\nBacks up keys with overwrite option and progress display"
       ],
-      "notes": "- Requires only Microsoft.Graph.Authentication module (no Az modules needed)\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
+      "notes": "- Requires Microsoft.Graph.Authentication and MgGraphCommunity modules (no Az modules needed; auto-installed if missing)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows\n- Two sign-ins are required per session: a device code sign-in for Key Vault and a browser sign-in for Graph (the two APIs need tokens with different audiences)\n- Interactive only: this script cannot run as an Azure Automation runbook\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
       "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1"
@@ -277,8 +290,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -330,7 +343,7 @@
         ".\\check-apple-token-validity.ps1 -OutputPath \"C:\\Reports\" -ExpirationWarningDays 60\nGenerates reports with 60-day expiration warning and saves to specified directory",
         ".\\check-apple-token-validity.ps1 -OnlyShowProblems -SendEmailAlert\nShows only problematic tokens and certificates and sends email alerts for critical issues"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- DEP tokens are valid for one year from creation\n- Apple Push Notification Certificates are valid for one year from creation\n- Automatic sync occurs daily, manual sync can be triggered\n- Critical for maintaining iOS/macOS device and app management",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- DEP tokens are valid for one year from creation\n- Apple Push Notification Certificates are valid for one year from creation\n- Automatic sync occurs daily, manual sync can be triggered\n- Critical for maintaining iOS/macOS device and app management\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/check-apple-token-validity.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-apple-token-validity.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-apple-token-validity.ps1"
@@ -353,8 +366,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -404,7 +417,7 @@
         ".\\check-bitlocker-keys.ps1 -OutputPath \"C:\\Reports\" -OnlyShowMissing\nSaves report to specified directory and shows only devices missing BitLocker keys",
         ".\\check-bitlocker-keys.ps1 -IncludeLastSync -ExportJson\nIncludes last sync information and exports results in JSON format as well"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- BitLocker keys are automatically escrowed to Entra ID when properly configured\n- Devices must be Azure AD joined or Hybrid Azure AD joined for key escrow\n- Consider configuring BitLocker policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- BitLocker keys are automatically escrowed to Entra ID when properly configured\n- Devices must be Azure AD joined or Hybrid Azure AD joined for key escrow\n- Consider configuring BitLocker policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/check-bitlocker-keys.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-bitlocker-keys.ps1"
@@ -421,14 +434,15 @@
         "Security"
       ],
       "permissions": [
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
         "DeviceManagementManagedDevices.Read.All",
         "DeviceManagementConfiguration.Read.All"
       ],
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-09-22",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -478,7 +492,7 @@
         ".\\check-filevault-keys.ps1 -OutputPath \"C:\\Reports\" -OnlyShowMissing\nSaves report to specified directory and shows only devices missing FileVault keys",
         ".\\check-filevault-keys.ps1 -IncludeLastSync -ExportJson\nIncludes last sync information and exports results in JSON format as well"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- FileVault keys are automatically escrowed to Intune when properly configured\n- Devices must be enrolled in Intune and have FileVault policy applied\n- Consider configuring FileVault policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- FileVault keys are automatically escrowed to Intune when properly configured\n- Devices must be enrolled in Intune and have FileVault policy applied\n- Consider configuring FileVault policies to enforce key escrow\n- Regular monitoring helps ensure compliance with data protection requirements\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/check-filevault-keys.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-filevault-keys.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-filevault-keys.ps1"
@@ -500,8 +514,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -559,7 +573,7 @@
         ".\\check-policy-changes.ps1 -DaysBack 30 -OutputPath \"C:\\Reports\"\nGenerates a report of policy changes from the last 30 days and saves to specified directory",
         ".\\check-policy-changes.ps1 -OnlyShowChanges -SendEmailAlert -AlertEmailAddress \"admin@contoso.com\"\nShows only modified policies and sends email alerts for changes"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Policies use modern configuration templates\n- Policies require beta Graph endpoint access\n- Audit data is available for up to 30 days by default\n- Critical for maintaining configuration governance and compliance\n- Monitor for unauthorized changes to security policies",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Policies use modern configuration templates\n- Policies require beta Graph endpoint access\n- Audit data is available for up to 30 days by default\n- Critical for maintaining configuration governance and compliance\n- Monitor for unauthorized changes to security policies\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/check-policy-changes.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-policy-changes.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-policy-changes.ps1"
@@ -580,8 +594,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -620,7 +634,7 @@
         ".\\check-unassigned-policies.ps1 -OutputPath \"C:\\Reports\" -IncludeDetails\nGenerates a detailed report and saves to specified directory",
         ".\\check-unassigned-policies.ps1 -CreatedWithinDays 7\nGenerates report for policies created in the last 7 days"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Checks all policy types: Device Configuration, Settings Catalog, Administrative Templates\n- Unassigned policies may indicate incomplete deployment or unused configurations\n- Regular monitoring helps maintain policy governance and compliance\n- Consider removing or assigning policies that have been unassigned for extended periods",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Checks all policy types: Device Configuration, Settings Catalog, Administrative Templates\n- Unassigned policies may indicate incomplete deployment or unused configurations\n- Regular monitoring helps maintain policy governance and compliance\n- Consider removing or assigning policies that have been unassigned for extended periods\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/check-unassigned-policies.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-unassigned-policies.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-unassigned-policies.ps1"
@@ -643,8 +657,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -700,7 +714,7 @@
         ".\\cleanup-autopilot-devices.ps1 -RemoveOrphaned -Force -ShowProgressBar\nRemoves orphaned devices without confirmation prompts, with progress display",
         ".\\cleanup-autopilot-devices.ps1 -PreviewOnly -ForceModuleInstall\nShows orphaned devices and forces module installation without prompting"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Only processes Windows Autopilot devices\n- Comparison is based on device serial numbers\n- Use -PreviewOnly first to review devices before removal\n- Large environments may take several minutes to process\n- Consider running during maintenance windows\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Only processes Windows Autopilot devices\n- Comparison is based on device serial numbers\n- Use -PreviewOnly first to review devices before removal\n- Large environments may take several minutes to process\n- Consider running during maintenance windows\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/cleanup-autopilot-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/cleanup-autopilot-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/cleanup-autopilot-devices.ps1"
@@ -724,8 +738,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-23",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -810,7 +824,7 @@
         ".\\create-app-based-groups.ps1 -ApplicationName \"Chrome\" -MinimumVersion \"120.0\" -UpdateExisting\nCreates/updates a group with devices having Chrome version 120.0 or higher",
         ".\\create-app-based-groups.ps1 -ApplicationName \"*\" -FilterByType \"Win32\" -DryRun\nPreview groups that would be created for all Win32 applications"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports wildcards in application names\n- Can create multiple groups in a single run\n- Uses both detected apps and deployment status for comprehensive coverage\n- Groups are created as security groups by default\n- Device limit per group is 100,000 (Entra ID limitation)",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports wildcards in application names\n- Can create multiple groups in a single run\n- Uses both detected apps and deployment status for comprehensive coverage\n- Groups are created as security groups by default\n- Device limit per group is 100,000 (Entra ID limitation)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/create-app-based-groups.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/create-app-based-groups.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/create-app-based-groups.ps1"
@@ -906,8 +920,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-30",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "Daily",
       "execution": "RunbookOnly",
       "output": "Email",
@@ -937,7 +951,7 @@
         ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients \"admin@company.com\"\nAlerts when overall compliance falls below 85% and sends notifications to admin@company.com",
         ".\\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients \"admin@company.com,security@company.com\"\nAlerts when overall compliance falls below 90% and sends notifications to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's compliance requirements when setting threshold\n- Review compliance policies and device configurations based on findings\n- Critical for maintaining security posture and regulatory compliance",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (daily)\n- Consider your organization's compliance requirements when setting threshold\n- Review compliance policies and device configurations based on findings\n- Critical for maintaining security posture and regulatory compliance\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/device-compliance-drift-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/device-compliance-drift-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/device-compliance-drift-alert.ps1"
@@ -960,8 +974,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-09-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1022,7 +1036,7 @@
         ".\\get-app-installation-status-report.ps1 -FilterByPlatform \"Windows\" -OutputPath \"C:\\Reports\"\nGenerates report for Windows applications and saves to specified directory",
         ".\\get-app-installation-status-report.ps1 -FilterByAppName \"Microsoft 365\" -OpenReport\nGenerates report filtered by application name and opens the HTML report"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- Uses beta endpoint for comprehensive installation status data\n- Supports filtering by install state (installed, pending, failed, notApplicable)\n- Supports filtering by platform (Windows, iOS, Android, macOS)",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- Uses beta endpoint for comprehensive installation status data\n- Supports filtering by install state (installed, pending, failed, notApplicable)\n- Supports filtering by platform (Windows, iOS, Android, macOS)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/apps/get-app-installation-status-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-app-installation-status-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-app-installation-status-report.ps1"
@@ -1044,8 +1058,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-06-12",
+      "version": "1.2",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1105,7 +1119,7 @@
         ".\\get-application-inventory-report.ps1 -FilterByPublisher \"Microsoft Corporation\" -OpenReport\nGenerates reports filtered by Microsoft applications and opens the HTML report",
         ".\\get-application-inventory-report.ps1 -ForceModuleInstall\nForces module installation without prompting and generates the report"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- System applications are excluded by default to focus on business applications\n- Uses beta endpoint for enhanced application data\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take considerable time to complete due to API rate limits\n- Reports are saved in both CSV and HTML formats\n- System applications are excluded by default to focus on business applications\n- Uses beta endpoint for enhanced application data\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/apps/get-application-inventory-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-application-inventory-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-application-inventory-report.ps1"
@@ -1129,8 +1143,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1162,7 +1176,7 @@
         ".\\get-device-compliance-report.ps1 -OutputPath \"C:\\Reports\"\nGenerates reports and saves them to the specified directory",
         ".\\get-device-compliance-report.ps1 -ForceModuleInstall\nGenerates reports and forces module installation without prompting"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take several minutes to complete\n- Reports are saved in both CSV and HTML formats\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Large tenants may take several minutes to complete\n- Reports are saved in both CSV and HTML formats\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/compliance/get-device-compliance-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-device-compliance-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-device-compliance-report.ps1"
@@ -1185,8 +1199,8 @@
       "minRole": "Intune Service Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-01",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1251,7 +1265,7 @@
         ".\\get-devices-by-scopetag.ps1 -ExcludeScopeTag \"Default\" -ExportPath \"C:\\Reports\"\nGets all devices except those with only the \"Default\" scope tag",
         ".\\get-devices-by-scopetag.ps1 -IncludeScopeTag \"School_A\" -Platform \"Windows\" -ComplianceState \"Compliant\"\nGets only compliant Windows devices from School_A"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- The script makes individual API calls for each device to retrieve scope tag information\n- Large environments may take several minutes to process due to individual device lookups\n- HTML report includes sorting and filtering capabilities\n- CSV export includes all device details for further analysis\n- Scope Tags must match exactly (case-sensitive)\n- Devices can have multiple scope tags assigned\n- The beta API endpoint is required to retrieve scope tag information\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- The script makes individual API calls for each device to retrieve scope tag information\n- Large environments may take several minutes to process due to individual device lookups\n- HTML report includes sorting and filtering capabilities\n- CSV export includes all device details for further analysis\n- Scope Tags must match exactly (case-sensitive)\n- Devices can have multiple scope tags assigned\n- The beta API endpoint is required to retrieve scope tag information\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/get-devices-by-scopetag.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-devices-by-scopetag.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-devices-by-scopetag.ps1"
@@ -1273,8 +1287,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1300,7 +1314,7 @@
         ".\\get-duplicate-applications.ps1 -OutputPath \"C:\\Reports\"\nGenerates duplicate applications report and saves to specified directory",
         ".\\get-duplicate-applications.ps1 -ForceModuleInstall\nForces module installation without prompting and generates the report"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Reports are saved in both CSV and HTML formats\n- Analyzes applications uploaded to Intune, not device-installed applications\n- Duplicate detection criteria:\n  * Same application name with different publishers\n  * Applications with name variations (case differences, extra spaces, etc.)\n  * Same application name with different app types\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- Reports are saved in both CSV and HTML formats\n- Analyzes applications uploaded to Intune, not device-installed applications\n- Duplicate detection criteria:\n  * Same application name with different publishers\n  * Applications with name variations (case differences, extra spaces, etc.)\n  * Same application name with different app types\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/apps/get-duplicate-applications.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-duplicate-applications.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-duplicate-applications.ps1"
@@ -1323,8 +1337,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-01-28",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1392,7 +1406,7 @@
         ".\\get-endpoint-analytics-report.ps1 -OutputPath \"C:\\Reports\" -IncludeStartupPerformance\nGenerates report with only startup performance metrics",
         ".\\get-endpoint-analytics-report.ps1 -IncludeAll -ExportJson\nGenerates report with all metrics and exports to both CSV and JSON formats"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Uses Microsoft Graph Beta API endpoints\n- Some features require Intune Advanced Analytics license\n- Battery Health metrics require Windows 10/11 devices\n- Endpoint Analytics must be enabled in Intune\n- Documentation: https://learn.microsoft.com/en-us/intune/analytics/overview",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Uses Microsoft Graph Beta API endpoints\n- Some features require Intune Advanced Analytics license\n- Battery Health metrics require Windows 10/11 devices\n- Endpoint Analytics must be enabled in Intune\n- Documentation: https://learn.microsoft.com/en-us/intune/analytics/overview\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/get-endpoint-analytics-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-endpoint-analytics-report.ps1"
@@ -1415,8 +1429,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-23",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1506,7 +1520,7 @@
         ".\\get-intune-audit-logs.ps1 -FilterByUser \"admin@company.com\" -ExportToCsv\nShows all audit entries for a specific user and exports to CSV",
         ".\\get-intune-audit-logs.ps1 -FilterByActivity \"*Policy*\" -ExportToHtml -OpenReport\nShows audit entries related to policy changes and opens HTML report"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Audit logs are retained for 30 days in Intune\n- Uses beta endpoint for comprehensive audit data\n- Results are sorted by timestamp (newest first)\n- Supports wildcards in activity and user filters",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Audit logs are retained for 30 days in Intune\n- Uses beta endpoint for comprehensive audit data\n- Results are sorted by timestamp (newest first)\n- Supports wildcards in activity and user filters\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/monitoring/get-intune-audit-logs.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-intune-audit-logs.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-intune-audit-logs.ps1"
@@ -1529,8 +1543,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-06-23",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1568,7 +1582,7 @@
         ".\\get-intune-role-assignments.ps1 -ShowEmptyRoles\nShows all roles including those with no current assignments",
         ".\\get-intune-role-assignments.ps1 -ExportToCsv\nExports the role assignments report to a CSV file"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Shows both built-in and custom Intune roles\n- Resolves user and group names for assignments\n- Assignment dates may not be available for older assignments",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Shows both built-in and custom Intune roles\n- Resolves user and group names for assignments\n- Assignment dates may not be available for older assignments\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/security/get-intune-role-assignments.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-intune-role-assignments.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-intune-role-assignments.ps1"
@@ -1598,8 +1612,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1650,10 +1664,74 @@
         ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -DaysToAnalyze 90\nGenerates reports with 90-day analysis period and saves to specified directory",
         ".\\get-maa-compliance-report.ps1 -OutputPath \"C:\\Reports\" -IncludeRecommendations -DetailedAnalysis\nGenerates detailed reports with security recommendations and in-depth analysis"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports both local execution and Azure Automation Runbook environments\n- Generates both HTML dashboard and CSV data exports\n- HTML report includes charts and visualizations\n- CSV exports enable further analysis in Excel or Power BI\n- Consider running monthly for compliance tracking\n- Use -DetailedAnalysis for security audits",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Supports both local execution and Azure Automation Runbook environments\n- Generates both HTML dashboard and CSV data exports\n- HTML report includes charts and visualizations\n- CSV exports enable further analysis in Excel or Power BI\n- Consider running monthly for compliance tracking\n- Use -DetailedAnalysis for security audits\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/compliance/get-maa-compliance-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-maa-compliance-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-maa-compliance-report.ps1"
+    },
+    {
+      "id": "get-noncompliant-devices-with-reasons",
+      "title": "Non-Compliant Devices with Reasons Report",
+      "synopsis": "Identify all non-compliant devices in Intune and the specific setting(s) that caused each failure.",
+      "description": "This script connects to Microsoft Graph, retrieves every managed device whose compliance state\nis non-compliant (and optionally error / in grace period), then drills into each device's\ncompliance policy states and the underlying setting states to surface the exact reason a device\nis non-compliant. For every failing setting it reports the owning policy, the setting name, the\nreported state, the current value, and any error code/description. Results are exported to both\nCSV (one row per failing setting) and a summary HTML report.",
+      "category": "compliance",
+      "categoryLabel": "compliance",
+      "tags": [
+        "Compliance",
+        "Devices",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ComplianceStates",
+          "type": "string[",
+          "mandatory": false,
+          "default": "@(\"noncompliant\")",
+          "switch": false
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "OpenReport",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-noncompliant-devices-with-reasons.ps1\nReports all non-compliant devices and the settings that caused the failure",
+        ".\\get-noncompliant-devices-with-reasons.ps1 -ComplianceStates noncompliant,error,inGracePeriod\nIncludes devices in error and grace-period states in addition to non-compliant ones",
+        ".\\get-noncompliant-devices-with-reasons.ps1 -OutputPath \"C:\\Reports\" -OpenReport\nSaves the reports to the specified directory and opens the HTML report when finished"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Entra ID\n- Uses the Microsoft Graph beta endpoint to retrieve setting-level compliance detail\n- The CSV contains one row per failing setting; a device with multiple reasons appears on multiple rows\n- Devices flagged non-compliant with no setting-level detail (e.g. recently enrolled or not yet\n  evaluated) are reported with a placeholder reason so they are not silently dropped\n- Large tenants may take several minutes: the script makes additional Graph calls per device\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/compliance/get-noncompliant-devices-with-reasons.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/compliance/get-noncompliant-devices-with-reasons.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-noncompliant-devices-with-reasons.ps1"
     },
     {
       "id": "get-stale-devices",
@@ -1672,8 +1750,8 @@
       "minRole": "Intune Service Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1730,7 +1808,7 @@
         ".\\get-stale-devices.ps1 -DaysStale 90 -IncludeNeverCheckedIn -ShowProgressBar\nGets devices stale for 90+ days, includes devices that never checked in, with progress display",
         ".\\get-stale-devices.ps1 -DaysStale 30 -ForceModuleInstall\nGets stale devices and forces module installation without prompting"
       ],
-      "notes": "- Requires only Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Large environments may take several minutes to process\n- Consider running during off-hours for large tenant scans\n- Devices that have never checked in will show 'Never' as last check-in time\n- Corporate-owned devices vs personal devices are distinguished in the output\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires only Microsoft.Graph.Authentication module\n- Uses Connect-MgGraph and Invoke-MgGraphRequest for all Graph operations\n- Large environments may take several minutes to process\n- Consider running during off-hours for large tenant scans\n- Devices that have never checked in will show 'Never' as last check-in time\n- Corporate-owned devices vs personal devices are distinguished in the output\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/get-stale-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-stale-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-stale-devices.ps1"
@@ -1762,8 +1840,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "Hourly",
       "execution": "RunbookOnly",
       "output": "Email",
@@ -1813,7 +1891,7 @@
         ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"security@company.com\" -UrgentThresholdHours 24\nMonitors MAA requests and alerts security team, marking requests older than 24 hours as urgent",
         ".\\maa-pending-requests-monitor.ps1 -EmailRecipients \"admin@company.com,security@company.com\" -UrgentThresholdHours 48 -EscalationThresholdHours 72\nMonitors MAA requests with multiple recipients and escalation for requests older than 72 hours"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- This script is designed specifically for Azure Automation runbooks\n- Email notifications are sent via Microsoft Graph Mail API\n- Recommended to run hourly to ensure timely notifications\n- Stores state in Azure Automation variables to track notified requests\n- Critical for maintaining MAA compliance and security posture",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- This script is designed specifically for Azure Automation runbooks\n- Email notifications are sent via Microsoft Graph Mail API\n- Recommended to run hourly to ensure timely notifications\n- Stores state in Azure Automation variables to track notified requests\n- Critical for maintaining MAA compliance and security posture\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/maa-pending-requests-monitor.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/maa-pending-requests-monitor.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/maa-pending-requests-monitor.ps1"
@@ -1911,8 +1989,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-09-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -1963,7 +2041,7 @@
         ".\\restart-devices.ps1 -EntraGroupName \"IT Department Devices\"\nRestarts all devices belonging to users in the specified Entra ID group",
         ".\\restart-devices.ps1 -DeviceNames \"LAPTOP001\" -Force\nRestarts a specific device without confirmation prompt"
       ],
-      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Restart operations are triggered immediately but may take 5-30 minutes to execute\n- Devices will restart within 5 minutes when users are logged in\n- Confirmation prompts are shown unless -Force parameter is used\n- Use with caution as this will interrupt user work",
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Restart operations are triggered immediately but may take 5-30 minutes to execute\n- Devices will restart within 5 minutes when users are logged in\n- Confirmation prompts are shown unless -Force parameter is used\n- Use with caution as this will interrupt user work\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/operational/restart-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/restart-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/restart-devices.ps1"
@@ -1985,8 +2063,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -2011,7 +2089,7 @@
         ".\\rotate-bitlocker-keys.ps1\nRotates BitLocker keys for all Windows devices in Intune",
         ".\\rotate-bitlocker-keys.ps1 -DelaySeconds 5\nRotates BitLocker keys with a 5-second delay between operations"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- BitLocker key rotation is triggered immediately but may take time to complete on the device\n- The script will show real-time progress and results\n- Only Windows devices with BitLocker enabled will be processed\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- Requires appropriate permissions in Azure AD\n- BitLocker key rotation is triggered immediately but may take time to complete on the device\n- The script will show real-time progress and results\n- Only Windows devices with BitLocker enabled will be processed\n- Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/security/rotate-bitlocker-keys.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-bitlocker-keys.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/rotate-bitlocker-keys.ps1"
@@ -2028,14 +2106,15 @@
         "Operational"
       ],
       "permissions": [
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
         "DeviceManagementManagedDevices.ReadWrite.All",
         "DeviceManagementConfiguration.Read.All"
       ],
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-09-22",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -2112,7 +2191,7 @@
         ".\\rotate-macos-laps-passwords.ps1 -DelaySeconds 5 -ExportReport\nRotates LAPS passwords with a 5-second delay between operations and exports results",
         ".\\rotate-macos-laps-passwords.ps1 -TestMode -DeviceLimit 5\nRuns in test mode, processing only 5 devices without actual rotation"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- LAPS must be configured and enabled for macOS devices in Intune\n- The rotation is triggered immediately but may take time to complete on the device\n- Personal devices cannot have their LAPS passwords rotated\n- The new password will be available in Intune after successful rotation",
+      "notes": "- Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication\n- LAPS must be configured and enabled for macOS devices in Intune\n- The rotation is triggered immediately but may take time to complete on the device\n- Personal devices cannot have their LAPS passwords rotated\n- The new password will be available in Intune after successful rotation\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/security/rotate-macos-laps-passwords.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-macos-laps-passwords.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/rotate-macos-laps-passwords.ps1"
@@ -2134,8 +2213,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-30",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
       "output": "Email",
@@ -2165,7 +2244,7 @@
         ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients \"admin@company.com\"\nIdentifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com",
         ".\\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients \"admin@company.com,security@company.com\"\nIdentifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (weekly or monthly)\n- Consider your organization's device usage patterns when setting staleness threshold\n- Review cleanup recommendations before taking action on devices\n- Critical for maintaining accurate device inventory and license optimization",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with required permissions\n- Uses Microsoft Graph Mail API for email notifications only\n- Recommended to run as scheduled runbook (weekly or monthly)\n- Consider your organization's device usage patterns when setting staleness threshold\n- Review cleanup recommendations before taking action on devices\n- Critical for maintaining accurate device inventory and license optimization\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/notification/stale-device-cleanup-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/stale-device-cleanup-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/stale-device-cleanup-alert.ps1"
@@ -2190,8 +2269,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2025-09-24",
+      "version": "1.2",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -2242,7 +2321,7 @@
         ".\\sync-devices.ps1 -EntraGroupName \"IT Department Devices\"\nSynchronizes all devices belonging to users in the specified Entra ID group",
         ".\\sync-devices.ps1 -EntraGroupName \"Sales Team\" -ForceSync\nForces synchronization of all devices for users in the Sales Team group"
       ],
-      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Sync operations are triggered immediately but may take time to complete on the device\n- Use -ForceSync to override the 1-hour sync threshold\n- The script will show real-time progress and results",
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- Sync operations are triggered immediately but may take time to complete on the device\n- Use -ForceSync to override the 1-hour sync threshold\n- The script will show real-time progress and results\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/operational/sync-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/sync-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/sync-devices.ps1"
@@ -2259,6 +2338,7 @@
         "Devices"
       ],
       "permissions": [
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
         "DeviceManagementManagedDevices.ReadWrite.All",
         "DeviceManagementManagedDevices.Read.All",
         "Group.Read.All",
@@ -2267,8 +2347,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.0",
-      "lastUpdate": "2025-05-29",
+      "version": "1.1",
+      "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -2337,7 +2417,7 @@
         ".\\wipe-devices.ps1 -EntraGroupName \"Compromised Devices\" -WipeType Selective\nPerforms selective wipe on all devices belonging to users in the specified group",
         ".\\wipe-devices.ps1 -DeviceNames \"LAPTOP001\" -WipeType Full -KeepEnrollmentData -PIN \"123456\"\nPerforms full wipe while keeping enrollment data and using a PIN for device unlock"
       ],
-      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- CAUTION: Full wipe will completely reset the device to factory settings\n- Selective wipe removes only company data and apps\n- Operations cannot be undone - use with extreme caution\n- Confirmation prompts are shown unless -Force parameter is used",
+      "notes": "- Supports both local execution and Azure Automation Runbook environments\n- Automatically detects execution environment and uses appropriate authentication method\n- Local execution: Uses interactive authentication with specified scopes\n- Azure Automation: Uses Managed Identity authentication\n- Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)\n- Use -ForceModuleInstall to skip installation prompts in local environment\n- Requires appropriate permissions in Azure AD\n- CAUTION: Full wipe will completely reset the device to factory settings\n- Selective wipe removes only company data and apps\n- Operations cannot be undone - use with extreme caution\n- Confirmation prompts are shown unless -Force parameter is used\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/operational/wipe-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/wipe-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/wipe-devices.ps1"
