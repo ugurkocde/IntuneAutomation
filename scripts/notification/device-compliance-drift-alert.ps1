@@ -25,13 +25,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); assigned compliance policy is now resolved via per-device deviceCompliancePolicyStates for reported devices
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-30
+    2026-07-19
 
 .EXECUTION
     RunbookOnly
@@ -54,13 +55,14 @@
     Alerts when overall compliance falls below 90% and sends notifications to multiple recipients
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules
+    - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
     - Uses Microsoft Graph Mail API for email notifications only
     - Recommended to run as scheduled runbook (daily)
     - Consider your organization's compliance requirements when setting threshold
     - Review compliance policies and device configurations based on findings
     - Critical for maintaining security posture and regulatory compliance
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -107,7 +109,6 @@ To resolve this issue:
 
 Required modules for this script:
 - Microsoft.Graph.Authentication
-- Microsoft.Graph.Mail
 "@
                 throw $errorMessage
             }
@@ -158,9 +159,13 @@ else {
 
 # Initialize required modules
 $RequiredModuleList = @(
-    "Microsoft.Graph.Authentication",
-    "Microsoft.Graph.Mail"
+    "Microsoft.Graph.Authentication"
 )
+
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModuleList += "MgGraphCommunity"
+}
 
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
@@ -189,7 +194,7 @@ try {
             "Mail.Send"
         )
         
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }
@@ -726,12 +731,19 @@ try {
                 $ComplianceStatus = Get-ComplianceStatus -ComplianceState $Device.complianceState
                 $ComplianceSeverity = Get-ComplianceSeverity -ComplianceState $Device.complianceState
                 
-                # Try to get the assigned compliance policy
+                # Try to get the assigned compliance policy (fetched per device, only for reported states, to avoid throttling)
                 $AssignedPolicy = "Unknown"
-                if ($Device.deviceCompliancePolicyStates) {
-                    $PolicyState = $Device.deviceCompliancePolicyStates | Select-Object -First 1
-                    if ($PolicyState.displayName) {
-                        $AssignedPolicy = $PolicyState.displayName
+                if ($Device.complianceState -in @("noncompliant", "conflict", "error", "inGracePeriod")) {
+                    try {
+                        $PolicyStatesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$($Device.id)')/deviceCompliancePolicyStates"
+                        $PolicyStates = Get-MgGraphAllPage -Uri $PolicyStatesUri
+                        $NonCompliantPolicies = @($PolicyStates | Where-Object { $_.state -eq "noncompliant" -and $_.displayName })
+                        if ($NonCompliantPolicies.Count -gt 0) {
+                            $AssignedPolicy = ($NonCompliantPolicies.displayName | Select-Object -Unique) -join "; "
+                        }
+                    }
+                    catch {
+                        Write-Verbose "Could not retrieve compliance policy states for device $($Device.id): $($_.Exception.Message)"
                     }
                 }
                 

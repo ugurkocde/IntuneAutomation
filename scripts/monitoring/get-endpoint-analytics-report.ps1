@@ -24,13 +24,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); work from anywhere metrics now use the allDevices metricDevices endpoint
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-01-28
+    2026-07-19
 
 .EXAMPLE
     .\get-endpoint-analytics-report.ps1
@@ -51,6 +52,7 @@
     - Battery Health metrics require Windows 10/11 devices
     - Endpoint Analytics must be enabled in Intune
     - Documentation: https://learn.microsoft.com/en-us/intune/analytics/overview
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -177,6 +179,11 @@ $RequiredModules = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -202,7 +209,7 @@ try {
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }
@@ -351,7 +358,7 @@ try {
     if ($IncludeWorkFromAnywhere) {
         Write-Information "Retrieving work from anywhere metrics..." -InformationAction Continue
         try {
-            $wfaUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics"
+            $wfaUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics('allDevices')/metricDevices"
             $wfaMetrics = Get-MgGraphAllPage -Uri $wfaUri
             $allMetrics['WorkFromAnywhere'] = $wfaMetrics
             Write-Information "✓ Retrieved $($wfaMetrics.Count) work from anywhere records" -InformationAction Continue

@@ -24,13 +24,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-30
+    2026-07-19
 
 .EXECUTION
     RunbookOnly
@@ -53,13 +54,14 @@
     Checks for tokens expiring within 7 days and sends alerts to multiple recipients
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules
+    - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
     - Uses Microsoft Graph Mail API for email notifications only
     - Recommended to run as scheduled runbook (daily or weekly)
     - DEP tokens are valid for one year from creation
     - APNS certificates are valid for one year from creation
     - Critical for maintaining iOS/macOS device and app management continuity
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -106,7 +108,6 @@ To resolve this issue:
 
 Required modules for this script:
 - Microsoft.Graph.Authentication
-- Microsoft.Graph.Mail
 "@
                 throw $errorMessage
             }
@@ -157,9 +158,13 @@ else {
 
 # Initialize required modules
 $RequiredModuleList = @(
-    "Microsoft.Graph.Authentication",
-    "Microsoft.Graph.Mail"
+    "Microsoft.Graph.Authentication"
 )
+
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModuleList += "MgGraphCommunity"
+}
 
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
@@ -188,7 +193,7 @@ try {
             "Mail.Send"
         )
         
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }

@@ -25,13 +25,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-29
+    2026-07-19
 
 .EXAMPLE
     .\check-bitlocker-keys.ps1
@@ -51,6 +52,7 @@
     - Devices must be Azure AD joined or Hybrid Azure AD joined for key escrow
     - Consider configuring BitLocker policies to enforce key escrow
     - Regular monitoring helps ensure compliance with data protection requirements
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -167,6 +169,11 @@ $RequiredModuleList = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModuleList += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -188,13 +195,13 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "BitlockerKey.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }

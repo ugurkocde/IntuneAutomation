@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-29
+    2026-07-19
 
 .EXAMPLE
     .\check-policy-changes.ps1
@@ -54,6 +55,7 @@
     - Audit data is available for up to 30 days by default
     - Critical for maintaining configuration governance and compliance
     - Monitor for unauthorized changes to security policies
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -174,6 +176,11 @@ $RequiredModules = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -195,13 +202,13 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }

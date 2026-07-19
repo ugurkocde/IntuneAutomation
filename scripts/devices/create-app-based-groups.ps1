@@ -25,13 +25,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-06-23
+    2026-07-19
 
 .EXAMPLE
     .\create-app-based-groups.ps1 -ApplicationName "TeamViewer"
@@ -56,6 +57,7 @@
     - Uses both detected apps and deployment status for comprehensive coverage
     - Groups are created as security groups by default
     - Device limit per group is 100,000 (Entra ID limitation)
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -149,6 +151,11 @@ $IsAzureAutomation = $null -ne $PSPrivateMetadata.JobId.Guid
 # Initialize required modules
 $RequiredModules = @("Microsoft.Graph.Authentication")
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -175,7 +182,7 @@ try {
             "Group.ReadWrite.All",
             "Directory.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
     Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }
@@ -232,6 +239,92 @@ function Get-MgGraphAllPage {
     } while ($nextLink)
     
     return $allResults
+}
+
+# Retrieves app installation status rows from the reports endpoint with paging
+# (the mobileApps deviceStatuses endpoint was retired from the Graph service)
+function Get-AppInstallStatusReportRow {
+    param(
+        [string]$AppId,
+        [int]$PageSize = 500,
+        [int]$DelayMs = 100
+    )
+
+    $reportUri = "https://graph.microsoft.com/beta/deviceManagement/reports/retrieveDeviceAppInstallationStatusReport"
+    $allRows = @()
+    $skip = 0
+    # MaxValue sentinel keeps the loop alive if the very first page hits a 429
+    # (a zero sentinel would end the do/while before any retry could happen)
+    $totalRows = [int]::MaxValue
+
+    do {
+        try {
+            if ($skip -gt 0) {
+                Start-Sleep -Milliseconds $DelayMs
+            }
+
+            $body = @{
+                filter = "(ApplicationId eq '$AppId')"
+                top    = $PageSize
+                skip   = $skip
+                select = @("DeviceId", "DeviceName", "UserPrincipalName", "Platform", "AppVersion", "InstallState", "InstallStateDetail", "ErrorCode", "LastModifiedDateTime")
+            } | ConvertTo-Json -Depth 5
+
+            $response = Invoke-MgGraphRequest -Uri $reportUri -Method POST -Body $body -ContentType "application/json"
+
+            # The report returns columnar JSON - map Schema columns to row indexes,
+            # column order is declared by Schema, not by the request
+            $columnIndex = @{}
+            for ($i = 0; $i -lt $response['Schema'].Count; $i++) {
+                $columnIndex[$response['Schema'][$i].Column] = $i
+            }
+
+            foreach ($row in $response['Values']) {
+                $allRows += [PSCustomObject]@{
+                    DeviceId             = $row[$columnIndex['DeviceId']]
+                    DeviceName           = $row[$columnIndex['DeviceName']]
+                    UserPrincipalName    = $row[$columnIndex['UserPrincipalName']]
+                    Platform             = $row[$columnIndex['Platform']]
+                    AppVersion           = $row[$columnIndex['AppVersion']]
+                    InstallState         = $row[$columnIndex['InstallState']]
+                    InstallStateDetail   = $row[$columnIndex['InstallStateDetail']]
+                    ErrorCode            = $row[$columnIndex['ErrorCode']]
+                    LastModifiedDateTime = $row[$columnIndex['LastModifiedDateTime']]
+                }
+            }
+
+            $totalRows = $response['TotalRowCount']
+            $skip += $PageSize
+        }
+        catch {
+            if ($_.Exception.Message -like "*429*") {
+                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                continue
+            }
+            Write-Warning "Error fetching install status report for app $AppId : $($_.Exception.Message)"
+            break
+        }
+    } while ($skip -lt $totalRows)
+
+    return $allRows
+}
+
+# Converts report InstallState values to install state names
+# Values per the resultantAppState enum (Microsoft Graph beta)
+function Convert-InstallStateValue {
+    param($StateValue)
+
+    switch ([int]$StateValue) {
+        1 { return "installed" }
+        2 { return "failed" }
+        3 { return "notInstalled" }
+        4 { return "uninstallFailed" }
+        5 { return "pendingInstall" }
+        99 { return "unknown" }
+        -1 { return "notApplicable" }
+        default { return "unknown" }
+    }
 }
 
 function Get-AppTypeFromODataType {
@@ -400,18 +493,17 @@ try {
                     continue
                 }
                 
-                # Get device installation status
-                $statusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses"
-                $deviceStatuses = Get-MgGraphAllPage -Uri $statusUri
-                
+                # Get device installation status via the reports endpoint
+                $deviceStatuses = Get-AppInstallStatusReportRow -AppId $app.id
+
                 foreach ($status in $deviceStatuses) {
-                    # Filter by installation status if specified
-                    if ($OnlySuccessfulInstalls -and $status.installState -ne "installed") {
+                    # Filter by installation status if specified (InstallState 1 = installed)
+                    if ($OnlySuccessfulInstalls -and $status.InstallState -ne 1) {
                         continue
                     }
-                    
+
                     # Find matching device
-                    $matchingDevice = $devices | Where-Object { $_.id -eq $status.deviceId }
+                    $matchingDevice = $devices | Where-Object { $_.id -eq $status.DeviceId }
                     if ($matchingDevice) {
                         $appKey = $app.displayName
                         if (-not $appDeviceMap.ContainsKey($appKey)) {
@@ -431,7 +523,7 @@ try {
                                 DeviceName   = $matchingDevice.deviceName
                                 Platform     = $matchingDevice.operatingSystem
                                 User         = $matchingDevice.userPrincipalName
-                                InstallState = $status.installState
+                                InstallState = Convert-InstallStateValue -StateValue $status.InstallState
                                 AppType      = $appType
                             }
                         }

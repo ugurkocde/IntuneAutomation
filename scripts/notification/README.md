@@ -60,7 +60,6 @@ Monitors application deployment status and sends alerts when deployment failure 
 1. **Azure Automation Account** with Managed Identity enabled
 2. **Required PowerShell Modules** in your Automation Account:
    - `Microsoft.Graph.Authentication`
-   - `Microsoft.Graph.Mail`
 3. **Microsoft Graph Permissions** assigned to the Managed Identity
 
 ### Step 1: Deploy the Runbook
@@ -85,7 +84,6 @@ In your Azure Automation Account:
 1. Go to **Modules** > **Browse Gallery**
 2. Search and install these modules:
    - `Microsoft.Graph.Authentication`
-   - `Microsoft.Graph.Mail`
 3. Wait for installation to complete (this can take 10-15 minutes)
 
 ### Step 3: Grant Permissions to Managed Identity
@@ -231,7 +229,7 @@ Choose appropriate failure thresholds based on your application deployment requi
 
 #### 1. Module Not Found Error
 ```
-Module 'Microsoft.Graph.Mail' is not available in this Azure Automation Account.
+Module 'Microsoft.Graph.Authentication' is not available in this Azure Automation Account.
 ```
 
 **Solution:**

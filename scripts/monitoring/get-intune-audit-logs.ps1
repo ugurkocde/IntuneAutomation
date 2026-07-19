@@ -25,13 +25,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-06-23
+    2026-07-19
 
 .EXAMPLE
     .\get-intune-audit-logs.ps1
@@ -55,6 +56,7 @@
     - Uses beta endpoint for comprehensive audit data
     - Results are sorted by timestamp (newest first)
     - Supports wildcards in activity and user filters
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -152,6 +154,11 @@ $IsAzureAutomation = $null -ne $PSPrivateMetadata.JobId.Guid
 # Initialize required modules
 $RequiredModules = @("Microsoft.Graph.Authentication")
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -177,7 +184,7 @@ try {
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementManagedDevices.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
     Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }
@@ -498,7 +505,12 @@ try {
         Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
         
         if ($OpenReport) {
-            Start-Process $htmlPath
+            try {
+                Start-Process $htmlPath
+            }
+            catch {
+                Write-Warning "Could not open the report automatically: $($_.Exception.Message)"
+            }
         }
     }
 }

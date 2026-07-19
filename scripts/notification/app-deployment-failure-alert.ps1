@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-30
+    2026-07-19
 
 .EXECUTION
     RunbookOnly
@@ -55,13 +56,14 @@
     Alerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules
+    - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
     - Uses Microsoft Graph Mail API for email notifications only
     - Recommended to run as scheduled runbook (daily)
     - Consider your organization's application deployment requirements when setting threshold
     - Review application packages and deployment settings based on findings
     - Critical for maintaining application availability and user productivity
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -108,7 +110,6 @@ To resolve this issue:
 
 Required modules for this script:
 - Microsoft.Graph.Authentication
-- Microsoft.Graph.Mail
 "@
                 throw $errorMessage
             }
@@ -159,9 +160,13 @@ else {
 
 # Initialize required modules
 $RequiredModuleList = @(
-    "Microsoft.Graph.Authentication",
-    "Microsoft.Graph.Mail"
+    "Microsoft.Graph.Authentication"
 )
+
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModuleList += "MgGraphCommunity"
+}
 
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
@@ -190,7 +195,7 @@ try {
             "Mail.Send"
         )
         
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }
@@ -244,6 +249,76 @@ function Get-MgGraphAllPage {
     } while ($NextLink)
     
     return $AllResults
+}
+
+# Retrieves app installation status rows from the reports endpoint with paging
+# (the mobileApps deviceStatuses endpoint was retired from the Graph service)
+function Get-AppInstallStatusReportRow {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AppId,
+        [int]$PageSize = 500,
+        [int]$DelayMs = 100
+    )
+
+    $ReportUri = "https://graph.microsoft.com/beta/deviceManagement/reports/retrieveDeviceAppInstallationStatusReport"
+    $AllRows = @()
+    $Skip = 0
+    # MaxValue sentinel keeps the loop alive if the very first page hits a 429
+    # (a zero sentinel would end the do/while before any retry could happen)
+    $TotalRows = [int]::MaxValue
+
+    do {
+        try {
+            if ($Skip -gt 0) {
+                Start-Sleep -Milliseconds $DelayMs
+            }
+
+            $Body = @{
+                filter = "(ApplicationId eq '$AppId')"
+                top    = $PageSize
+                skip   = $Skip
+                select = @("DeviceId", "DeviceName", "UserPrincipalName", "Platform", "AppVersion", "InstallState", "InstallStateDetail", "ErrorCode", "LastModifiedDateTime")
+            } | ConvertTo-Json -Depth 5
+
+            $Response = Invoke-MgGraphRequest -Uri $ReportUri -Method POST -Body $Body -ContentType "application/json"
+
+            # The report returns columnar JSON - map Schema columns to row indexes,
+            # column order is declared by Schema, not by the request
+            $ColumnIndex = @{}
+            for ($i = 0; $i -lt $Response['Schema'].Count; $i++) {
+                $ColumnIndex[$Response['Schema'][$i].Column] = $i
+            }
+
+            foreach ($Row in $Response['Values']) {
+                $AllRows += [PSCustomObject]@{
+                    DeviceId             = $Row[$ColumnIndex['DeviceId']]
+                    DeviceName           = $Row[$ColumnIndex['DeviceName']]
+                    UserPrincipalName    = $Row[$ColumnIndex['UserPrincipalName']]
+                    Platform             = $Row[$ColumnIndex['Platform']]
+                    AppVersion           = $Row[$ColumnIndex['AppVersion']]
+                    InstallState         = $Row[$ColumnIndex['InstallState']]
+                    InstallStateDetail   = $Row[$ColumnIndex['InstallStateDetail']]
+                    ErrorCode            = $Row[$ColumnIndex['ErrorCode']]
+                    LastModifiedDateTime = $Row[$ColumnIndex['LastModifiedDateTime']]
+                }
+            }
+
+            $TotalRows = $Response['TotalRowCount']
+            $Skip += $PageSize
+        }
+        catch {
+            if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
+                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Start-Sleep -Seconds 60
+                continue
+            }
+            Write-Warning "Error fetching install status report for app $AppId : $($_.Exception.Message)"
+            break
+        }
+    } while ($Skip -lt $TotalRows)
+
+    return $AllRows
 }
 
 function Get-AppType {
@@ -662,9 +737,9 @@ try {
         
         foreach ($App in $Apps) {
             try {
-                # Skip built-in and system apps
-                if ($App.isFeatured -eq $true -or $App.isBuiltIn -eq $true) {
-                    Write-Verbose "Skipping built-in/featured app: $($App.displayName)"
+                # Skip featured apps
+                if ($App.isFeatured -eq $true) {
+                    Write-Verbose "Skipping featured app: $($App.displayName)"
                     continue
                 }
                 
@@ -676,9 +751,8 @@ try {
                 
                 Write-Verbose "Processing app: $($App.displayName)"
                 
-                # Get app install status for this application
-                $AppInstallStatusUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps/$($App.id)/deviceStatuses"
-                $InstallStatuses = Get-MgGraphAllPage -Uri $AppInstallStatusUri
+                # Get app install status for this application via the reports endpoint
+                $InstallStatuses = Get-AppInstallStatusReportRow -AppId $App.id
                 
                 # Get app assignments to determine install intent
                 $AppAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps/$($App.id)/assignments"
@@ -711,10 +785,12 @@ try {
                 }
                 
                 # Calculate deployment statistics
+                # InstallState values per the resultantAppState enum (Microsoft Graph beta):
+                # 1 installed, 2 failed, 3 notInstalled, 4 uninstallFailed, 5 pendingInstall
                 $TotalDeployments = $InstallStatuses.Count
-                $SuccessfulInstalls = ($InstallStatuses | Where-Object { $_.installState -eq "installed" }).Count
-                $FailedInstalls = ($InstallStatuses | Where-Object { $_.installState -in @("failed", "uninstallFailed") }).Count
-                $PendingInstalls = ($InstallStatuses | Where-Object { $_.installState -eq "pendingInstall" }).Count
+                $SuccessfulInstalls = ($InstallStatuses | Where-Object { $_.InstallState -eq 1 }).Count
+                $FailedInstalls = ($InstallStatuses | Where-Object { $_.InstallState -in @(2, 4) }).Count
+                $PendingInstalls = ($InstallStatuses | Where-Object { $_.InstallState -eq 5 }).Count
                 
                 $FailureRate = if ($TotalDeployments -gt 0) { 
                     [math]::Round(($FailedInstalls / $TotalDeployments) * 100, 1) 

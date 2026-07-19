@@ -14,7 +14,8 @@
     "start": "next start",
     "export:generator-instructions": "node --experimental-strip-types scripts/export-generator-instructions.mjs",
     "test:generator-security": "node --experimental-strip-types scripts/test-generator-security.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:preview": "SKIP_ENV_VALIDATION=1 NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder next dev"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.76",

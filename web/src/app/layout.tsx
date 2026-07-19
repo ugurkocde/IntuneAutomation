@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
+import { AnnouncementBanner } from "~/components/announcement-banner";
 import { Toaster } from "~/components/ui/toaster";
 import { ThemeProvider } from "~/components/theme-provider";
 import { SessionProvider } from "~/components/session-provider";
@@ -174,6 +175,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SessionProvider>
+            <AnnouncementBanner />
             <TRPCReactProvider>{children}</TRPCReactProvider>
             <Toaster />
             <WebVitals />

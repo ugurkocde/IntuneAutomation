@@ -24,13 +24,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-06-23
+    2026-07-19
 
 .EXAMPLE
     .\get-intune-role-assignments.ps1
@@ -49,6 +50,7 @@
     - Shows both built-in and custom Intune roles
     - Resolves user and group names for assignments
     - Assignment dates may not be available for older assignments
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -119,6 +121,11 @@ $IsAzureAutomation = $null -ne $PSPrivateMetadata.JobId.Guid
 # Initialize required modules
 $RequiredModules = @("Microsoft.Graph.Authentication")
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -144,7 +151,7 @@ try {
             "User.Read.All",
             "Group.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
     Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
 }

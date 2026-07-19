@@ -23,13 +23,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-05-29
+    2026-07-19
 
 .EXAMPLE
     .\get-device-compliance-report.ps1
@@ -49,6 +50,7 @@
     - Large tenants may take several minutes to complete
     - Reports are saved in both CSV and HTML formats
     - Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -155,6 +157,11 @@ $RequiredModules = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -176,13 +183,13 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }
@@ -437,7 +444,12 @@ try {
         Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
         
         if ($OpenReport -and -not $IsAzureAutomation) {
-            Start-Process $htmlPath
+            try {
+                Start-Process $htmlPath
+            }
+            catch {
+                Write-Warning "Could not open the report automatically: $($_.Exception.Message)"
+            }
         }
         
     }

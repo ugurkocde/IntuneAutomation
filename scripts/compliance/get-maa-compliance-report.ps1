@@ -25,10 +25,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; device management scripts are queried via the beta endpoint and approvers are resolved by enumerating role assignment group members
     1.0 - Initial release
+
+.LASTUPDATE
+    2026-07-19
 
 .EXAMPLE
     .\get-maa-compliance-report.ps1
@@ -50,6 +54,7 @@
     - CSV exports enable further analysis in Excel or Power BI
     - Consider running monthly for compliance tracking
     - Use -DetailedAnalysis for security audits
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -168,6 +173,11 @@ $RequiredModules = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $RunningInAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 # Initialize required modules
 Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $RunningInAzureAutomation -ForceInstall $ForceModuleInstall
 
@@ -190,7 +200,7 @@ try {
             "AuditLog.Read.All",
             "Directory.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome
         Write-Information "✓ Connected to Microsoft Graph with interactive authentication" -InformationAction Continue
     }
 }
@@ -320,7 +330,7 @@ function Get-ProtectedResource {
         
         # Get Scripts
         try {
-            $ScriptsUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceManagementScripts"
+            $ScriptsUri = "https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts"
             $Scripts = Get-MgGraphAllPage -Uri $ScriptsUri
             $Resources.Scripts = $Scripts | Select-Object id, displayName, fileName
             Write-Information "  Found $($Resources.Scripts.Count) scripts" -InformationAction Continue
@@ -376,25 +386,27 @@ function Get-ApproverAndAdmin {
                 $RoleUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions/$($Assignment.roleDefinitionId)"
                 $Role = Invoke-MgGraphRequest -Uri $RoleUri -Method GET
                 
-                # Get members
+                # Get members (Intune role assignment members are group ids, so enumerate each group)
                 $Members = $Assignment.members
                 foreach ($MemberId in $Members) {
                     try {
-                        $UserUri = "https://graph.microsoft.com/v1.0/users/$MemberId"
-                        $User = Invoke-MgGraphRequest -Uri $UserUri -Method GET
-                        
-                        $Admins += [PSCustomObject]@{
-                            UserId            = $User.id
-                            UserPrincipalName = $User.userPrincipalName
-                            DisplayName       = $User.displayName
-                            Role              = $Role.displayName
-                            RoleId            = $Role.id
-                            AssignmentId      = $Assignment.id
-                            IsApprover        = $false  # Will be updated based on MAA policies
+                        $GroupMembersUri = "https://graph.microsoft.com/v1.0/groups/$MemberId/members?`$select=id,displayName,userPrincipalName"
+                        $GroupMembers = Get-MgGraphAllPage -Uri $GroupMembersUri
+
+                        foreach ($User in $GroupMembers) {
+                            $Admins += [PSCustomObject]@{
+                                UserId            = $User.id
+                                UserPrincipalName = $User.userPrincipalName
+                                DisplayName       = $User.displayName
+                                Role              = $Role.displayName
+                                RoleId            = $Role.id
+                                AssignmentId      = $Assignment.id
+                                IsApprover        = $false  # Will be updated based on MAA policies
+                            }
                         }
                     }
                     catch {
-                        Write-Warning "Could not retrieve user details for $MemberId"
+                        Write-Warning "Could not retrieve group members for $MemberId"
                     }
                 }
             }
@@ -1110,7 +1122,12 @@ Reports saved to: $OutputPath
     # Open HTML report if running locally
     if (-not $RunningInAzureAutomation) {
         Write-Information "Opening HTML report in default browser..." -InformationAction Continue
-        Start-Process $HTMLFullPath
+        try {
+            Start-Process $HTMLFullPath
+        }
+        catch {
+            Write-Warning "Could not open the report automatically: $($_.Exception.Message)"
+        }
     }
 }
 catch {

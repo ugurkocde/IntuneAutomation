@@ -36,9 +36,10 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); pending request fields now map to real operationApprovalRequest properties (requestor identitySet, requiredOperationApprovalPolicyTypes)
     1.0 - Initial release
 
 .EXECUTION
@@ -53,6 +54,9 @@
 .CATEGORY
     Notification
 
+.LASTUPDATE
+    2026-07-19
+
 .EXAMPLE
     .\maa-pending-requests-monitor.ps1 -EmailRecipients "security@company.com" -UrgentThresholdHours 24
     Monitors MAA requests and alerts security team, marking requests older than 24 hours as urgent
@@ -62,13 +66,14 @@
     Monitors MAA requests with multiple recipients and escalation for requests older than 72 hours
 
 .NOTES
-    - Requires Microsoft.Graph.Authentication and Microsoft.Graph.Mail modules
+    - Requires Microsoft.Graph.Authentication module
     - For Azure Automation, configure Managed Identity with required permissions
     - This script is designed specifically for Azure Automation runbooks
     - Email notifications are sent via Microsoft Graph Mail API
     - Recommended to run hourly to ensure timely notifications
     - Stores state in Azure Automation variables to track notified requests
     - Critical for maintaining MAA compliance and security posture
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -206,9 +211,13 @@ $RunningInAzureAutomation = $null -ne $env:AUTOMATION_ASSET_ACCOUNTID
 
 # Required modules
 $RequiredModules = @(
-    "Microsoft.Graph.Authentication",
-    "Microsoft.Graph.Mail"
+    "Microsoft.Graph.Authentication"
 )
+
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $RunningInAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
 
 # Initialize required modules
 Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $RunningInAzureAutomation -ForceInstall $ForceModuleInstall
@@ -232,7 +241,7 @@ try {
             "AuditLog.Read.All",
             "Mail.Send"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome
         Write-Information "✓ Connected to Microsoft Graph with interactive authentication" -InformationAction Continue
     }
 }
@@ -331,41 +340,35 @@ function Get-MAAPendingRequest {
                     $AgeInHours = [Math]::Round(((Get-Date) - $RequestDateTime).TotalHours, 1)
                     $DaysUntilExpiry = [Math]::Round((30 - ((Get-Date) - $RequestDateTime).TotalDays), 1)
                     
-                    # Get requester information
-                    $RequesterName = if ($Request.requester.displayName) { $Request.requester.displayName }
-                    elseif ($Request.requestor.displayName) { $Request.requestor.displayName }
+                    # Get requester information (requestor is an identitySet; no userPrincipalName is exposed)
+                    $RequesterName = if ($Request.requestor.user.displayName) { $Request.requestor.user.displayName }
                     else { "Unknown" }
-                    
-                    $RequesterEmail = if ($Request.requester.userPrincipalName) { $Request.requester.userPrincipalName }
-                    elseif ($Request.requestor.userPrincipalName) { $Request.requestor.userPrincipalName }
-                    elseif ($Request.requester.mail) { $Request.requester.mail }
-                    else { "Unknown" }
-                    
-                    # Get resource information
-                    $ResourceName = if ($Request.requestedOperationDisplayName) { $Request.requestedOperationDisplayName }
-                    elseif ($Request.displayName) { $Request.displayName }
-                    elseif ($Request.operationDisplayName) { $Request.operationDisplayName }
+
+                    # Get resource information from the required approval policy types
+                    $PolicyTypes = if ($Request.requiredOperationApprovalPolicyTypes) {
+                        ($Request.requiredOperationApprovalPolicyTypes -join ", ")
+                    }
+                    else { $null }
+
+                    $ResourceName = if ($PolicyTypes) { "Approval required: $PolicyTypes" }
                     else { "Unknown Operation" }
-                    
-                    $ResourceType = if ($Request.requestedResourceType) { $Request.requestedResourceType }
-                    elseif ($Request.resourceType) { $Request.resourceType }
-                    elseif ($Request.operationType) { $Request.operationType }
+
+                    $ResourceType = if ($PolicyTypes) { $PolicyTypes }
                     else { "Unknown" }
                     
                     $PendingRequest = [PSCustomObject]@{
                         Id                    = $Request.id
                         RequestTime           = $RequestDateTime
-                        RequestedBy           = $RequesterEmail
+                        RequestedBy           = $RequesterName
                         RequestedByName       = $RequesterName
                         ResourceType          = $ResourceType
                         ResourceName          = $ResourceName
-                        BusinessJustification = if ($Request.requestJustification) { $Request.requestJustification } 
-                        elseif ($Request.justification) { $Request.justification }
+                        BusinessJustification = if ($Request.requestJustification) { $Request.requestJustification }
                         else { "No justification provided" }
                         Status                = "Pending"
                         AgeInHours            = $AgeInHours
                         DaysUntilExpiry       = $DaysUntilExpiry
-                        ApprovalPolicy        = if ($Request.approvalPolicyId) { $Request.approvalPolicyId } else { "N/A" }
+                        ApprovalPolicy        = if ($PolicyTypes) { $PolicyTypes } else { "N/A" }
                     }
                     
                     $PendingRequests += $PendingRequest
@@ -420,10 +423,10 @@ function Get-MAAPendingRequest {
             Write-Information "Retrieving MAA policies from: $PoliciesUri" -InformationAction Continue
             $Policies = Get-MgGraphAllPage -Uri $PoliciesUri -DelayMs 200
             
-            # Add policy information to requests if available
+            # Add policy information to requests if available (match on policyType, requests expose no policy id)
             foreach ($Request in $PendingRequests) {
                 if ($Request.ApprovalPolicy -ne "N/A") {
-                    $Policy = $Policies | Where-Object { $_.id -eq $Request.ApprovalPolicy }
+                    $Policy = $Policies | Where-Object { $_.policyType -and $Request.ApprovalPolicy -like "*$($_.policyType)*" } | Select-Object -First 1
                     if ($Policy) {
                         $Request | Add-Member -NotePropertyName "PolicyName" -NotePropertyValue $Policy.displayName -Force
                     }

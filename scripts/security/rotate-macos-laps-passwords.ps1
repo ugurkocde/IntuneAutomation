@@ -18,19 +18,20 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.ReadWrite.All,DeviceManagementConfiguration.Read.All
+    DeviceManagementManagedDevices.PrivilegedOperations.All,DeviceManagementManagedDevices.ReadWrite.All,DeviceManagementConfiguration.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-09-22
+    2026-07-19
 
 .EXAMPLE
     .\rotate-macos-laps-passwords.ps1
@@ -54,6 +55,7 @@
     - The rotation is triggered immediately but may take time to complete on the device
     - Personal devices cannot have their LAPS passwords rotated
     - The new password will be available in Intune after successful rotation
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding()]
@@ -181,6 +183,11 @@ $RequiredModuleList = @(
     "Microsoft.Graph.Authentication"
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModuleList += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModuleList -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "✓ All required modules are available"
@@ -202,13 +209,14 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
         $Scopes = @(
+            "DeviceManagementManagedDevices.PrivilegedOperations.All",
             "DeviceManagementManagedDevices.ReadWrite.All",
             "DeviceManagementConfiguration.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
     }
 }

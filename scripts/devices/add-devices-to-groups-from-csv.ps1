@@ -31,10 +31,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
+
+.LASTUPDATE
+    2026-07-19
 
 .EXAMPLE
     .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate
@@ -72,6 +76,7 @@
     DESKTOP-ABC123,VMW12345,,IT-Department-Devices
     ,VMW67890,,Finance-Devices
     ,,a1b2c3d4-e5f6-7890-abcd-ef1234567890,Executive-Devices
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -229,6 +234,11 @@ $IsAzureAutomation = $null -ne $PSPrivateMetadata.JobId.Guid
 # Initialize required modules
 $RequiredModules = @("Microsoft.Graph.Authentication")
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose "All required modules are available"
@@ -254,7 +264,7 @@ try {
             "DeviceManagementManagedDevices.Read.All",
             "Directory.Read.All"
         )
-        Connect-MgGraph -Scopes $Scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
     Write-Information "Successfully connected to Microsoft Graph" -InformationAction Continue
 }

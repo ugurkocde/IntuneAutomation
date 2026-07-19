@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
     1.1 - Improved authentication scopes and fixed group device members search
         - added `DeviceManagementManagedDevices.PrivilegedOperations.All` scope for interactive Graph auth  
@@ -37,7 +38,7 @@
         - improved consistency in logging and error handling
 
 .LASTUPDATE
-    2025-09-24
+    2026-07-19
 
 .EXAMPLE
     .\sync-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
@@ -66,6 +67,7 @@
     - Sync operations are triggered immediately but may take time to complete on the device
     - Use -ForceSync to override the 1-hour sync threshold
     - The script will show real-time progress and results
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'DeviceNames')]
@@ -181,6 +183,11 @@ $RequiredModules = @(
     'Microsoft.Graph.Authentication'
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose '✓ All required modules are available'
@@ -202,7 +209,7 @@ try {
         Write-Output '✓ Successfully connected to Microsoft Graph using Managed Identity'
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information 'Connecting to Microsoft Graph with interactive authentication...' -InformationAction Continue
 
         $scopes = @('DeviceManagementManagedDevices.ReadWrite.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementManagedDevices.PrivilegedOperations.All')
@@ -210,7 +217,7 @@ try {
         if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
             $scopes += @('Group.Read.All', 'GroupMember.Read.All')
         }
-        Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
         Write-Information '✓ Successfully connected to Microsoft Graph' -InformationAction Continue
     }
 }

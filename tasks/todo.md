@@ -108,3 +108,35 @@
 - `/about` and `/contact` pages
 - Tree test / 5-second usability test (recommended next steps from UX)
 - Restructuring `/scripts` route or script detail pages
+
+## MgGraphCommunity auth migration (2026-07-19)
+
+Swap local interactive auth in all Graph scripts to MgGraphCommunity (WAM-free); runbook path untouched.
+
+- [x] Add MgGraphCommunity to $RequiredModules for local runs only (auto-install via existing Initialize-RequiredModule)
+- [x] Replace Connect-MgGraph -Scopes with Connect-MgGraphCommunity -Scopes in the local branch (30 scripts)
+- [x] Remove vestigial Microsoft.Graph.Mail requirement from notification scripts (mail sent via REST /sendMail)
+- [x] Bump .VERSION, add .CHANGELOG entry, set .LASTUPDATE, add .NOTES line per modified script
+- [x] Verify: every modified file parses clean (PowerShell parser), runbook branch unchanged, no typed cmdlets introduced
+- [x] Evaluate with code-reviewer subagent
+
+Acceptance criteria:
+1. All 30 interactive scripts call Connect-MgGraphCommunity in the local branch and still call Connect-MgGraph -Identity in the Azure Automation branch.
+2. MgGraphCommunity is never required/installed in the Azure Automation path.
+3. Invoke-MgGraphRequest / Disconnect-MgGraph usage unchanged (token handoff covers them).
+4. Zero parse errors across modified scripts.
+5. Headers updated (VERSION, CHANGELOG, LASTUPDATE, NOTES) in every modified script.
+
+Review (2026-07-19): 29 of 30 interactive scripts migrated; all six acceptance criteria confirmed by code-reviewer subagent; zero parse errors. Excluded: backup-bitlocker-keys-to-keyvault.ps1 (cross-resource Key Vault token, flagged as separate task). Notification README Mail-module references cleaned. Not committed yet.
+
+Website banner (2026-07-19): site-wide announcement bar added in web/src/components/announcement-banner.tsx, rendered from the root layout above the navbar. Client-side date gate expires it automatically on 2026-07-26 (no redeploy needed); dismiss button persists via localStorage. Verified in browser: renders in dark and light mode, expiry hides it, dismiss persists across reload. Typecheck clean.
+
+Key Vault script rework (2026-07-19): backup-bitlocker-keys-to-keyvault.ps1 reworked and review-approved. Auth: two MgGraphCommunity sessions (device code for vault audience, interactive for Graph), per-call session toggle in Set-KeyVaultSecret with finally-restore. Live Graph verification via Lokka proved the old retrieval path could never return keys (windowsProtectionState has no bitLockerStatus; hardwareInformation select lacks azureADDeviceId); retrieval now uses informationProtection/bitlocker/recoveryKeys by azureADDeviceId with isEncrypted pre-filter. Secret version parsed from id URI. Remaining live-test item: first real run needs interactive sign-ins plus one-time Key Vault consent. Not committed.
+
+Live end-to-end validation (2026-07-19): backup-bitlocker-keys-to-keyvault.ps1 executed for real with user sign-ins. All green: vault-audience token via device code (aud cfa8b339), Graph token with BitlockerKey.Read.All, SDK handoff, session toggle, post-toggle Graph probe, recovery key read, secret written to bitlockerfilevaultkeys and confirmed via ARM. Key Vault Secrets Officer granted to admin account on the vault (user, portal). Fixed during validation: MgGraphCommunity 1.4.0 minimum version requirement (1.3.0 lacks session commands), single-key array unrolling in retrieval function.
+
+Endpoint audit of 29 scripts (2026-07-19, live via Lokka + msgraph docs): auth migration itself clean; audit found pre-existing breakage. BROKEN: mobileApps/{id}/deviceStatuses retired from service (kills get-app-installation-status-report, app-deployment-failure-alert, create-app-based-groups detection path; replacement is deviceManagement/reports actions); wipe-devices, rotate-macos-laps-passwords, check-filevault-keys all missing DeviceManagementManagedDevices.PrivilegedOperations.All scope (actions always 403); get-maa-compliance-report uses v1.0 deviceManagementScripts (beta-only) and treats group IDs as user IDs; get-endpoint-analytics-report WFA collection GET 400s (needs ('allDevices')/metricDevices pattern). SUSPECT: maa-pending-requests-monitor reads 6+ nonexistent operationApprovalRequest properties; device-compliance-drift-alert reads deviceCompliancePolicyStates without $expand; app-deployment-failure-alert dead isBuiltIn filter. Full agent report in session transcript. Fixes not yet applied.
+
+Audit fixes applied (2026-07-19): all 9 audit findings fixed. Scope additions (PrivilegedOperations.All) in wipe-devices, rotate-macos-laps-passwords, check-filevault-keys. Schema fixes live-verified via Lokka in get-maa-compliance-report (beta scripts endpoint + group member resolution), get-endpoint-analytics-report (WFA metricDevices route), maa-pending-requests-monitor (real operationApprovalRequest schema), device-compliance-drift-alert (per-device policy states). deviceStatuses retirement: three scripts rewritten onto POST deviceManagement/reports/retrieveDeviceAppInstallationStatusReport (columnar schema mapped by name, InstallState enum from resultantAppState docs, confirmed live incl. localized state column). 30 files parse clean. Reviewer pass pending. Not committed.
+
+Reviewer round on audit fixes (2026-07-19): groups 1 and 2 (7 scripts) passed outright. Two findings in the deviceStatuses rewrite fixed per reviewer prescription and simulation-verified: paging sentinel ([int]::MaxValue) so a first-page 429 retries instead of silently returning empty, and FilterByInstallState wildcard match so "pending" matches "pendingInstall". All 30 modified scripts parse clean. Batch complete, awaiting commit.

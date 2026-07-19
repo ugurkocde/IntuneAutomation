@@ -24,13 +24,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2025-09-29
+    2026-07-19
 
 .EXAMPLE
     .\restart-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
@@ -60,6 +61,7 @@
     - Devices will restart within 5 minutes when users are logged in
     - Confirmation prompts are shown unless -Force parameter is used
     - Use with caution as this will interrupt user work
+    - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'DeviceNames')]
@@ -175,6 +177,11 @@ $RequiredModules = @(
     'Microsoft.Graph.Authentication'
 )
 
+# MgGraphCommunity gives WAM-free interactive sign-in for local runs
+if (-not $IsAzureAutomation) {
+    $RequiredModules += "MgGraphCommunity"
+}
+
 try {
     Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment $IsAzureAutomation -ForceInstall $ForceModuleInstall
     Write-Verbose '✓ All required modules are available'
@@ -196,7 +203,7 @@ try {
         Write-Output '✓ Successfully connected to Microsoft Graph using Managed Identity'
     }
     else {
-        # Local execution - Use interactive authentication
+        # Local execution - WAM-free interactive sign-in via MgGraphCommunity
         Write-Information 'Connecting to Microsoft Graph with interactive authentication...' -InformationAction Continue
 
         $scopes = @('DeviceManagementManagedDevices.PrivilegedOperations.All', 'DeviceManagementManagedDevices.Read.All')
@@ -204,7 +211,7 @@ try {
         if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
             $scopes += @('Group.Read.All', 'GroupMember.Read.All')
         }
-        Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
+        Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
         Write-Information '✓ Successfully connected to Microsoft Graph' -InformationAction Continue
     }
 }
