@@ -132,6 +132,10 @@ The **All Logs** tab confirms zero errors and zero warnings, and the alert email
 
 ![All Logs tab showing zero errors and zero warnings](images/runbook-guide/15-job-all-logs.png)
 
+This is what lands in the inbox: the HTML report with the device inventory summary and the stale device details, sent from the SenderUPN mailbox by the managed identity:
+
+![The alert email as it arrives in the recipient inbox](images/runbook-guide/17-email-notification.png)
+
 ## Step 7: Schedule it
 
 A report you run manually is a report you will forget. In the runbook, open **Resources > Schedules > Add a schedule**, create a recurring schedule (weekly fits most notification scripts), and bind the same parameters you used for the manual run. From then on the runbook runs unattended: no signed-in admin, no secrets, no expiring credentials.
