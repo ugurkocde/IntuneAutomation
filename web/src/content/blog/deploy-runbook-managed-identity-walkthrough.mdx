@@ -1,0 +1,152 @@
+---
+title: "From Deploy Button to Scheduled Runbook: A Visual Managed Identity Walkthrough"
+description: "A screenshot-by-screenshot walkthrough of deploying an IntuneAutomation script as an Azure Automation runbook: the Deploy to Azure button, enabling the managed identity, granting Graph permissions in Cloud Shell, importing the module, and the first successful job."
+date: "2026-07-20"
+author: "IntuneAutomation Team"
+tags:
+  [
+    "Intune",
+    "Azure Automation",
+    "Managed Identity",
+    "Runbooks",
+    "Microsoft Graph",
+    "Tutorial",
+  ]
+category: "tutorials"
+readingTime: "10 min read"
+published: true
+---
+
+Every script page on this site has a **Deploy to Azure** button. This walkthrough shows exactly what happens after you click it, with a screenshot at every step of a real deployment: the [Stale Device Cleanup Alert](/script/stale-device-cleanup-alert/) runbook, deployed into a lab tenant, granted its permissions, and run to a successful job with zero errors. Nothing here is mocked up; even the troubleshooting section comes from an error this very deployment hit.
+
+If you want the conceptual background on why managed identities beat app registrations for unattended scripts, read the [managed identity fundamentals guide](/blog/run-intune-script-azure-automation-managed-identity/) first. This post is the hands-on companion: click, screenshot, click.
+
+## Before you start
+
+You need three things:
+
+- An Azure subscription where you can create resource groups and Automation accounts
+- A role that can grant admin consent for Graph application permissions (Global Administrator or Privileged Role Administrator). This is the one step an Intune Administrator role alone cannot do, because granting app roles to an identity is a directory operation
+- For notification scripts, a licensed mailbox to use as the sender
+
+Azure Automation includes 500 free job minutes per month. A weekly notification runbook uses a fraction of that.
+
+## Step 1: The script page tells you everything you will need
+
+Open the script and look at two sections before touching Azure. The quality checks confirm the script passes the runbook-ready validation (no interactive prompts in the runbook path). The **Required permissions** section lists the exact Graph scopes you will grant to the managed identity later; for this script, `DeviceManagementManagedDevices.Read.All` and `Mail.Send`.
+
+![Script page with the Deploy to Azure button and required permissions](/guides/runbook-managed-identity/01-script-page.png)
+
+## Step 2: Click Deploy to Azure
+
+The button opens the Azure portal with a custom deployment. The runbook name and description are pre-filled from the script metadata:
+
+![Custom deployment form in the Azure portal](/guides/runbook-managed-identity/02-custom-deployment-form.png)
+
+Create a dedicated resource group so all your runbook infrastructure lives together, and pick an Automation account name. To add the runbook to an existing Automation account instead, enter its exact name and resource group:
+
+![Deployment form with resource group and account name filled](/guides/runbook-managed-identity/03-deployment-form-filled.png)
+
+Review and create:
+
+![Review and create summary](/guides/runbook-managed-identity/04-review-create.png)
+
+![Deployment complete](/guides/runbook-managed-identity/05-deployment-complete.png)
+
+The template deploys the Automation account **with its system-assigned managed identity already switched on**, plus the runbook with the script imported from GitHub and published. Two resources, one click.
+
+## Step 3: Meet your managed identity
+
+Open the Automation account and go to **Account Settings > Identity**. Status is already On. Copy the **Object (principal) ID**; the permission grant in the next step targets it.
+
+![Automation account overview](/guides/runbook-managed-identity/06-automation-account-overview.png)
+
+![Identity blade with the system-assigned identity enabled](/guides/runbook-managed-identity/07-identity-blade.png)
+
+## Step 4: Grant the Graph permissions (the step with no portal UI)
+
+Here is the part everyone gets stuck on: **you cannot grant Graph application permissions to a managed identity through the portal**. There is no App registrations entry for it and no consent button. The grant is an app role assignment created through the Graph API, and the fastest place to do that is Cloud Shell, because it already runs with your admin sign-in.
+
+Open Cloud Shell from the portal header and run this, with your identity name and your script's permission list:
+
+```bash
+IDENTITY_NAME="aa-intuneautomation-demo"
+PERMISSIONS="DeviceManagementManagedDevices.Read.All Mail.Send"
+
+GRAPH_SP_ID=$(az ad sp show --id 00000003-0000-0000-c000-000000000000 --query id -o tsv)
+MSI_ID=$(az ad sp list --display-name "$IDENTITY_NAME" --query "[0].id" -o tsv)
+
+for PERM in $PERMISSIONS; do
+  ROLE_ID=$(az ad sp show --id 00000003-0000-0000-c000-000000000000 \
+    --query "appRoles[?value=='$PERM'].id" -o tsv)
+  az rest --method POST \
+    --url "https://graph.microsoft.com/v1.0/servicePrincipals/$MSI_ID/appRoleAssignments" \
+    --headers "Content-Type=application/json" \
+    --body "{\"principalId\":\"$MSI_ID\",\"resourceId\":\"$GRAPH_SP_ID\",\"appRoleId\":\"$ROLE_ID\"}"
+done
+```
+
+Each grant echoes back a JSON confirmation with your identity as the principal and Microsoft Graph as the resource:
+
+![Cloud Shell returning the created app role assignment](/guides/runbook-managed-identity/08-cloudshell-grant.png)
+
+Prefer PowerShell? The repository ships [grant-permissions-managed-identity.ps1](https://github.com/ugurkocde/IntuneAutomation/blob/main/grant-permissions-managed-identity.ps1), which wraps the same API calls.
+
+To verify, open **Entra ID > Enterprise applications**, clear the application type filter, search for the Automation account name, and check **Security > Permissions**. Both scopes show as Application permissions with admin consent:
+
+![Enterprise application Permissions blade showing both granted scopes](/guides/runbook-managed-identity/10-enterprise-app-permissions.png)
+
+Grant only what the script page lists. If tenant policy considers application-level `Mail.Send` too broad, scope it to the sender mailbox with an Exchange Online application access policy.
+
+## Step 5: Import Microsoft.Graph.Authentication
+
+The scripts need a single module. Portal path: **Shared Resources > Modules > Add a module > Browse from gallery**, import `Microsoft.Graph.Authentication` for the PowerShell 5.1 runtime. Or from the same Cloud Shell:
+
+```powershell
+New-AzAutomationModule -AutomationAccountName "aa-intuneautomation-demo" `
+  -ResourceGroupName "rg-intuneautomation-runbooks" `
+  -Name "Microsoft.Graph.Authentication" `
+  -ContentLinkUri "https://www.powershellgallery.com/api/v2/package/Microsoft.Graph.Authentication"
+```
+
+Wait for `ProvisioningState: Succeeded` (a few minutes) before running anything:
+
+![Module import completed](/guides/runbook-managed-identity/11-module-import-succeeded.png)
+
+## Step 6: First run
+
+Open the runbook and click **Start**. The parameter pane mirrors the script's parameters:
+
+![Runbook overview](/guides/runbook-managed-identity/12-runbook-overview.png)
+
+![Start pane with StaleAfterDays, EmailRecipients, and SenderUPN filled](/guides/runbook-managed-identity/13-start-parameters.png)
+
+The first job in a fresh Automation account takes a few minutes because the sandbox has to spin up. Then the output delivers the line this whole guide builds toward:
+
+```text
+Running inside Azure Automation Runbook
+Connecting to Microsoft Graph using Managed Identity...
+Successfully connected to Microsoft Graph using Managed Identity
+```
+
+![Job output showing successful managed identity authentication](/guides/runbook-managed-identity/14-job-output.png)
+
+![All Logs tab with zero errors and zero warnings](/guides/runbook-managed-identity/15-job-all-logs.png)
+
+Zero errors, zero warnings, and the alert email lands in the recipient mailbox. No credentials were typed, stored, or scheduled for rotation anywhere in this process.
+
+## Step 7: Put it on a schedule
+
+In the runbook, go to **Resources > Schedules > Add a schedule**, create a weekly recurrence, and bind the same parameter values. That is the finish line: the script now runs unattended forever, and revoking it later is as simple as deleting the resource group.
+
+## Troubleshooting from the real deployment
+
+**Quota error on deployment.** This walkthrough's first deployment failed with "exceeded your quota for Automation accounts in your subscription in the region". Subscriptions have a per-region Automation account quota. Fix: deploy into an existing account, or change the **Location** parameter to another region and redeploy, which is exactly what happened here:
+
+![The quota error hit during this deployment](/guides/runbook-managed-identity/16-troubleshooting-quota-error.png)
+
+**"Module 'Microsoft.Graph.Authentication' is not available in this Azure Automation Account."** The import from step 5 has not finished, or targeted a different runtime. Wait for Succeeded on the 5.1 runtime.
+
+**403 or "Insufficient privileges" from Graph in the job.** A scope from the script page is missing on the identity, or the grant is still propagating. Check the Enterprise application's Permissions blade first, then give it a few minutes; freshly granted app roles do not always appear in the very next token.
+
+**Mail send fails.** The `SenderUPN` mailbox must exist and be licensed, and the identity needs `Mail.Send`. App-only identities have no `/me`, which is why the scripts send through `/users/{SenderUPN}/sendMail`.
