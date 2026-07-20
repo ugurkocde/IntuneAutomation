@@ -36,49 +36,91 @@
     "type": "PowerShell"
   },
   {
-    "filename": "backup-bitlocker-keys-to-keyvault.ps1",
+    "filename": "restart-devices.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-compliance-policy-coverage.ps1",
+    "filename": "sync-devices.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-defender-status-report.ps1",
+    "filename": "wipe-devices.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-firewall-and-asr-status.ps1",
+    "filename": "get-device-compliance-report.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-intune-role-assignments.ps1",
+    "filename": "get-maa-compliance-report.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "get-windows-laps-audit.ps1",
+    "filename": "get-noncompliant-devices-with-reasons.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "rotate-bitlocker-keys.ps1",
+    "filename": "add-devices-to-groups-from-csv.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "rotate-macos-laps-passwords.ps1",
+    "filename": "cleanup-autopilot-devices.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "cleanup-duplicate-device-records.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "create-app-based-groups.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "fix-primary-user-assignment.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-devices-by-scopetag.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-stale-devices.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-windows11-readiness-report.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "rename-devices-from-csv.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
@@ -132,24 +174,6 @@
     "type": "PowerShell"
   },
   {
-    "filename": "get-device-compliance-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-maa-compliance-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-noncompliant-devices-with-reasons.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
     "filename": "collect-device-diagnostics.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
@@ -168,19 +192,157 @@
     "type": "PowerShell"
   },
   {
-    "filename": "restart-devices.ps1",
+    "filename": "backup-bitlocker-keys-to-keyvault.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "sync-devices.ps1",
+    "filename": "get-compliance-policy-coverage.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
   },
   {
-    "filename": "wipe-devices.ps1",
+    "filename": "get-defender-status-report.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-firewall-and-asr-status.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-intune-role-assignments.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-windows-laps-audit.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "rotate-bitlocker-keys.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "rotate-macos-laps-passwords.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "cleanup-orphaned-apps.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-app-assignment-conflicts.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-app-installation-status-report.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-application-inventory-report.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-duplicate-applications.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "get-vpp-license-report.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-antivirus-definitions-outdated.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-antivirus-definitions.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-local-admin-drift.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-local-admin-drift.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-onedrive-kfm-not-configured.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-onedrive-kfm.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-reboot-pending.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-reboot-pending.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-winget-updates-available.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-winget-updates.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "detect-disk-cleanup-needed.ps1",
+    "result": "pass",
+    "timestamp": "07-20-2026",
+    "type": "PowerShell"
+  },
+  {
+    "filename": "remediate-disk-cleanup.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
@@ -241,168 +403,6 @@
   },
   {
     "filename": "get-windows-update-compliance-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "cleanup-orphaned-apps.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-app-assignment-conflicts.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-app-installation-status-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-application-inventory-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-duplicate-applications.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-vpp-license-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "add-devices-to-groups-from-csv.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "cleanup-autopilot-devices.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "cleanup-duplicate-device-records.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "create-app-based-groups.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "fix-primary-user-assignment.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-devices-by-scopetag.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-stale-devices.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "get-windows11-readiness-report.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "rename-devices-from-csv.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-reboot-pending.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-reboot-pending.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-disk-cleanup-needed.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-disk-cleanup.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-winget-updates-available.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-winget-updates.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-local-admin-drift.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-local-admin-drift.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-antivirus-definitions-outdated.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-antivirus-definitions.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "detect-onedrive-kfm-not-configured.ps1",
-    "result": "pass",
-    "timestamp": "07-20-2026",
-    "type": "PowerShell"
-  },
-  {
-    "filename": "remediate-onedrive-kfm.ps1",
     "result": "pass",
     "timestamp": "07-20-2026",
     "type": "PowerShell"
