@@ -134,6 +134,19 @@ const faqData: FAQItem[] = [
                 tasks, and unattended operations
               </div>
             </li>
+            <li className="flex items-start gap-2">
+              <span className="text-accent-hi mt-1">•</span>
+              <div>
+                <strong>Setup guide:</strong> Follow the{" "}
+                <a
+                  href="/blog/deploy-runbook-managed-identity-walkthrough/"
+                  className="text-accent-hi underline-offset-4 hover:underline"
+                >
+                  screenshot walkthrough
+                </a>{" "}
+                from the Deploy to Azure button to the first scheduled run
+              </div>
+            </li>
           </ul>
         </div>
 
@@ -164,6 +177,24 @@ const faqData: FAQItem[] = [
           Many of our scripts include a "Deploy to Azure" button for easy
           deployment to Azure Automation. Here's how it works:
         </p>
+
+        <div
+          className="border-l-2 pl-4"
+          style={{ borderColor: "var(--brand-accent-hi)" }}
+        >
+          <p className="text-sm">
+            <strong>Full walkthrough with screenshots:</strong> We deployed a
+            script this way and captured every step, from the deploy button to
+            the first successful job. Read the{" "}
+            <a
+              href="/blog/deploy-runbook-managed-identity-walkthrough/"
+              className="text-accent-hi underline-offset-4 hover:underline"
+            >
+              managed identity deployment walkthrough
+            </a>
+            .
+          </p>
+        </div>
 
         <div
           className="border-l-2 py-2 pl-5"
@@ -263,8 +294,11 @@ const faqData: FAQItem[] = [
             <li className="flex items-start gap-2">
               <span className="text-accent-hi mt-1">•</span>
               <div>
-                <strong>Automatic permissions:</strong> The deployment template
-                assigns the necessary Microsoft Graph permissions
+                <strong>Permissions granted after deployment:</strong> Graph
+                permissions cannot be assigned by the template or clicked
+                together in the portal; you grant them to the identity
+                afterwards with a short Cloud Shell command (shown step by step
+                in the walkthrough)
               </div>
             </li>
             <li className="flex items-start gap-2">
@@ -292,8 +326,10 @@ const faqData: FAQItem[] = [
             <li className="flex items-start gap-2">
               <span className="text-accent-hi mt-1">•</span>
               <div>
-                <strong>Grant admin consent:</strong> Approve the Graph API
-                permissions in Azure AD
+                <strong>Grant Graph permissions:</strong> Assign the scopes
+                listed on the script page to the managed identity (Cloud Shell
+                commands in the walkthrough, or the repository's
+                grant-permissions script)
               </div>
             </li>
             <li className="flex items-start gap-2">

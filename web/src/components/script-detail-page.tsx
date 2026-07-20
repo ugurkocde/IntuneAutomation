@@ -679,6 +679,21 @@ export function ScriptDetailPage({
               </a>
             </div>
 
+            {!script.githubPath?.endsWith(".sh") &&
+              script.scriptType !== "remediation" && (
+                <p className="text-muted-foreground mt-2 text-sm">
+                  New to runbook deployment?{" "}
+                  <Link
+                    href="/blog/deploy-runbook-managed-identity-walkthrough/"
+                    className="text-accent-hi underline-offset-4 hover:underline"
+                  >
+                    Follow the step-by-step guide
+                  </Link>{" "}
+                  from the Deploy to Azure button to the first scheduled run,
+                  including granting Graph permissions to the managed identity.
+                </p>
+              )}
+
             {/* ───────────── Quality checks ───────────── */}
             {(script.tests || script.testResult) && (
               <section
@@ -762,6 +777,21 @@ export function ScriptDetailPage({
                     );
                   })}
                 </HairlinePanel>
+                {!script.githubPath?.endsWith(".sh") &&
+                  script.scriptType !== "remediation" && (
+                    <p className="text-muted-foreground mt-3 text-sm">
+                      Running this as an Azure Automation runbook? These scopes
+                      must be granted to the account's managed identity, which
+                      has no portal UI.{" "}
+                      <Link
+                        href="/blog/deploy-runbook-managed-identity-walkthrough/"
+                        className="text-accent-hi underline-offset-4 hover:underline"
+                      >
+                        The deployment walkthrough
+                      </Link>{" "}
+                      shows the exact Cloud Shell commands.
+                    </p>
+                  )}
               </section>
             )}
 
