@@ -1,12 +1,14 @@
 {
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
-  "generated": "2026-07-19T23:11:37+02:00",
-  "count": 34,
+  "generated": "2026-07-20T13:24:38.949Z",
+  "count": 68,
   "categories": [
     "apps",
     "compliance",
+    "configuration",
     "devices",
+    "diagnostics",
     "monitoring",
     "notification",
     "operational",
@@ -236,8 +238,8 @@
       "minRole": "Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.2",
-      "lastUpdate": "2026-07-19",
+      "version": "1.3",
+      "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -284,6 +286,67 @@
       "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/backup-bitlocker-keys-to-keyvault.ps1"
+    },
+    {
+      "id": "backup-intune-configuration",
+      "title": "Backup Intune Configuration",
+      "synopsis": "Exports Intune configuration profiles, compliance policies, ADMX policies, and platform scripts to JSON files for backup and versioning.",
+      "description": "This script connects to Microsoft Graph and exports the core Intune configuration\nsurfaces to a timestamped backup folder: device configuration profiles, settings\ncatalog policies (including their full setting bodies), compliance policies,\nadministrative template (ADMX) policies with their definition values, Windows\nPowerShell scripts, and macOS shell scripts. Each object is written as one JSON\nfile including its assignments, and a manifest summarizes the backup. The output\nis designed to be stored in source control for change tracking and used as input\nfor the companion restore-intune-configuration script.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "Areas",
+          "type": "string[",
+          "mandatory": false,
+          "default": "@(\"DeviceConfigurations\", \"SettingsCatalog\", \"CompliancePolicies\", \"AdmxPolicies\", \"PlatformScripts\")",
+          "switch": false
+        },
+        {
+          "name": "SkipScriptContent",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\backup-intune-configuration.ps1\nExports all supported configuration areas to a timestamped folder in the current directory",
+        ".\\backup-intune-configuration.ps1 -OutputPath \"C:\\IntuneBackups\" -Areas DeviceConfigurations,CompliancePolicies\nExports only classic configuration profiles and compliance policies to C:\\IntuneBackups",
+        ".\\backup-intune-configuration.ps1 -SkipScriptContent\nExports all areas but skips downloading the base64 script bodies of platform scripts"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Settings catalog setting bodies and ADMX definition values require one extra request per policy\n- Graph never returns secret values (encrypted OMA-URI settings, passwords, certificates) in exports; those settings appear with secret references only and must be re-entered manually after a restore\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/backup-intune-configuration.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/backup-intune-configuration.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/backup-intune-configuration.ps1"
     },
     {
       "id": "check-apple-token-validity",
@@ -433,6 +496,129 @@
       "path": "scripts/monitoring/check-bitlocker-keys.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-bitlocker-keys.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-bitlocker-keys.ps1"
+    },
+    {
+      "id": "check-certificate-profile-expiry",
+      "title": "Check Certificate Profile Expiry",
+      "synopsis": "Audits SCEP, PKCS, and trusted root certificate profiles: validity settings, deployment errors, and root certificates nearing expiry.",
+      "description": "This script inventories all certificate-related configuration profiles (SCEP,\nPKCS, and trusted certificate profiles) across platforms, reports their validity\nperiod settings and assignment state, and pulls per-profile deployment status to\nsurface devices where certificate delivery is failing. For trusted certificate\nprofiles it decodes the embedded root certificate and reports its actual expiry\ndate, catching root or issuing CA certificates that will silently break SCEP\nenrollment when they lapse.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring",
+        "Security"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExpiryWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "90",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-certificate-profile-expiry.ps1\nAudits all certificate profiles with a 90-day expiry warning window",
+        ".\\check-certificate-profile-expiry.ps1 -ExpiryWarningDays 180 -ExportToCsv\nUses a 180-day warning window for embedded root certificates and exports to CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Individual issued device certificates are not exposed via Graph; this script audits the profiles, their embedded CA certificates, and delivery status\n- Trusted certificate payloads are decoded locally to read the real certificate expiry\n- Uses beta Graph endpoints for the device configuration surface\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/monitoring/check-certificate-profile-expiry.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-certificate-profile-expiry.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-certificate-profile-expiry.ps1"
+    },
+    {
+      "id": "check-connector-health",
+      "title": "Check Connector Health",
+      "synopsis": "One health report for every Intune tenant connector: Apple DEP/APNs/VPP, Managed Google Play, NDES, certificate connectors, and Mobile Threat Defense.",
+      "description": "This script checks the health of all tenant-level Intune connectors in a single\nrun: Apple push notification certificate and DEP token expiry and sync state,\nVPP tokens, the Managed Google Play binding and app sync status, NDES and\ncertificate connectors, and Mobile Threat Defense partner connectors with their\nheartbeat state. Every connector is scored healthy, warning, or critical, so a\nsilent connector failure (expired token, stale sync, unresponsive partner)\nsurfaces before users notice broken enrollments or app installs.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementServiceConfig.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExpiryWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\check-connector-health.ps1\nChecks all connectors with a 30-day expiry warning window",
+        ".\\check-connector-health.ps1 -ExpiryWarningDays 60 -ExportToCsv\nUses a 60-day warning window and exports the report to CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Connectors that are not configured in the tenant are reported as NotConfigured, not as failures\n- Sync staleness thresholds: DEP sync older than 7 days and Google Play app sync older than 7 days raise warnings\n- Uses beta Graph endpoints because most connector surfaces are not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/monitoring/check-connector-health.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/check-connector-health.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/check-connector-health.ps1"
     },
     {
       "id": "check-filevault-keys",
@@ -732,6 +918,211 @@
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/cleanup-autopilot-devices.ps1"
     },
     {
+      "id": "cleanup-duplicate-device-records",
+      "title": "Cleanup Duplicate Device Records",
+      "synopsis": "Finds Intune device records that share a serial number and optionally removes the older stale duplicates.",
+      "description": "This script groups all Intune managed devices by serial number and identifies\nduplicates - typically left behind by re-enrollment, OS reinstalls, or Autopilot\nresets. For every duplicate set it keeps the record with the most recent sync and\nmarks the older records for cleanup. By default the script only reports; deletion\nrequires the -Remove switch and is preview-safe via -WhatIf. Removing a device\nrecord from Intune does not wipe the device; it only deletes the stale management\nobject.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "Remove",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\cleanup-duplicate-device-records.ps1\nReports duplicate device records without deleting anything",
+        ".\\cleanup-duplicate-device-records.ps1 -Remove -WhatIf\nShows exactly which records would be deleted, without deleting them",
+        ".\\cleanup-duplicate-device-records.ps1 -Remove\nDeletes the older duplicate records after an interactive confirmation"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- The newest record per serial number (by lastSyncDateTime, falling back to enrolledDateTime) is always kept\n- Devices with empty or placeholder serial numbers (e.g. \"Defaultstring\") are excluded from duplicate matching\n- Deleting an Intune device record does not wipe or retire the physical device\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/devices/cleanup-duplicate-device-records.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/cleanup-duplicate-device-records.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/cleanup-duplicate-device-records.ps1"
+    },
+    {
+      "id": "cleanup-orphaned-apps",
+      "title": "Cleanup Orphaned Apps",
+      "synopsis": "Finds Intune apps that have no assignments or are superseded by newer versions, and optionally deletes them.",
+      "description": "This script scans the Intune app catalog for cleanup candidates: apps with no\nassignments at all, and Win32 apps that a newer app supersedes. Old installer\nversions and abandoned test apps accumulate quickly and clutter the catalog. By\ndefault the script only reports; deletion requires the -Remove switch, supports\n-WhatIf preview, and prompts per app. Deleting an app from Intune does not\nuninstall it from devices that already have it.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementApps.ReadWrite.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OlderThanDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "Remove",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\cleanup-orphaned-apps.ps1\nReports unassigned and superseded apps without deleting anything",
+        ".\\cleanup-orphaned-apps.ps1 -OlderThanDays 90\nOnly reports apps created more than 90 days ago",
+        ".\\cleanup-orphaned-apps.ps1 -Remove -WhatIf\nShows exactly which apps would be deleted, without deleting them"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Superseded means another Win32 app declares a supersedence relationship to this app (supersedingAppCount > 0)\n- Deleting an app does not uninstall it from devices; it removes the deployment object\n- Recently created apps are excluded by default (-OlderThanDays 30) to avoid flagging work in progress\n- Uses beta Graph endpoints because supersedence counts are exposed there\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/apps/cleanup-orphaned-apps.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/cleanup-orphaned-apps.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/cleanup-orphaned-apps.ps1"
+    },
+    {
+      "id": "collect-device-diagnostics",
+      "title": "Collect Device Diagnostics",
+      "synopsis": "Triggers remote diagnostics collection on Windows devices and downloads the resulting log packages.",
+      "description": "This script starts the Intune \"Collect diagnostics\" remote action on one or more\nWindows devices (by device name or Entra ID group), waits for the collection to\ncomplete, and downloads the resulting diagnostic ZIP packages to a local folder.\nIt can also list and download previously completed collection requests without\ntriggering a new one. This replaces clicking through the portal for every device\nwhen troubleshooting at scale.",
+      "category": "diagnostics",
+      "categoryLabel": "diagnostics",
+      "tags": [
+        "Diagnostics",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DeviceNames",
+          "type": "string[",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "GroupName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "DownloadExisting",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "TimeoutMinutes",
+          "type": "int",
+          "mandatory": false,
+          "default": "15",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\collect-device-diagnostics.ps1 -DeviceNames \"PC-001\",\"PC-002\"\nTriggers diagnostics collection on two devices and downloads the packages when ready",
+        ".\\collect-device-diagnostics.ps1 -GroupName \"Support - Troubleshooting\" -OutputPath \"C:\\DeviceLogs\"\nCollects diagnostics from all Windows devices in the group and saves packages to C:\\DeviceLogs",
+        ".\\collect-device-diagnostics.ps1 -DeviceNames \"PC-001\" -DownloadExisting\nSkips triggering a new collection and downloads the most recent completed package instead"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Collect diagnostics is only supported on Windows 10/11 devices; other platforms are skipped\n- The device must be online to receive the action; collection typically completes within minutes but the script stops waiting after -TimeoutMinutes\n- Listing and creating log collection requests requires DeviceManagementManagedDevices.ReadWrite.All (Graph rejects read-only scopes for this surface)\n- Uses beta Graph endpoints for the log collection surface\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/diagnostics/collect-device-diagnostics.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/diagnostics/collect-device-diagnostics.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/diagnostics/collect-device-diagnostics.ps1"
+    },
+    {
       "id": "create-app-based-groups",
       "title": "Create App-Based Entra ID Groups",
       "synopsis": "Creates Entra ID groups based on applications installed on Intune-managed devices.",
@@ -915,6 +1306,145 @@
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1"
     },
     {
+      "id": "detect-local-admin-drift",
+      "title": "Local Admin Drift Detection Script",
+      "synopsis": "Detects unauthorized members of the local Administrators group.",
+      "description": "Enumerates the local Administrators group and compares every member against an\nallowlist of approved accounts and well-known SIDs (built-in Administrator, the\nEntra-joined device admin roles, and configurable extra entries). Returns exit\ncode 1 when unauthorized members are present, triggering the paired remediation\nthat removes them. This catches technician accounts, self-elevation leftovers,\nand helpdesk additions that were never cleaned up.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-local-admin-drift.ps1",
+      "parameters": [
+        {
+          "name": "Member",
+          "type": "object",
+          "mandatory": false,
+          "switch": false
+        }
+      ],
+      "examples": [
+        ".\\detect-local-admin-drift.ps1\nReturns exit 1 if the local Administrators group contains unauthorized members"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- Keep $AllowedNames in sync with the remediation script; add your LAPS-managed admin account name there\n- The built-in Administrator (RID 500) and the Entra device administrator role SIDs (S-1-12-1-...) are always allowed\n- Uses ADSI enumeration because Get-LocalGroupMember fails on orphaned SIDs",
+      "path": "scripts/remediation/local-admin-drift/detect-local-admin-drift.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/local-admin-drift/detect-local-admin-drift.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/local-admin-drift/detect-local-admin-drift.ps1"
+    },
+    {
+      "id": "detect-onedrive-kfm-not-configured",
+      "title": "OneDrive Known Folder Move Detection Script",
+      "synopsis": "Detects devices where OneDrive Known Folder Move is not configured via policy.",
+      "description": "Checks the OneDrive policy registry keys for silent Known Folder Move opt-in\n(KFMSilentOptIn with the tenant ID) and verifies the OneDrive sync client is\ninstalled. Returns exit code 1 when the KFM policy is missing or points to a\ndifferent tenant, triggering the paired remediation that writes the policy keys.\nDesktop, Documents, and Pictures then move to OneDrive automatically at the next\nOneDrive sign-in.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-onedrive-kfm.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\detect-onedrive-kfm-not-configured.ps1\nReturns exit 1 if the KFM silent opt-in policy is not set for the tenant"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- IMPORTANT: set $ExpectedTenantId to your Entra tenant ID before deploying (both scripts)\n- Devices without the OneDrive sync client are reported compliant with a note, since KFM cannot apply there",
+      "path": "scripts/remediation/onedrive-kfm/detect-onedrive-kfm-not-configured.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/onedrive-kfm/detect-onedrive-kfm-not-configured.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/onedrive-kfm/detect-onedrive-kfm-not-configured.ps1"
+    },
+    {
+      "id": "detect-reboot-pending",
+      "title": "Reboot Pending Detection Script",
+      "synopsis": "Detects devices that have a pending reboot older than the configured threshold.",
+      "description": "Checks the standard Windows pending-reboot signals: Component Based Servicing,\nWindows Update, pending file rename operations, and pending computer rename.\nReturns exit code 1 when a reboot is pending and the device has been up longer\nthan the minimum uptime threshold, triggering the paired remediation that\nschedules a restart with user warning.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-reboot-pending.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\detect-reboot-pending.ps1\nReturns exit 1 if a reboot is pending and uptime exceeds the threshold"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- $MinimumUptimeDays avoids flagging devices that rebooted recently but picked up a new pending flag\n- PendingFileRenameOperations alone is noisy (installers set it constantly), so it only counts together with uptime",
+      "path": "scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/reboot-pending/detect-reboot-pending.ps1"
+    },
+    {
+      "id": "detect-winget-updates-available",
+      "title": "Winget App Updates Detection Script",
+      "synopsis": "Detects third-party applications with available winget upgrades.",
+      "description": "Resolves winget in SYSTEM context and lists available application upgrades.\nReturns exit code 1 when more than the allowed number of upgradable apps is\nfound, triggering the paired remediation that upgrades them silently. Apps with\nunknown installed versions are excluded because winget cannot safely upgrade\nthem.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "remediate-winget-updates.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\detect-winget-updates-available.ps1\nReturns exit 1 if any app has a pending winget upgrade"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations; winget is resolved from the DesktopAppInstaller package folder because SYSTEM has no winget alias\n- Requires Windows 10 1809+ with App Installer (winget) present\n- Apps listed in $ExcludedIds are ignored; add IDs of apps managed by other update mechanisms",
+      "path": "scripts/remediation/winget-app-updates/detect-winget-updates-available.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/winget-app-updates/detect-winget-updates-available.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/winget-app-updates/detect-winget-updates-available.ps1"
+    },
+    {
       "id": "device-compliance-drift-alert",
       "title": "Device Compliance Drift Alert Notification",
       "synopsis": "Automated runbook to monitor device compliance drift in Intune and send email alerts for compliance deterioration.",
@@ -973,6 +1503,123 @@
       "path": "scripts/notification/device-compliance-drift-alert.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/device-compliance-drift-alert.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/device-compliance-drift-alert.ps1"
+    },
+    {
+      "id": "fix-primary-user-assignment",
+      "title": "Fix Primary User Assignment",
+      "synopsis": "Aligns each Windows device's Intune primary user with the user who actually logs on to it.",
+      "description": "This script compares every Windows device's Intune primary user with the most\nrecent logged-on user reported by the device (usersLoggedOn). Devices where the\nprimary user differs from the actual user - shared-device handovers, re-imaged\nmachines, IT-technician enrollments - are reported, and with -Apply the primary\nuser is updated via the users/`$ref assignment. A correct primary user matters for\nself-service portal access, user-targeted policy resolution, and license-based app\ndelivery.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All",
+        "User.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "Apply",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\fix-primary-user-assignment.ps1\nReports devices whose primary user does not match the last logged-on user",
+        ".\\fix-primary-user-assignment.ps1 -Apply -WhatIf\nPreviews the primary user changes without applying them",
+        ".\\fix-primary-user-assignment.ps1 -Apply\nUpdates the primary user on all mismatched devices"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Only Windows devices are processed; usersLoggedOn is not reliably populated on other platforms\n- Devices without logged-on user data or without a resolvable user are skipped\n- Uses beta Graph endpoints because usersLoggedOn is not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/devices/fix-primary-user-assignment.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/fix-primary-user-assignment.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/fix-primary-user-assignment.ps1"
+    },
+    {
+      "id": "get-app-assignment-conflicts",
+      "title": "Get App Assignment Conflicts",
+      "synopsis": "Detects conflicting Intune app assignments: required versus uninstall, and groups that are both included and excluded.",
+      "description": "This script analyzes every Intune app's assignments and reports conflicts that\nproduce unpredictable install behavior: the same app targeted with required and\nuninstall intent, the same group both included and excluded on one app, and the\nsame group receiving the app with different intents. Group names are resolved so\nthe report is directly actionable. These conflicts commonly appear after mergers\nof app deployments or copy-pasted assignment changes and are hard to spot in the\nportal.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All",
+        "Group.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-app-assignment-conflicts.ps1\nReports all app assignment conflicts in the console",
+        ".\\get-app-assignment-conflicts.ps1 -ExportToCsv\nExports the conflict report to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Required + available for the same group is reported as informational, not a conflict (required wins by design)\n- Nested group membership is not evaluated; only direct assignment targets are compared\n- Uses beta Graph endpoints for the app assignment surface\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/apps/get-app-assignment-conflicts.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-app-assignment-conflicts.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-app-assignment-conflicts.ps1"
     },
     {
       "id": "get-app-installation-status-report",
@@ -1141,6 +1788,316 @@
       "path": "scripts/apps/get-application-inventory-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-application-inventory-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-application-inventory-report.ps1"
+    },
+    {
+      "id": "get-assignment-filter-audit",
+      "title": "Get Assignment Filter Audit",
+      "synopsis": "Audits Intune assignment filters and reports filters that are unused or duplicated.",
+      "description": "This script retrieves all Intune assignment filters and cross-references them\nagainst every assignment surface that can carry a filter: device configuration\nprofiles, settings catalog policies, compliance policies, administrative template\npolicies, platform scripts, remediation scripts, and applications. It reports\nwhich filters are actually referenced by at least one assignment, which are\nunused, and which filters duplicate each other (same platform and same rule),\nso stale or redundant filters can be cleaned up safely.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-assignment-filter-audit.ps1\nShows the filter audit in the console",
+        ".\\get-assignment-filter-audit.ps1 -ExportToCsv\nExports the filter audit to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because assignment filters are not exposed on v1.0\n- A filter is counted as used when at least one assignment references it in include or exclude mode\n- Duplicate detection compares platform plus whitespace-normalized rule text\n- The script only reports; deleting filters remains a manual decision\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/get-assignment-filter-audit.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/get-assignment-filter-audit.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/get-assignment-filter-audit.ps1"
+    },
+    {
+      "id": "get-assignment-matrix-report",
+      "title": "Get Assignment Matrix Report",
+      "synopsis": "Builds a who-gets-what matrix of every Intune policy, profile, script, and app mapped to its assignment targets and filters.",
+      "description": "This script connects to Microsoft Graph and collects assignments across the major\nIntune surfaces: device configuration profiles, settings catalog policies,\ncompliance policies, administrative template (ADMX) policies, platform scripts,\nremediation scripts, and applications. Every assignment is flattened into one row\nshowing the target (group, all users, all devices, or exclusion), the resolved\ngroup name, the assignment filter with its mode, and the install intent for apps.\nThe result answers \"what does this group actually get\" and \"what targets this\ndevice population\" in a single CSV.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "Group.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "Surfaces",
+          "type": "string[",
+          "mandatory": false,
+          "default": "@(\"DeviceConfigurations\", \"SettingsCatalog\", \"CompliancePolicies\", \"AdmxPolicies\", \"PlatformScripts\", \"Remediations\", \"Apps\")",
+          "switch": false
+        },
+        {
+          "name": "IncludeUnassigned",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-assignment-matrix-report.ps1\nShows the assignment matrix for all surfaces in the console",
+        ".\\get-assignment-matrix-report.ps1 -ExportToCsv\nExports the full assignment matrix to a timestamped CSV file",
+        ".\\get-assignment-matrix-report.ps1 -Surfaces Apps,CompliancePolicies -IncludeUnassigned\nReports only apps and compliance policies, including objects that have no assignments"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because several Intune assignment surfaces are not exposed on v1.0\n- Apps without assignments are skipped unless -IncludeUnassigned is used (the app catalog contains many built-in unassigned entries)\n- Group names are resolved once and cached; deleted groups show as their object ID\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/get-assignment-matrix-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/get-assignment-matrix-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/get-assignment-matrix-report.ps1"
+    },
+    {
+      "id": "get-compliance-policy-coverage",
+      "title": "Get Compliance Policy Coverage",
+      "synopsis": "Finds device platforms in the tenant that no assigned compliance policy covers.",
+      "description": "This script compares the platforms of all enrolled Intune devices against the\nplatforms targeted by assigned compliance policies. Platforms with enrolled\ndevices but no assigned compliance policy are a real gap: those devices report\nas compliant by default (or fall to the built-in policy) and can slip through\nConditional Access checks. The report also lists compliance policies that exist\nbut are not assigned to anything, and the device count per platform so gaps can\nbe prioritized.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Compliance"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-compliance-policy-coverage.ps1\nShows the platform coverage matrix and any gaps",
+        ".\\get-compliance-policy-coverage.ps1 -ExportToCsv\nExports the coverage report to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Policy platform is derived from the policy's OData type (windows10CompliancePolicy targets Windows, etc.)\n- A platform counts as covered when at least one policy for it has at least one assignment; group scoping within the platform is not evaluated\n- Check the tenant's \"Mark devices with no compliance policy assigned as\" setting: if it is set to Compliant, uncovered platforms silently pass Conditional Access\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/security/get-compliance-policy-coverage.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-compliance-policy-coverage.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-compliance-policy-coverage.ps1"
+    },
+    {
+      "id": "get-defender-status-report",
+      "title": "Get Defender Status Report",
+      "synopsis": "Reports Microsoft Defender health across all Windows devices: protection state, signature age, and devices needing attention.",
+      "description": "This script reads the tenant-wide device protection overview and the per-device\nWindows protection state to report Microsoft Defender health: real-time\nprotection, tamper protection, malware protection, signature currency, overdue\nscans, pending reboots, and devices whose state is not clean. Use it to find the\nmachines where Defender is silently off or outdated before they become incident\ntickets.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OnlyIssues",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-defender-status-report.ps1\nReports Defender health for all Windows devices",
+        ".\\get-defender-status-report.ps1 -OnlyIssues\nLists only devices with at least one Defender health issue",
+        ".\\get-defender-status-report.ps1 -ExportToCsv\nExports the full per-device Defender state to a timestamped CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Protection state is fetched per device (one request each); large tenants take a few minutes\n- Devices that never reported protection state are listed separately\n- Uses beta Graph endpoints because windowsProtectionState is exposed there\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/security/get-defender-status-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-defender-status-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-defender-status-report.ps1"
+    },
+    {
+      "id": "get-device-checkin-health",
+      "title": "Get Device Check-in Health",
+      "synopsis": "Analyzes device sync cadence and highlights devices whose check-in behavior is degrading before they go stale.",
+      "description": "This script retrieves all Intune managed devices and buckets them by how recently\nthey checked in: healthy (synced within the healthy threshold), drifting (missed\nthe healthy window but not yet stale), and stale. Unlike a plain stale-device\nreport, the drifting bucket surfaces devices that are on their way to becoming\nunmanaged - for example laptops that stopped syncing two weeks ago - while there\nis still time to intervene. Results include per-platform distribution and can be\nexported to CSV.",
+      "category": "diagnostics",
+      "categoryLabel": "diagnostics",
+      "tags": [
+        "Diagnostics",
+        "Devices"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "HealthyDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "7",
+          "switch": false
+        },
+        {
+          "name": "StaleDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-device-checkin-health.ps1\nBuckets devices as healthy (7 days), drifting (7-30 days), and stale (over 30 days)",
+        ".\\get-device-checkin-health.ps1 -HealthyDays 3 -StaleDays 21\nUses tighter thresholds: healthy within 3 days, stale after 21 days",
+        ".\\get-device-checkin-health.ps1 -ExportToCsv\nExports the full device list with health buckets to a timestamped CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Devices that never synced (no lastSyncDateTime) are reported in their own bucket\n- Complements get-stale-devices: this script focuses on the drifting middle band, not just the stale tail\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/diagnostics/get-device-checkin-health.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/diagnostics/get-device-checkin-health.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/diagnostics/get-device-checkin-health.ps1"
     },
     {
       "id": "get-device-compliance-report",
@@ -1428,6 +2385,206 @@
       "path": "scripts/monitoring/get-endpoint-analytics-report.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-endpoint-analytics-report.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-endpoint-analytics-report.ps1"
+    },
+    {
+      "id": "get-enrollment-failure-report",
+      "title": "Get Enrollment Failure Report",
+      "synopsis": "Reports Intune enrollment failures and Autopilot deployment events with plain-language failure explanations.",
+      "description": "This script retrieves enrollment troubleshooting events and Windows Autopilot\ndeployment events from Microsoft Graph, groups the failures by category, and\ntranslates Intune's failure categories into plain-language explanations with\ntypical fixes. Use it to spot enrollment restriction blocks, authentication\nproblems, or licensing issues across the tenant instead of clicking through\nthe troubleshooting portal user by user.",
+      "category": "diagnostics",
+      "categoryLabel": "diagnostics",
+      "tags": [
+        "Diagnostics",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementServiceConfig.Read.All",
+        "User.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "DaysBack",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "IncludeAutopilotEvents",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-enrollment-failure-report.ps1\nReports enrollment failures from the last 30 days",
+        ".\\get-enrollment-failure-report.ps1 -DaysBack 7 -ExportToCsv\nReports the last week of enrollment failures and exports them to CSV",
+        ".\\get-enrollment-failure-report.ps1 -IncludeAutopilotEvents\nAlso lists Windows Autopilot deployment events with their deployment state"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Enrollment troubleshooting events are retained by Intune for a limited period; older failures may no longer be available\n- User principal names are resolved from the userId on the event where possible\n- Uses beta Graph endpoints for troubleshooting and Autopilot events\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/diagnostics/get-enrollment-failure-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/diagnostics/get-enrollment-failure-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/diagnostics/get-enrollment-failure-report.ps1"
+    },
+    {
+      "id": "get-firewall-and-asr-status",
+      "title": "Get Firewall and ASR Status",
+      "synopsis": "Reports endpoint security policy coverage for firewall, attack surface reduction, and antivirus across the tenant.",
+      "description": "This script inventories all endpoint security policies (settings catalog policies\nwith an endpoint security template plus legacy security intents) and reports the\ncoverage per discipline: firewall, attack surface reduction, antivirus, disk\nencryption, EDR, and account protection. It flags disciplines with no assigned\npolicy and lists unassigned endpoint security policies. Combined with the device\ncount this shows whether the tenant's Windows fleet actually has firewall and ASR\nenforcement or just unassigned policy objects.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-firewall-and-asr-status.ps1\nShows endpoint security policy coverage per discipline",
+        ".\\get-firewall-and-asr-status.ps1 -ExportToCsv\nExports the coverage report to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Endpoint security policies are settings catalog policies whose templateReference.templateFamily starts with endpointSecurity; template family filtering happens client-side because the server-side filter is unreliable on this surface\n- Legacy endpoint security intents (deviceManagement/intents) are included for older tenants\n- Coverage means at least one assigned policy per discipline; per-device applicability is not evaluated\n- Uses beta Graph endpoints because settings catalog templates and intents are exposed there\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/security/get-firewall-and-asr-status.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-firewall-and-asr-status.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-firewall-and-asr-status.ps1"
+    },
+    {
+      "id": "get-group-assignments",
+      "title": "Get Group Assignments",
+      "synopsis": "Lists everything Intune assigns to a specific Entra ID group: profiles, policies, scripts, and apps.",
+      "description": "This script takes an Entra ID group (by display name or object ID) and scans all\nmajor Intune assignment surfaces to show exactly what that group receives:\ndevice configuration profiles, settings catalog policies, compliance policies,\nadministrative template (ADMX) policies, platform scripts, remediation scripts,\nand applications with their install intents. Exclusion assignments are flagged,\nand tenant-wide All Users / All Devices assignments can be included to show the\ncomplete effective surface for members of the group.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "Group.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "GroupName",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "GroupId",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "IncludeTenantWide",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-group-assignments.ps1 -GroupName \"Sales Devices\"\nLists everything assigned to the group named Sales Devices",
+        ".\\get-group-assignments.ps1 -GroupId \"d0eea876-63b4-4e74-bff8-d11daf12b2f3\" -IncludeTenantWide\nLists group assignments plus tenant-wide All Users / All Devices assignments",
+        ".\\get-group-assignments.ps1 -GroupName \"Pilot Users\" -ExportToCsv\nExports the group's assignment list to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because several Intune assignment surfaces are not exposed on v1.0\n- Group name lookup must match exactly one group; use -GroupId when names are ambiguous\n- Nested group inheritance is not evaluated; only direct assignments to the given group are shown\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/get-group-assignments.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/get-group-assignments.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/get-group-assignments.ps1"
     },
     {
       "id": "get-intune-audit-logs",
@@ -1745,6 +2902,66 @@
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/compliance/get-noncompliant-devices-with-reasons.ps1"
     },
     {
+      "id": "get-policy-drift-report",
+      "title": "Get Policy Drift Report",
+      "synopsis": "Compares current Intune policies against a baseline backup and reports every added, removed, or changed policy.",
+      "description": "This script takes a baseline folder created by backup-intune-configuration.ps1 and\ncompares the tenant's current state against it: settings catalog policies (full\nsetting bodies), classic device configuration profiles, and compliance policies.\nPolicies are matched by object ID, and their configuration is compared as\nnormalized JSON with volatile properties (timestamps, versions) removed. The\nreport shows policies that were added, deleted, or modified since the baseline,\nmaking unreviewed configuration drift visible for change control.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration",
+        "Monitoring"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "BaselinePath",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-policy-drift-report.ps1 -BaselinePath \".\\IntuneConfigBackup_2026-07-01_08-00-00\"\nCompares the current tenant state against the July 1st baseline",
+        ".\\get-policy-drift-report.ps1 -BaselinePath \".\\IntuneConfigBackup_2026-07-01_08-00-00\" -ExportToCsv\nExports the drift report to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- The baseline must be a folder created by backup-intune-configuration.ps1\n- Policies are matched by ID, so a policy that was deleted and recreated appears as one deletion plus one addition\n- Timestamps, version counters, and assignment state are excluded from the comparison; only configuration content counts as drift\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/get-policy-drift-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/get-policy-drift-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/get-policy-drift-report.ps1"
+    },
+    {
       "id": "get-stale-devices",
       "title": "Get Stale Intune Devices",
       "synopsis": "Identifies and reports on devices that haven't checked in to Intune within a specified timeframe",
@@ -1823,6 +3040,332 @@
       "path": "scripts/devices/get-stale-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-stale-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-stale-devices.ps1"
+    },
+    {
+      "id": "get-vpp-license-report",
+      "title": "Get VPP License Report",
+      "synopsis": "Reports Apple VPP app license utilization and flags apps and tokens that are close to exhaustion or expiry.",
+      "description": "This script reads all Apple Volume Purchase Program tokens and VPP apps (iOS and\nmacOS) from Intune and reports used versus total licenses per app, highlighting\napps above a configurable utilization threshold. VPP token state and expiration\nare included because an expired token silently breaks app installs. Use it to\nbuy licenses before users hit \"installation failed\" and to catch tokens that\nneed renewal.",
+      "category": "apps",
+      "categoryLabel": "apps",
+      "tags": [
+        "Apps",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementApps.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "WarningThresholdPercent",
+          "type": "int",
+          "mandatory": false,
+          "default": "90",
+          "switch": false
+        },
+        {
+          "name": "TokenExpiryWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "30",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-vpp-license-report.ps1\nReports all VPP apps with their license utilization",
+        ".\\get-vpp-license-report.ps1 -WarningThresholdPercent 80\nFlags apps that have used 80 percent or more of their licenses",
+        ".\\get-vpp-license-report.ps1 -ExportToCsv\nExports the license report to a timestamped CSV file"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Tenants without Apple VPP (Apps and Books) configured will report no tokens and no apps\n- License counts come from the iosVppApp and macOsVppApp usedLicenseCount / totalLicenseCount properties\n- Uses beta Graph endpoints because VPP app license properties are exposed there\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/apps/get-vpp-license-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/apps/get-vpp-license-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/apps/get-vpp-license-report.ps1"
+    },
+    {
+      "id": "get-windows-laps-audit",
+      "title": "Get Windows LAPS Audit",
+      "synopsis": "Audits Windows LAPS password escrow: which devices have a backed-up local admin password and how old it is.",
+      "description": "This script lists all device local credential records escrowed by Windows LAPS in\nEntra ID and cross-references them with Intune Windows devices. It reports which\ndevices have no escrowed local administrator password at all, and which have\npasswords older than the rotation threshold - both signs that the LAPS policy is\nnot applying. Only credential metadata (device name, backup time) is read; actual\npasswords are never retrieved by this script.",
+      "category": "security",
+      "categoryLabel": "security",
+      "tags": [
+        "Security",
+        "Compliance"
+      ],
+      "permissions": [
+        "DeviceLocalCredential.ReadBasic.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "MaxPasswordAgeDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "60",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-windows-laps-audit.ps1\nAudits LAPS escrow state for all Windows devices with a 60-day age threshold",
+        ".\\get-windows-laps-audit.ps1 -MaxPasswordAgeDays 30 -ExportToCsv\nFlags passwords older than 30 days and exports the audit to CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Reading LAPS credential metadata is limited to specific roles; Intune Administrator is one of the allowed roles\n- This script uses DeviceLocalCredential.ReadBasic.All and never retrieves password values\n- Devices are matched between the LAPS store and Intune via the Entra device ID\n- Uses beta Graph endpoints for the device local credentials surface\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/security/get-windows-laps-audit.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-windows-laps-audit.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/security/get-windows-laps-audit.ps1"
+    },
+    {
+      "id": "get-windows-update-compliance-report",
+      "title": "Get Windows Update Compliance Report",
+      "synopsis": "Reports Windows Update deployment state: update rings with per-device status, feature update profiles, quality and driver update profiles.",
+      "description": "This script inventories the tenant's Windows Update configuration and its\ndeployment health: update rings (Windows Update for Business configurations)\nwith per-device success and error status, feature update profiles with their\ntarget version and end-of-support date, expedited quality update profiles, and\ndriver update profiles. It flags rings with device errors, feature update\ntargets approaching end of support, and profiles without assignments.",
+      "category": "monitoring",
+      "categoryLabel": "monitoring",
+      "tags": [
+        "Monitoring",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "EndOfSupportWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "180",
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-windows-update-compliance-report.ps1\nReports update rings, feature updates, quality and driver update profiles",
+        ".\\get-windows-update-compliance-report.ps1 -EndOfSupportWarningDays 120 -ExportToCsv\nFlags feature update targets within 120 days of end of support and exports to CSV"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Update rings are deviceConfigurations of type windowsUpdateForBusinessConfiguration; per-device status comes from each ring's deviceStatuses\n- This reports deployment state from Intune's perspective; per-device patch level detail lives in Windows Update for Business reports (Log Analytics)\n- Uses beta Graph endpoints because feature/quality/driver update profiles are not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/monitoring/get-windows-update-compliance-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/monitoring/get-windows-update-compliance-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/monitoring/get-windows-update-compliance-report.ps1"
+    },
+    {
+      "id": "get-windows11-readiness-report",
+      "title": "Get Windows 11 Readiness Report",
+      "synopsis": "Reports Windows 11 upgrade readiness for all Windows devices using Endpoint Analytics hardware signals.",
+      "description": "This script reads the Endpoint Analytics work-from-anywhere device data to report\nwhich Windows devices are eligible for Windows 11 and which hardware checks are\nblocking the rest: TPM, Secure Boot, RAM, storage, processor family, speed, core\ncount, and 64-bit capability. It shows the tenant-level readiness summary plus a\nper-device breakdown of failed checks, so upgrade waves and hardware refresh\nbudgets can be planned from real inventory data.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices",
+        "Reporting"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "OnlyBlocked",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\get-windows11-readiness-report.ps1\nShows the tenant readiness summary and all devices with failed upgrade checks",
+        ".\\get-windows11-readiness-report.ps1 -ExportToCsv\nExports the full per-device readiness data to a timestamped CSV file",
+        ".\\get-windows11-readiness-report.ps1 -OnlyBlocked\nLists only devices that are not eligible for the Windows 11 upgrade"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Endpoint Analytics must be enabled and collecting data; without it the report is empty\n- Devices need to report analytics data for up to 24 hours after enrollment before appearing\n- Uses beta Graph endpoints because the work-from-anywhere analytics surface is not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/devices/get-windows11-readiness-report.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-windows11-readiness-report.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/get-windows11-readiness-report.ps1"
+    },
+    {
+      "id": "license-threshold-alert",
+      "title": "License Threshold Alert Notification",
+      "synopsis": "Automated runbook that emails administrators when Intune-capable license SKUs approach exhaustion.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook. It reads\nthe tenant's subscribed SKUs, identifies the ones that include an Intune service\nplan, and compares consumed against purchased units. When utilization crosses the\nconfigured threshold (default 90 percent) or a SKU is suspended or in warning\nstate, administrators get an email before new users fail to enroll for lack of a\nlicense. Non-Intune SKUs can be included with a switch for a full license\noverview.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "Organization.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "Weekly",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ThresholdPercent",
+          "type": "int",
+          "mandatory": false,
+          "default": "90",
+          "switch": false
+        },
+        {
+          "name": "IncludeAllSkus",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "AlwaysSend",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\license-threshold-alert.ps1 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts when any Intune-capable SKU passes 90 percent utilization",
+        ".\\license-threshold-alert.ps1 -ThresholdPercent 80 -IncludeAllSkus -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nAlerts at 80 percent utilization across every SKU in the tenant"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with the required permissions\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- Intune-capable SKUs are detected by an INTUNE_A service plan; trial and locked-out units are not counted as available\n- subscribedSkus is a v1.0 endpoint and readable with Organization.Read.All\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/notification/license-threshold-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/license-threshold-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/license-threshold-alert.ps1"
     },
     {
       "id": "maa-pending-requests-monitor",
@@ -1914,6 +3457,72 @@
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/maa-pending-requests-monitor.ps1"
     },
     {
+      "id": "new-device-enrollment-digest",
+      "title": "New Device Enrollment Digest Notification",
+      "synopsis": "Automated runbook that emails a digest of newly enrolled Intune devices with platform and ownership breakdown.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook. It\ncollects all devices enrolled into Intune within the reporting window (default\n7 days), breaks them down by platform, ownership, and enrollment type, and sends\na digest email to administrators. The digest gives visibility into enrollment\nactivity: unexpected spikes, personal devices appearing in a corporate-only\nenvironment, or platforms that should not be enrolling at all.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "Weekly",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "DaysBack",
+          "type": "int",
+          "mandatory": false,
+          "default": "7",
+          "switch": false
+        },
+        {
+          "name": "AlwaysSend",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\new-device-enrollment-digest.ps1 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nEmails the last 7 days of new enrollments to admin@company.com",
+        ".\\new-device-enrollment-digest.ps1 -DaysBack 1 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\" -AlwaysSend\nDaily digest that is sent even on days without new enrollments"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with the required permissions\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- By default no email is sent when there are no new enrollments; use -AlwaysSend to always get the digest\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/notification/new-device-enrollment-digest.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/new-device-enrollment-digest.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/new-device-enrollment-digest.ps1"
+    },
+    {
       "id": "remediate-antivirus-definitions",
       "title": "Windows Defender Definition Update Remediation",
       "synopsis": "Updates Windows Defender antivirus definitions",
@@ -1985,6 +3594,206 @@
       "path": "scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1"
+    },
+    {
+      "id": "remediate-local-admin-drift",
+      "title": "Local Admin Drift Remediation Script",
+      "synopsis": "Removes unauthorized members from the local Administrators group.",
+      "description": "Enumerates the local Administrators group and removes every member that is not\non the allowlist: the built-in Administrator (RID 500), the Entra device\nadministrator role SIDs, Domain/Enterprise Admins for hybrid devices, and the\nconfigurable allowed account names. Removed members are logged in the output so\nthe remediation history in Intune shows exactly what changed. Paired with\ndetect-local-admin-drift.ps1.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-local-admin-drift.ps1",
+      "parameters": [
+        {
+          "name": "Member",
+          "type": "object",
+          "mandatory": false,
+          "switch": false
+        }
+      ],
+      "examples": [
+        ".\\remediate-local-admin-drift.ps1\nRemoves all unauthorized members from the local Administrators group"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- Keep $AllowedNames identical to the detection script or the pair will fight each other\n- Removal uses the group's Remove method via ADSI, which also handles orphaned SIDs\n- Test on a pilot group first: removing an account that users rely on locks them out of admin tasks",
+      "path": "scripts/remediation/local-admin-drift/remediate-local-admin-drift.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/local-admin-drift/remediate-local-admin-drift.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/local-admin-drift/remediate-local-admin-drift.ps1"
+    },
+    {
+      "id": "remediate-onedrive-kfm",
+      "title": "OneDrive Known Folder Move Remediation Script",
+      "synopsis": "Configures OneDrive silent Known Folder Move via policy registry keys.",
+      "description": "Writes the OneDrive policy registry values that silently move Desktop,\nDocuments, and Pictures into OneDrive for the configured tenant:\nKFMSilentOptIn with the tenant ID, silent opt-in without notification, and\nKFMBlockOptOut so users cannot move the folders back out. OneDrive applies the\nmove at its next sign-in or policy refresh. Paired with\ndetect-onedrive-kfm-not-configured.ps1.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-onedrive-kfm-not-configured.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\remediate-onedrive-kfm.ps1\nWrites the KFM silent opt-in policy for the configured tenant"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- IMPORTANT: set $TenantId to your Entra tenant ID before deploying (both scripts)\n- Users must be signed in to OneDrive with a licensed account for the folder move to complete\n- Set $BlockOptOut to $false if users should be allowed to redirect folders back",
+      "path": "scripts/remediation/onedrive-kfm/remediate-onedrive-kfm.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/onedrive-kfm/remediate-onedrive-kfm.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/onedrive-kfm/remediate-onedrive-kfm.ps1"
+    },
+    {
+      "id": "remediate-reboot-pending",
+      "title": "Reboot Pending Remediation Script",
+      "synopsis": "Schedules a restart with a visible user warning on devices that have a pending reboot.",
+      "description": "Schedules a system restart after a configurable delay (default 4 hours) using\nshutdown.exe with a warning message, giving the user time to save work. If a\nrestart is already scheduled the script leaves it in place. Paired with\ndetect-reboot-pending.ps1 which triggers only for devices that carry a pending\nreboot beyond the uptime threshold.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-reboot-pending.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\remediate-reboot-pending.ps1\nSchedules a restart in 4 hours with a user-visible warning"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- Adjust $DelaySeconds to fit maintenance windows; users see the Windows restart warning immediately\n- A user or admin can cancel the scheduled restart with: shutdown /a",
+      "path": "scripts/remediation/reboot-pending/remediate-reboot-pending.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/reboot-pending/remediate-reboot-pending.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/reboot-pending/remediate-reboot-pending.ps1"
+    },
+    {
+      "id": "remediate-winget-updates",
+      "title": "Winget App Updates Remediation Script",
+      "synopsis": "Silently upgrades third-party applications using winget.",
+      "description": "Runs winget upgrade for all applications with available updates, excluding a\nconfigurable list of package IDs that are managed elsewhere. Upgrades run\nsilently with license agreements accepted. Apps with unknown installed versions\nare skipped because winget cannot upgrade them reliably. Paired with\ndetect-winget-updates-available.ps1.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Action"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "Remediation",
+      "pairScript": "detect-winget-updates-available.ps1",
+      "parameters": [],
+      "examples": [
+        ".\\remediate-winget-updates.ps1\nUpgrades all upgradable apps silently"
+      ],
+      "notes": "- Runs in SYSTEM context via Intune Remediations\n- Keep $ExcludedIds in sync with the detection script\n- Apps in use during upgrade may prompt the user to close or fail silently; winget reports per-app results in the output",
+      "path": "scripts/remediation/winget-app-updates/remediate-winget-updates.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/winget-app-updates/remediate-winget-updates.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/winget-app-updates/remediate-winget-updates.ps1"
+    },
+    {
+      "id": "rename-devices-from-csv",
+      "title": "Rename Devices from CSV",
+      "synopsis": "Bulk-renames Intune Windows devices from a CSV mapping file using the setDeviceName remote action.",
+      "description": "This script reads a CSV file with DeviceName and NewName columns and triggers the\nIntune setDeviceName remote action for each matching Windows device. Every rename\nsupports -WhatIf preview, name validation catches illegal computer names before\nany action is sent, and results are summarized per device. Devices are renamed on\ntheir next check-in; Windows devices typically need a restart for the new name to\nfully apply.",
+      "category": "devices",
+      "categoryLabel": "devices",
+      "tags": [
+        "Devices",
+        "Operational"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.PrivilegedOperations.All",
+        "DeviceManagementManagedDevices.Read.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "CsvPath",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "ExportToCsv",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "OutputPath",
+          "type": "string",
+          "mandatory": false,
+          "default": "\".\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\rename-devices-from-csv.ps1 -CsvPath \".\\renames.csv\" -WhatIf\nPreviews all renames without sending any action",
+        ".\\rename-devices-from-csv.ps1 -CsvPath \".\\renames.csv\"\nRenames all devices listed in the CSV (columns: DeviceName,NewName)"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- CSV must contain the columns DeviceName (current Intune device name) and NewName\n- Windows computer names: max 15 characters, letters/digits/hyphens, not all digits\n- The rename applies at next device check-in; a restart completes it on Windows\n- setDeviceName requires the DeviceManagementManagedDevices.PrivilegedOperations.All scope\n- Uses beta Graph endpoints because the setDeviceName action is exposed there for all platforms\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/devices/rename-devices-from-csv.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/rename-devices-from-csv.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/rename-devices-from-csv.ps1"
     },
     {
       "id": "restart-devices",
@@ -2062,6 +3871,73 @@
       "path": "scripts/operational/restart-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/restart-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/restart-devices.ps1"
+    },
+    {
+      "id": "restore-intune-configuration",
+      "title": "Restore Intune Configuration",
+      "synopsis": "Restores Intune configuration profiles, compliance policies, ADMX policies, and platform scripts from a JSON backup created by backup-intune-configuration.",
+      "description": "This script reads a backup folder produced by backup-intune-configuration.ps1 and\nrecreates the exported objects in the target tenant: device configuration profiles,\nsettings catalog policies, compliance policies, administrative template (ADMX)\npolicies with their definition values, and platform scripts. Objects are always\ncreated as new entries (no in-place overwrite), read-only properties are stripped\nfrom the payloads, and every create supports -WhatIf preview. Assignment restore is\noptional and off by default because group IDs from the source tenant may not exist\nin the target tenant.",
+      "category": "configuration",
+      "categoryLabel": "configuration",
+      "tags": [
+        "Configuration"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.ReadWrite.All"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "",
+      "execution": "",
+      "output": "",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "BackupPath",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "Areas",
+          "type": "string[",
+          "mandatory": false,
+          "default": "@(\"DeviceConfigurations\", \"SettingsCatalog\", \"CompliancePolicies\", \"AdmxPolicies\", \"PlatformScripts\")",
+          "switch": false
+        },
+        {
+          "name": "RestoreAssignments",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "NamePrefix",
+          "type": "string",
+          "mandatory": false,
+          "default": "\"\"",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -WhatIf\nPreviews everything that would be created without writing to the tenant",
+        ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -Areas CompliancePolicies\nRestores only the compliance policies from the backup",
+        ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -RestoreAssignments\nRestores all areas including group assignments (same-tenant restore)"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Objects are created as new entries; existing policies with the same name are not touched, so a re-run creates duplicates\n- Compliance policies are created with their exported scheduledActionsForRule; if a backup predates that field, a default block rule is added because Graph rejects policies without one\n- Secret values (encrypted OMA-URI settings, passwords, certificates) are never present in Graph exports and must be re-entered manually after restore\n- ADMX presentation values referencing definitions that do not exist in the target tenant are skipped with a warning\n- Assignment restore requires the original group IDs to exist in the target tenant; failures are reported per policy and do not stop the restore\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/configuration/restore-intune-configuration.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/configuration/restore-intune-configuration.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/configuration/restore-intune-configuration.ps1"
     },
     {
       "id": "rotate-bitlocker-keys",
@@ -2355,6 +4231,72 @@
       "path": "scripts/operational/sync-devices.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/operational/sync-devices.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/operational/sync-devices.ps1"
+    },
+    {
+      "id": "windows-update-failure-alert",
+      "title": "Windows Update Failure Alert Notification",
+      "synopsis": "Automated runbook that monitors Windows Update ring deployment errors and emails administrators the failing devices.",
+      "description": "This script is designed to run as a scheduled Azure Automation runbook. It scans\nall Windows Update rings (Windows Update for Business configurations), collects\nper-device deployment status, and sends an email report when devices are in an\nerror or conflict state. Feature update profiles past or near their end-of-support\ndate are included as warnings. This surfaces silently failing update deployments\nbefore they turn into unpatched device populations.",
+      "category": "notification",
+      "categoryLabel": "Notification",
+      "tags": [
+        "Notification"
+      ],
+      "permissions": [
+        "DeviceManagementConfiguration.Read.All",
+        "Mail.Send"
+      ],
+      "minRole": "Intune Administrator",
+      "platform": "",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-07-20",
+      "schedule": "Weekly",
+      "execution": "RunbookOnly",
+      "output": "Email",
+      "remediationType": "",
+      "pairScript": "",
+      "parameters": [
+        {
+          "name": "EmailRecipients",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "SenderUPN",
+          "type": "string",
+          "mandatory": true,
+          "switch": false
+        },
+        {
+          "name": "AlwaysSend",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        },
+        {
+          "name": "EndOfSupportWarningDays",
+          "type": "int",
+          "mandatory": false,
+          "default": "180",
+          "switch": false
+        },
+        {
+          "name": "ForceModuleInstall",
+          "type": "switch",
+          "mandatory": false,
+          "switch": true
+        }
+      ],
+      "examples": [
+        ".\\windows-update-failure-alert.ps1 -EmailRecipients \"admin@company.com\" -SenderUPN \"intune-alerts@company.com\"\nScans update rings and emails the failure report to admin@company.com",
+        ".\\windows-update-failure-alert.ps1 -EmailRecipients \"admin@company.com,ops@company.com\" -SenderUPN \"intune-alerts@company.com\" -AlwaysSend\nSends the report to multiple recipients even when no failures were found"
+      ],
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- For Azure Automation, configure Managed Identity with the required permissions\n- The Automation account's managed identity requires Mail.Send permission for the SenderUPN mailbox\n- By default the email is only sent when at least one device error or profile warning exists; use -AlwaysSend for a weekly status mail\n- Uses beta Graph endpoints because update ring device statuses are exposed there\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "path": "scripts/notification/windows-update-failure-alert.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/notification/windows-update-failure-alert.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/notification/windows-update-failure-alert.ps1"
     },
     {
       "id": "wipe-devices",
