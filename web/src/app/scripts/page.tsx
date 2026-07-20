@@ -8,30 +8,31 @@ import FullScriptGallery from "~/components/full-script-gallery";
 import FloatingSubscriptionCTA from "~/components/floating-subscription-cta";
 import { BreadcrumbSchema, ItemListSchema } from "~/components/structured-data";
 import { githubService } from "~/lib/github";
+import { getScriptCountLabel } from "~/lib/script-count";
 
 const BASE_URL = "https://intuneautomation.com";
+
+// Derived from the actual catalog at build time so the count never drifts.
+const COUNT = getScriptCountLabel();
 
 export const metadata: Metadata = {
   // Short title — root layout's title template appends "| IntuneAutomation".
   // Title front-loads the head keyword "Intune PowerShell Scripts" because
   // /scripts/ is the page we most want ranking for catalog-intent searches.
-  title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
-  description:
-    "Browse 120+ free PowerShell scripts for Microsoft Intune automation. Detection, remediation, compliance, reporting and Azure Automation runbooks. Filter by category, deploy in one click.",
+  title: `Intune PowerShell Scripts — ${COUNT} Free, Ready-to-Run`,
+  description: `Browse ${COUNT} free PowerShell scripts for Microsoft Intune automation. Detection, remediation, compliance, reporting and Azure Automation runbooks. Filter by category, deploy in one click.`,
   alternates: { canonical: "/scripts/" },
   openGraph: {
-    title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
-    description:
-      "Browse 120+ free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.",
+    title: `Intune PowerShell Scripts — ${COUNT} Free, Ready-to-Run`,
+    description: `Browse ${COUNT} free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.`,
     url: `${BASE_URL}/scripts/`,
     type: "website",
     siteName: "IntuneAutomation",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Intune PowerShell Scripts — 120+ Free, Ready-to-Run",
-    description:
-      "Browse 120+ free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.",
+    title: `Intune PowerShell Scripts — ${COUNT} Free, Ready-to-Run`,
+    description: `Browse ${COUNT} free PowerShell scripts for Microsoft Intune automation, including Azure Automation runbooks.`,
   },
 };
 

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import GeneratorClient from "./page-client";
 import { env } from "~/env";
+import { getScriptCountLabel } from "~/lib/script-count";
 import {
   BreadcrumbSchema,
   FAQSchema,
@@ -21,6 +22,9 @@ import {
 
 const BASE_URL = "https://intuneautomation.com";
 const PAGE_URL = `${BASE_URL}/generator/`;
+
+// Derived from the actual catalog at build time so the count never drifts.
+const COUNT = getScriptCountLabel();
 
 const PAGE_TITLE = "AI Intune PowerShell Script Generator";
 const PAGE_DESCRIPTION =
@@ -97,8 +101,7 @@ const GENERATOR_FAQS = [
   {
     question:
       "How does this compare to writing Intune scripts with general-purpose ChatGPT?",
-    answer:
-      "Unlike a general-purpose chat tool, the IntuneAutomation Script Generator is purpose-built for Microsoft Intune. It enforces a system prompt focused on Intune and Microsoft Graph, runs a PSScriptAnalyzer-style lint pass on every result with one-click fix-ups, redacts secrets before sending the prompt, and outputs scripts that follow the same comment-based help conventions used by the 120+ open-source scripts in the IntuneAutomation library.",
+    answer: `Unlike a general-purpose chat tool, the IntuneAutomation Script Generator is purpose-built for Microsoft Intune. It enforces a system prompt focused on Intune and Microsoft Graph, runs a PSScriptAnalyzer-style lint pass on every result with one-click fix-ups, redacts secrets before sending the prompt, and outputs scripts that follow the same comment-based help conventions used by the ${COUNT} open-source scripts in the IntuneAutomation library.`,
   },
   {
     question: "Can I refine the generated script?",
@@ -312,7 +315,7 @@ function GeneratorSeoFooter() {
           PSScriptAnalyzer-style lint pass on every result with one-click
           fix-ups, redacts secrets before sending the prompt, and produces
           scripts that follow the same comment-based help conventions used by
-          the 120+ open-source scripts in the IntuneAutomation library.
+          the {COUNT} open-source scripts in the IntuneAutomation library.
         </p>
         <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {FEATURE_LIST.map((feature) => (
@@ -431,9 +434,9 @@ function GeneratorSeoFooter() {
         </h2>
         <p className="text-muted-foreground mb-5 max-w-2xl text-[14.5px] leading-relaxed sm:text-[15px]">
           Every generated script runs through six independent checks. The
-          inspector panel on the right of the output streams these in real
-          time during generation. Any warning or failure triggers an automatic
-          fix pass at no quota cost.
+          inspector panel on the right of the output streams these in real time
+          during generation. Any warning or failure triggers an automatic fix
+          pass at no quota cost.
         </p>
         <ul className="border-border/70 bg-card/40 divide-border/50 divide-y rounded-xl border backdrop-blur-sm">
           {QUALITY_CHECKS.map((check) => (
@@ -538,7 +541,7 @@ function GeneratorSeoFooter() {
           Looking for pre-built scripts?
         </h2>
         <p className="text-muted-foreground mb-5 max-w-2xl text-[14.5px] leading-relaxed sm:text-[15px]">
-          The IntuneAutomation library includes 120+ open-source PowerShell
+          The IntuneAutomation library includes {COUNT} open-source PowerShell
           scripts maintained by the community, each with one-click deployment to
           Azure Automation as a scheduled runbook. Browse the catalog or read
           the blog for guides and best practices.

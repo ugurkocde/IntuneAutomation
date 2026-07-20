@@ -7,9 +7,14 @@ import {
   BreadcrumbSchema,
 } from "~/components/structured-data";
 import HomeClient from "./page-client";
+import { getCatalogScriptCount } from "~/lib/script-count";
 
 export default function Home() {
   const baseUrl = "https://intuneautomation.com";
+
+  // Real catalog size, derived from the repo at build time. Passed to the
+  // client hero as the SSR/fallback value until the live script list loads.
+  const scriptCount = getCatalogScriptCount();
 
   // FAQ JSON-LD — mirrors the visible FAQ in src/components/faq-section.tsx
   // exactly (same 11 questions, identical wording). Ordered to match the user
@@ -88,7 +93,7 @@ export default function Home() {
         items={[{ name: "Home", url: "/" }]}
       />
       <FAQSchema faqs={faqs} />
-      <HomeClient />
+      <HomeClient scriptCount={scriptCount} />
     </>
   );
 }

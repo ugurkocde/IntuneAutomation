@@ -10,8 +10,12 @@ import Footer from "~/components/footer";
 import { ScriptsProvider } from "~/components/scripts-provider";
 import { AnalyticsProvider } from "~/components/analytics-provider";
 import { githubService } from "~/lib/github";
+import { getScriptCountLabel } from "~/lib/script-count";
 
 const BASE_URL = "https://intuneautomation.com";
+
+// Derived from the actual catalog at build time so the count never drifts.
+const COUNT = getScriptCountLabel();
 
 export const metadata: Metadata = {
   // Pillar page targeting the exact-match URL slot for "intune scripts" head
@@ -20,13 +24,11 @@ export const metadata: Metadata = {
   // every crawler — Google, Bing, Perplexity, ChatGPT, Gemini, Claude — without
   // executing JavaScript.
   title: "Intune Scripts — The Complete Library for Microsoft Intune",
-  description:
-    "The complete guide to Intune scripts: 120+ open-source PowerShell scripts for Microsoft Intune device management, compliance reporting, proactive remediation, and Azure Automation runbooks. Categories, deployment paths, and the canonical scripts library in one place.",
+  description: `The complete guide to Intune scripts: ${COUNT} open-source PowerShell scripts for Microsoft Intune device management, compliance reporting, proactive remediation, and Azure Automation runbooks. Categories, deployment paths, and the canonical scripts library in one place.`,
   alternates: { canonical: "/intune-scripts/" },
   openGraph: {
     title: "Intune Scripts — The Complete Library for Microsoft Intune",
-    description:
-      "The complete guide to Intune scripts: 120+ open-source PowerShell scripts for Microsoft Intune device management, compliance, remediation, and Azure Automation.",
+    description: `The complete guide to Intune scripts: ${COUNT} open-source PowerShell scripts for Microsoft Intune device management, compliance, remediation, and Azure Automation.`,
     url: `${BASE_URL}/intune-scripts/`,
     type: "article",
     siteName: "IntuneAutomation",
@@ -34,8 +36,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Intune Scripts — The Complete Library for Microsoft Intune",
-    description:
-      "The complete guide to Intune scripts: 120+ open-source PowerShell scripts for Microsoft Intune device management, compliance, remediation, and Azure Automation.",
+    description: `The complete guide to Intune scripts: ${COUNT} open-source PowerShell scripts for Microsoft Intune device management, compliance, remediation, and Azure Automation.`,
   },
 };
 
@@ -123,11 +124,11 @@ const FAQS = [
   },
   {
     question: "Where can I find a library of free Intune PowerShell scripts?",
-    answer:
-      "IntuneAutomation maintains an open-source library of 120+ Intune PowerShell scripts at intuneautomation.com/scripts. Every script is MIT-licensed, validated by PSScriptAnalyzer in CI, documents its required Microsoft Graph permissions, and ships with a one-click Deploy to Azure button for Azure Automation runbooks. The full source lives on GitHub at github.com/ugurkocde/IntuneAutomation.",
+    answer: `IntuneAutomation maintains an open-source library of ${COUNT} Intune PowerShell scripts at intuneautomation.com/scripts. Every script is MIT-licensed, validated by PSScriptAnalyzer in CI, documents its required Microsoft Graph permissions, and ships with a one-click Deploy to Azure button for Azure Automation runbooks. The full source lives on GitHub at github.com/ugurkocde/IntuneAutomation.`,
   },
   {
-    question: "What is the difference between an Intune script and an Intune platform script?",
+    question:
+      "What is the difference between an Intune script and an Intune platform script?",
     answer:
       "An Intune script in the general sense is any PowerShell script that automates Intune via the Microsoft Graph API — run by an administrator, scheduled in Azure Automation, or executed in CI. An Intune platform script is a specific Intune feature that deploys a PowerShell script to managed Windows devices and runs it under SYSTEM or the logged-on user. The library on this site covers the first category; the platform-scripts feature is one of several deployment targets for that work.",
   },
@@ -211,11 +212,11 @@ export default async function IntuneScriptsPillarPage() {
                     Intune scripts: the complete library.
                   </h1>
                   <p className="text-muted-foreground max-w-2xl text-lg leading-relaxed sm:text-xl">
-                    120+ open-source PowerShell scripts that automate Microsoft
-                    Intune device management, compliance reporting, proactive
-                    remediation, and Azure Automation runbooks. Categories,
-                    deployment paths, and the canonical scripts library — one
-                    page.
+                    {COUNT} open-source PowerShell scripts that automate
+                    Microsoft Intune device management, compliance reporting,
+                    proactive remediation, and Azure Automation runbooks.
+                    Categories, deployment paths, and the canonical scripts
+                    library — one page.
                   </p>
                 </header>
 
@@ -227,27 +228,27 @@ export default async function IntuneScriptsPillarPage() {
                   <div className="text-foreground/90 space-y-4 text-base leading-relaxed sm:text-[17px]">
                     <p>
                       <strong>Intune scripts</strong> are PowerShell scripts
-                      that automate Microsoft Intune through the Microsoft
-                      Graph API. They cover the work that the Intune admin
-                      center either does not expose at all or only exposes one
-                      device at a time: bulk policy assignment, tenant-wide
-                      compliance audits, exporting device inventories,
-                      Conditional Access reporting, BitLocker key recovery,
-                      Autopilot diagnostics, and proactive remediation pairs
-                      that detect and fix issues on managed endpoints.
+                      that automate Microsoft Intune through the Microsoft Graph
+                      API. They cover the work that the Intune admin center
+                      either does not expose at all or only exposes one device
+                      at a time: bulk policy assignment, tenant-wide compliance
+                      audits, exporting device inventories, Conditional Access
+                      reporting, BitLocker key recovery, Autopilot diagnostics,
+                      and proactive remediation pairs that detect and fix issues
+                      on managed endpoints.
                     </p>
                     <p>
-                      An Intune script and an{" "}
-                      <em>Intune platform script</em> are not the same thing.
-                      A platform script is a specific Intune feature that
-                      pushes a PowerShell file to Windows devices and runs it
-                      under SYSTEM or the signed-in user. An Intune script in
-                      the broader sense is any script that automates Intune
-                      via Graph — run by an administrator at the terminal,
-                      scheduled in Azure Automation as a runbook, executed in
-                      CI, or deployed through the platform-scripts feature.
-                      The library on this site covers the broader category;
-                      platform scripts are one of several deployment targets.
+                      An Intune script and an <em>Intune platform script</em>{" "}
+                      are not the same thing. A platform script is a specific
+                      Intune feature that pushes a PowerShell file to Windows
+                      devices and runs it under SYSTEM or the signed-in user. An
+                      Intune script in the broader sense is any script that
+                      automates Intune via Graph — run by an administrator at
+                      the terminal, scheduled in Azure Automation as a runbook,
+                      executed in CI, or deployed through the platform-scripts
+                      feature. The library on this site covers the broader
+                      category; platform scripts are one of several deployment
+                      targets.
                     </p>
                     <p>
                       Every script in the{" "}
@@ -277,12 +278,12 @@ export default async function IntuneScriptsPillarPage() {
                     Categories of Intune scripts
                   </h2>
                   <p className="text-foreground/90 mb-8 text-base leading-relaxed sm:text-[17px]">
-                    The library is organised by the surface of Intune the
-                    script touches. Each category below links to a filtered
-                    view of the catalog so you can drill into the scripts
-                    relevant to your workload.
+                    The library is organised by the surface of Intune the script
+                    touches. Each category below links to a filtered view of the
+                    catalog so you can drill into the scripts relevant to your
+                    workload.
                   </p>
-                  <ul className="divide-border/60 divide-y border-y border-border/60">
+                  <ul className="divide-border/60 border-border/60 divide-y border-y">
                     {CATEGORIES.map((cat) => (
                       <li key={cat.slug} className="py-5">
                         <Link
@@ -320,8 +321,8 @@ export default async function IntuneScriptsPillarPage() {
                       </h3>
                       <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
                         Run the script from PowerShell ISE, VS Code, or a
-                        terminal on your admin workstation. Authentication
-                        uses interactive sign-in through
+                        terminal on your admin workstation. Authentication uses
+                        interactive sign-in through
                         <code className="bg-muted mx-1 rounded px-1.5 py-0.5 text-xs">
                           Connect-MgGraph
                         </code>
@@ -336,16 +337,16 @@ export default async function IntuneScriptsPillarPage() {
                         2. Azure Automation runbooks
                       </h3>
                       <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-                        Click the Deploy to Azure button on any script page
-                        and the Azure Portal will load a pre-configured ARM
-                        template that creates the runbook in your Automation
-                        account. Enable a system-assigned Managed Identity,
-                        grant it the Microsoft Graph permissions the script
-                        declares, and schedule the runbook. The script
-                        recognises the Automation environment and switches
-                        from interactive sign-in to Managed Identity
-                        automatically. Best for production, recurring jobs,
-                        and anything that must run without a human present.
+                        Click the Deploy to Azure button on any script page and
+                        the Azure Portal will load a pre-configured ARM template
+                        that creates the runbook in your Automation account.
+                        Enable a system-assigned Managed Identity, grant it the
+                        Microsoft Graph permissions the script declares, and
+                        schedule the runbook. The script recognises the
+                        Automation environment and switches from interactive
+                        sign-in to Managed Identity automatically. Best for
+                        production, recurring jobs, and anything that must run
+                        without a human present.
                       </p>
                     </div>
 
@@ -355,13 +356,12 @@ export default async function IntuneScriptsPillarPage() {
                       </h3>
                       <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
                         For scripts that need to run on the managed endpoint
-                        itself — collecting client-side state, running
-                        detection logic, applying user-context settings —
-                        upload the script as an Intune platform script or
-                        package the detection/remediation pair as a proactive
-                        remediation in Endpoint Analytics. This path is for
-                        scripts that act on the device, not scripts that act
-                        on the tenant.
+                        itself — collecting client-side state, running detection
+                        logic, applying user-context settings — upload the
+                        script as an Intune platform script or package the
+                        detection/remediation pair as a proactive remediation in
+                        Endpoint Analytics. This path is for scripts that act on
+                        the device, not scripts that act on the tenant.
                       </p>
                     </div>
                   </div>
@@ -370,7 +370,9 @@ export default async function IntuneScriptsPillarPage() {
                 {/* ----- Comparison ----- */}
                 <section className="mb-16">
                   <h2 className="font-display text-foreground mb-5 text-2xl leading-tight sm:text-3xl">
-                    Why <code className="text-[0.9em]">Invoke-MgGraphRequest</code> instead of the full Graph SDK?
+                    Why{" "}
+                    <code className="text-[0.9em]">Invoke-MgGraphRequest</code>{" "}
+                    instead of the full Graph SDK?
                   </h2>
                   <div className="text-foreground/90 space-y-4 text-base leading-relaxed sm:text-[17px]">
                     <p>
@@ -385,19 +387,18 @@ export default async function IntuneScriptsPillarPage() {
                       parity with the Graph documentation.
                     </p>
                     <p>
-                      Three practical wins come from this choice. First, the
-                      F12 developer tools in the Intune Portal show you the
-                      exact Graph calls Microsoft itself makes — you can
-                      copy-paste the URL and body straight into a script.
-                      Second, only the
+                      Three practical wins come from this choice. First, the F12
+                      developer tools in the Intune Portal show you the exact
+                      Graph calls Microsoft itself makes — you can copy-paste
+                      the URL and body straight into a script. Second, only the
                       <code className="bg-muted mx-1 rounded px-1.5 py-0.5 text-sm">
                         Microsoft.Graph.Authentication
                       </code>
-                      module is required, instead of dozens of resource
-                      modules that bloat install size and Azure Automation
-                      cold starts. Third, when something breaks, the request
-                      and response match the Graph reference docs exactly —
-                      no SDK abstraction layer to debug through.
+                      module is required, instead of dozens of resource modules
+                      that bloat install size and Azure Automation cold starts.
+                      Third, when something breaks, the request and response
+                      match the Graph reference docs exactly — no SDK
+                      abstraction layer to debug through.
                     </p>
                   </div>
                 </section>
@@ -411,8 +412,8 @@ export default async function IntuneScriptsPillarPage() {
                     <p className="text-foreground/90 mb-8 text-base leading-relaxed sm:text-[17px]">
                       Ranked by views across the community over the past
                       quarter. Each script ships with the comment-based help
-                      header, declared Microsoft Graph permissions, and a
-                      Deploy to Azure button for Azure Automation.
+                      header, declared Microsoft Graph permissions, and a Deploy
+                      to Azure button for Azure Automation.
                     </p>
                     <ol className="space-y-5">
                       {topScripts.map((s, i) => (
@@ -442,7 +443,7 @@ export default async function IntuneScriptsPillarPage() {
                         href="/scripts/"
                         className="text-accent-hi text-sm font-medium underline-offset-4 hover:underline"
                       >
-                        Browse all 120+ scripts →
+                        Browse all {COUNT} scripts →
                       </Link>
                     </div>
                   </section>
@@ -453,7 +454,7 @@ export default async function IntuneScriptsPillarPage() {
                   <h2 className="font-display text-foreground mb-8 text-2xl leading-tight sm:text-3xl">
                     Frequently asked questions
                   </h2>
-                  <dl className="divide-border/60 divide-y border-y border-border/60">
+                  <dl className="divide-border/60 border-border/60 divide-y border-y">
                     {FAQS.map((faq) => (
                       <div key={faq.question} className="py-6">
                         <dt className="font-display text-foreground mb-3 text-lg leading-snug sm:text-xl">
@@ -481,9 +482,9 @@ export default async function IntuneScriptsPillarPage() {
                       IntuneAutomation Script Generator
                     </Link>{" "}
                     produces production-shaped Intune scripts from a
-                    natural-language description — purpose-built for Intune
-                    and Microsoft Graph, with a PSScriptAnalyzer-style lint
-                    pass on every result.
+                    natural-language description — purpose-built for Intune and
+                    Microsoft Graph, with a PSScriptAnalyzer-style lint pass on
+                    every result.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Link

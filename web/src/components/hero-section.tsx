@@ -16,14 +16,20 @@ import { ArrowRight, ArrowUpRight, Search, Sparkles } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
 import type { ScriptTag } from "~/lib/scripts";
 
-export default function HeroSection() {
+export default function HeroSection({
+  fallbackCount,
+}: {
+  // Build-time catalog count from the server page. Used for SSR and until
+  // the live script list loads so the copy never shows a stale number.
+  fallbackCount: number;
+}) {
   const { setSearchOpen, allScripts } = useScripts();
   const prefersReducedMotion = useReducedMotion();
 
-  // Real count when scripts have loaded; otherwise an honest floor value
+  // Real count when scripts have loaded; otherwise the build-time count
   // so the trust strip never renders an empty "scripts" attestation.
   const scriptsCountLabel =
-    allScripts.length > 0 ? `${allScripts.length}+` : "120+";
+    allScripts.length > 0 ? `${allScripts.length}+` : `${fallbackCount}+`;
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
@@ -120,8 +126,9 @@ export default function HeroSection() {
               transition={t(0.58)}
               className="text-muted-foreground mt-8 max-w-xl text-base leading-relaxed sm:text-lg"
             >
-              120+ open-source Intune scripts you can run locally or deploy as
-              Azure Automation runbooks without writing any infrastructure code.
+              {scriptsCountLabel} open-source Intune scripts you can run locally
+              or deploy as Azure Automation runbooks without writing any
+              infrastructure code.
             </motion.p>
 
             {/* CTAs — primary has real depth + custom focus; secondary is the
@@ -208,7 +215,7 @@ export default function HeroSection() {
             transition={t(0.32, 0.7)}
             className="min-w-0"
           >
-            <CategoryMap />
+            <CategoryMap fallbackCount={fallbackCount} />
           </motion.div>
         </div>
       </div>
@@ -401,7 +408,7 @@ const CATEGORY_TREE: CategoryEntry[] = [
 
 const COMPACT_VISIBLE = 6;
 
-function CategoryMap() {
+function CategoryMap({ fallbackCount }: { fallbackCount: number }) {
   const { allScripts } = useScripts();
 
   // Real per-tag counts from allScripts. Falls back to em-dash until loaded.
@@ -421,7 +428,8 @@ function CategoryMap() {
     0,
     CATEGORY_TREE.length - COMPACT_VISIBLE,
   );
-  const totalLabel = totalCount > 0 ? totalCount.toString() : "120+";
+  const totalLabel =
+    totalCount > 0 ? totalCount.toString() : fallbackCount.toString();
 
   return (
     <div

@@ -32,7 +32,7 @@ const ScriptDetail = dynamic(
   },
 );
 
-export default function Home() {
+export default function Home({ scriptCount }: { scriptCount: number }) {
   return (
     // reducedMotion="user" tells framer-motion to honor the user's OS
     // preference from the first SSR/CSR frame onward — avoids the one-frame
@@ -44,7 +44,7 @@ export default function Home() {
           <div className="bg-background flex min-h-screen flex-col">
             <Navbar />
             <main className="flex-1">
-              <HeroSection />
+              <HeroSection fallbackCount={scriptCount} />
               <PopularScripts />
               <WhatsNewStrip />
               <HowItWorksSection />
