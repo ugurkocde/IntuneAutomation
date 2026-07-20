@@ -57,6 +57,8 @@ Most scripts are designed to work immediately without additional setup beyond th
 
 For **scheduling**, **unattended execution**, or **more complex automation**, you can deploy these scripts as Azure Automation Runbooks:
 
+> **Step-by-step guide with screenshots:** [Deploy a script as a runbook with Managed Identity](docs/deploy-runbook-managed-identity.md) walks through the full flow from the Deploy to Azure button on intuneautomation.com to a scheduled runbook: deployment, granting Graph permissions to the managed identity in Cloud Shell, module import, and the first successful job.
+
 #### Step 1: Create Managed Identity
 Create a **User Assigned Managed Identity** in your Azure tenant through the Azure Portal.
 

@@ -9,9 +9,17 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverEntry = join(here, "..", "dist", "index.js");
+// Count from the committed index in this checkout. The drift guard keeps this
+// file in sync with scripts/, so it is the source of truth for the fallback
+// test even when the primary fetch serves an older index from the main branch
+// (which happens on any branch that adds or removes scripts).
+const committedIndexCount = JSON.parse(
+  readFileSync(join(here, "..", "data", "scripts-index.json"), "utf8"),
+).scripts.length;
 
 let passed = 0;
 let failed = 0;
@@ -158,7 +166,11 @@ try {
   await fbClient.connect(fbTransport);
   try {
     const fb = parse(await fbClient.callTool({ name: "list_scripts", arguments: {} }));
-    check("bundled fallback serves same count as primary", fb.matched === primaryTotal && primaryTotal > 0, `fb=${fb.matched} primary=${primaryTotal}`);
+    check(
+      "bundled fallback serves the committed index",
+      fb.matched === committedIndexCount && committedIndexCount > 0,
+      `fb=${fb.matched} committed=${committedIndexCount} primary=${primaryTotal}`,
+    );
     check("bundled fallback reports source=bundled", fb.source === "bundled", `source=${fb.source}`);
   } finally {
     await fbClient.close();

@@ -30,15 +30,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Renamed the automation detection variable to the name the CI runbook-readiness check recognizes; no functional change (the script already refused to run as a runbook before any prompt)
     1.2 - A failure on one key no longer discards a device's other keys: successfully fetched keys are kept and the device is reported as Partial; secret names now always carry the volume type suffix so they stay stable across runs (previously the suffix was only added when multiple keys existed; unsuffixed secrets written by earlier versions remain untouched); results table now shows the Key Vault secret version
     1.1 - Reworked authentication: MgGraphCommunity acquires separate Graph and Key Vault audience tokens (WAM-free). Fixed key retrieval: keys are now read from the Entra ID recovery key store (informationProtection/bitlocker); the previous Intune-side path checked a nonexistent property and could never return keys
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-20
 
 .EXAMPLE
     .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://bitlockerfilevaultkeys.vault.azure.net"
@@ -98,8 +99,8 @@ param(
 # ============================================================================
 
 # This script needs two interactive sign-ins and therefore cannot run as a runbook
-$IsAzureAutomation = $null -ne $PSPrivateMetadata.JobId.Guid
-if ($IsAzureAutomation) {
+$IsAutomationEnvironment = $null -ne $PSPrivateMetadata.JobId.Guid
+if ($IsAutomationEnvironment) {
     Write-Error "This script requires interactive sign-in (Graph and Key Vault) and cannot run as an Azure Automation runbook."
     exit 1
 }

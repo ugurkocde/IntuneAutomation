@@ -134,6 +134,19 @@ const faqData: FAQItem[] = [
                 tasks, and unattended operations
               </div>
             </li>
+            <li className="flex items-start gap-2">
+              <span className="text-accent-hi mt-1">•</span>
+              <div>
+                <strong>Setup guide:</strong> Follow the{" "}
+                <a
+                  href="/blog/deploy-runbook-managed-identity-walkthrough/"
+                  className="text-accent-hi underline-offset-4 hover:underline"
+                >
+                  screenshot walkthrough
+                </a>{" "}
+                from the Deploy to Azure button to the first scheduled run
+              </div>
+            </li>
           </ul>
         </div>
 
@@ -161,174 +174,27 @@ const faqData: FAQItem[] = [
     content: (
       <div className="space-y-4">
         <p>
-          Many of our scripts include a "Deploy to Azure" button for easy
-          deployment to Azure Automation. Here's how it works:
+          The Deploy to Azure button on each script page opens a pre-filled
+          deployment in the Azure portal that creates the Automation account
+          with its system-assigned managed identity and imports the script as a
+          published runbook. Afterwards you grant the Graph permissions listed
+          on the script page to the identity and import one PowerShell module.
         </p>
-
-        <div
-          className="border-l-2 py-2 pl-5"
-          style={{
-            borderColor:
-              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
-          }}
-        >
-          <h4 className="text-foreground mb-3 font-semibold">
-            One-Click Deployment Process
-          </h4>
-          <ol className="ml-4 space-y-2">
-            <li className="flex items-start gap-2">
-              <span
-                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
-                style={{
-                  backgroundColor: "var(--brand-accent-hi)",
-                  color: "var(--background)",
-                }}
-              >
-                1
-              </span>
-              <div>
-                <strong>Click the Deploy to Azure button</strong> in the
-                script's README or documentation
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span
-                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
-                style={{
-                  backgroundColor: "var(--brand-accent-hi)",
-                  color: "var(--background)",
-                }}
-              >
-                2
-              </span>
-              <div>
-                <strong>Sign in to Azure Portal</strong> when prompted
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span
-                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
-                style={{
-                  backgroundColor: "var(--brand-accent-hi)",
-                  color: "var(--background)",
-                }}
-              >
-                3
-              </span>
-              <div>
-                <strong>Configure deployment parameters:</strong> Choose
-                subscription, resource group, and automation account name
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span
-                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
-                style={{
-                  backgroundColor: "var(--brand-accent-hi)",
-                  color: "var(--background)",
-                }}
-              >
-                4
-              </span>
-              <div>
-                <strong>Review and create</strong> - Azure will deploy the
-                automation account and import the runbook
-              </div>
-            </li>
-          </ol>
-        </div>
-
-        <div
-          className="border-l-2 py-2 pl-5"
-          style={{
-            borderColor:
-              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
-          }}
-        >
-          <h4 className="text-foreground mb-3 font-semibold">
-            System-Assigned Managed Identity Setup
-          </h4>
-          <p className="mb-3">
-            The deployment automatically configures a system-assigned managed
-            identity for secure, credential-free authentication:
-          </p>
-          <ul className="ml-4 space-y-2">
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>No stored credentials:</strong> The managed identity
-                eliminates the need to store usernames and passwords
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>Automatic permissions:</strong> The deployment template
-                assigns the necessary Microsoft Graph permissions
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>Azure-managed security:</strong> Azure handles identity
-                lifecycle and credential rotation
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div
-          className="border-l-2 py-2 pl-5"
-          style={{
-            borderColor:
-              "color-mix(in oklab, var(--brand-accent) 35%, transparent)",
-          }}
-        >
-          <h4 className="text-foreground mb-3 font-semibold">
-            Post-Deployment Configuration
-          </h4>
-          <p className="mb-3">After deployment, you may need to:</p>
-          <ul className="ml-4 space-y-2">
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>Grant admin consent:</strong> Approve the Graph API
-                permissions in Azure AD
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>Configure schedules:</strong> Set up recurring execution
-                schedules if needed
-              </div>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-accent-hi mt-1">•</span>
-              <div>
-                <strong>Test the runbook:</strong> Run a test execution to
-                verify everything works correctly
-              </div>
-            </li>
-          </ul>
-        </div>
-
         <div
           className="border-l-2 pl-4"
           style={{ borderColor: "var(--brand-accent-hi)" }}
         >
           <p className="text-sm">
-            <strong>Learn more:</strong> For detailed information about managed
-            identities in Azure Automation, visit{" "}
+            We deployed a script this way and captured every step, from the
+            deploy button to the alert email arriving in the inbox. Follow the{" "}
             <a
-              href="https://learn.microsoft.com/en-us/azure/automation/enable-managed-identity-for-automation"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/blog/deploy-runbook-managed-identity-walkthrough/"
               className="text-accent-hi underline-offset-4 hover:underline"
             >
-              Microsoft's official documentation
-            </a>
-            .
+              managed identity deployment walkthrough
+            </a>{" "}
+            for the complete guide with screenshots, the Cloud Shell permission
+            commands, and troubleshooting.
           </p>
         </div>
       </div>
