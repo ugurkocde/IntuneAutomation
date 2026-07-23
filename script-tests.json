@@ -1,1947 +1,19 @@
 {
-  "generated": "2026-07-22T03:05:21Z",
+  "generated": "2026-07-23T03:05:27Z",
   "scripts": {
-    "backup-intune-configuration.ps1": {
-      "path": "scripts/configuration/backup-intune-configuration.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 100,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-assignment-filter-audit.ps1": {
-      "path": "scripts/configuration/get-assignment-filter-audit.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 91,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-assignment-matrix-report.ps1": {
-      "path": "scripts/configuration/get-assignment-matrix-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 102,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-group-assignments.ps1": {
-      "path": "scripts/configuration/get-group-assignments.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 105,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-policy-drift-report.ps1": {
-      "path": "scripts/configuration/get-policy-drift-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 95,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "restore-intune-configuration.ps1": {
-      "path": "scripts/configuration/restore-intune-configuration.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 106,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "restart-devices.ps1": {
-      "path": "scripts/operational/restart-devices.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 133,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 453,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "sync-devices.ps1": {
-      "path": "scripts/operational/sync-devices.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 139,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "wipe-devices.ps1": {
-      "path": "scripts/operational/wipe-devices.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 143,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 499,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-device-compliance-report.ps1": {
-      "path": "scripts/compliance/get-device-compliance-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 113,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-maa-compliance-report.ps1": {
-      "path": "scripts/compliance/get-maa-compliance-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 118,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-noncompliant-devices-with-reasons.ps1": {
-      "path": "scripts/compliance/get-noncompliant-devices-with-reasons.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 121,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "add-devices-to-groups-from-csv.ps1": {
-      "path": "scripts/devices/add-devices-to-groups-from-csv.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 209,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 632,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "cleanup-autopilot-devices.ps1": {
-      "path": "scripts/devices/cleanup-autopilot-devices.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 137,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 498,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "cleanup-duplicate-device-records.ps1": {
-      "path": "scripts/devices/cleanup-duplicate-device-records.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 98,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "create-app-based-groups.ps1": {
-      "path": "scripts/devices/create-app-based-groups.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 126,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "fix-primary-user-assignment.ps1": {
-      "path": "scripts/devices/fix-primary-user-assignment.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 97,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-devices-by-scopetag.ps1": {
-      "path": "scripts/devices/get-devices-by-scopetag.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 145,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-stale-devices.ps1": {
-      "path": "scripts/devices/get-stale-devices.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 136,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-windows11-readiness-report.ps1": {
-      "path": "scripts/devices/get-windows11-readiness-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 96,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "rename-devices-from-csv.ps1": {
-      "path": "scripts/devices/rename-devices-from-csv.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 95,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "app-deployment-failure-alert.ps1": {
-      "path": "scripts/notification/app-deployment-failure-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 126,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "apple-token-expiration-alert.ps1": {
-      "path": "scripts/notification/apple-token-expiration-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 124,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "device-compliance-drift-alert.ps1": {
-      "path": "scripts/notification/device-compliance-drift-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 125,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "license-threshold-alert.ps1": {
-      "path": "scripts/notification/license-threshold-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 128,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "maa-pending-requests-monitor.ps1": {
-      "path": "scripts/notification/maa-pending-requests-monitor.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 161,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "new-device-enrollment-digest.ps1": {
-      "path": "scripts/notification/new-device-enrollment-digest.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 124,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "stale-device-cleanup-alert.ps1": {
-      "path": "scripts/notification/stale-device-cleanup-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 125,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "windows-update-failure-alert.ps1": {
-      "path": "scripts/notification/windows-update-failure-alert.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 124,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "collect-device-diagnostics.ps1": {
-      "path": "scripts/diagnostics/collect-device-diagnostics.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 106,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-device-checkin-health.ps1": {
-      "path": "scripts/diagnostics/get-device-checkin-health.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 102,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-enrollment-failure-report.ps1": {
-      "path": "scripts/diagnostics/get-enrollment-failure-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 100,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "backup-bitlocker-keys-to-keyvault.ps1": {
-      "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 123,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-compliance-policy-coverage.ps1": {
-      "path": "scripts/security/get-compliance-policy-coverage.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 91,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-defender-status-report.ps1": {
-      "path": "scripts/security/get-defender-status-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 96,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-firewall-and-asr-status.ps1": {
-      "path": "scripts/security/get-firewall-and-asr-status.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 91,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-intune-role-assignments.ps1": {
-      "path": "scripts/security/get-intune-role-assignments.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 96,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-windows-laps-audit.ps1": {
-      "path": "scripts/security/get-windows-laps-audit.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 94,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "rotate-bitlocker-keys.ps1": {
-      "path": "scripts/security/rotate-bitlocker-keys.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 115,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 316,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "rotate-macos-laps-passwords.ps1": {
-      "path": "scripts/security/rotate-macos-laps-passwords.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 139,
-              "match": "Read-Host"
-            },
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 435,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "cleanup-orphaned-apps.ps1": {
-      "path": "scripts/apps/cleanup-orphaned-apps.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 101,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-app-assignment-conflicts.ps1": {
-      "path": "scripts/apps/get-app-assignment-conflicts.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 90,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "get-app-installation-status-report.ps1": {
-      "path": "scripts/apps/get-app-installation-status-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 134,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-application-inventory-report.ps1": {
-      "path": "scripts/apps/get-application-inventory-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 132,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-duplicate-applications.ps1": {
-      "path": "scripts/apps/get-duplicate-applications.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 116,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": [
-            "Az.Automation"
-          ]
-        }
-      },
-      "overall": "pass"
-    },
-    "get-vpp-license-report.ps1": {
-      "path": "scripts/apps/get-vpp-license-report.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": true,
-          "findings": [
-            {
-              "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 101,
-              "match": "Read-Host"
-            }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "detect-antivirus-definitions-outdated.ps1": {
-      "path": "scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "remediate-antivirus-definitions.ps1": {
-      "path": "scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "detect-local-admin-drift.ps1": {
-      "path": "scripts/remediation/local-admin-drift/detect-local-admin-drift.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "remediate-local-admin-drift.ps1": {
-      "path": "scripts/remediation/local-admin-drift/remediate-local-admin-drift.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
     "detect-onedrive-kfm-not-configured.ps1": {
       "path": "scripts/remediation/onedrive-kfm/detect-onedrive-kfm-not-configured.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -1949,13 +21,13 @@
         },
         "runbookReady": {
           "guarded": false,
-          "findings": [],
-          "status": "pass"
+          "status": "pass",
+          "findings": []
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -1963,16 +35,16 @@
     "remediate-onedrive-kfm.ps1": {
       "path": "scripts/remediation/onedrive-kfm/remediate-onedrive-kfm.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -1980,137 +52,13 @@
         },
         "runbookReady": {
           "guarded": false,
-          "findings": [],
-          "status": "pass"
+          "status": "pass",
+          "findings": []
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "detect-reboot-pending.ps1": {
-      "path": "scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
+          "modules": [],
           "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "remediate-reboot-pending.ps1": {
-      "path": "scripts/remediation/reboot-pending/remediate-reboot-pending.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "detect-winget-updates-available.ps1": {
-      "path": "scripts/remediation/winget-app-updates/detect-winget-updates-available.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
-        }
-      },
-      "overall": "pass"
-    },
-    "remediate-winget-updates.ps1": {
-      "path": "scripts/remediation/winget-app-updates/remediate-winget-updates.ps1",
-      "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
-      "tests": {
-        "parse": {
-          "status": "pass",
-          "errors": []
-        },
-        "lint": {
-          "details": [],
-          "issues": 0,
-          "status": "pass"
-        },
-        "metadata": {
-          "missing": [],
-          "status": "pass"
-        },
-        "runbookReady": {
-          "guarded": false,
-          "findings": [],
-          "status": "pass"
-        },
-        "moduleDeps": {
-          "unknown": [],
-          "status": "pass",
-          "modules": []
         }
       },
       "overall": "pass"
@@ -2118,16 +66,16 @@
     "detect-disk-cleanup-needed.ps1": {
       "path": "scripts/remediation/disk-cleanup/detect-disk-cleanup-needed.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2135,13 +83,13 @@
         },
         "runbookReady": {
           "guarded": false,
-          "findings": [],
-          "status": "pass"
+          "status": "pass",
+          "findings": []
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2149,16 +97,16 @@
     "remediate-disk-cleanup.ps1": {
       "path": "scripts/remediation/disk-cleanup/remediate-disk-cleanup.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2166,13 +114,2065 @@
         },
         "runbookReady": {
           "guarded": false,
-          "findings": [],
-          "status": "pass"
+          "status": "pass",
+          "findings": []
         },
         "moduleDeps": {
           "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "detect-local-admin-drift.ps1": {
+      "path": "scripts/remediation/local-admin-drift/detect-local-admin-drift.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
           "status": "pass",
-          "modules": []
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "remediate-local-admin-drift.ps1": {
+      "path": "scripts/remediation/local-admin-drift/remediate-local-admin-drift.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "detect-winget-updates-available.ps1": {
+      "path": "scripts/remediation/winget-app-updates/detect-winget-updates-available.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "remediate-winget-updates.ps1": {
+      "path": "scripts/remediation/winget-app-updates/remediate-winget-updates.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "detect-antivirus-definitions-outdated.ps1": {
+      "path": "scripts/remediation/antivirus-definition-updates/detect-antivirus-definitions-outdated.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "remediate-antivirus-definitions.ps1": {
+      "path": "scripts/remediation/antivirus-definition-updates/remediate-antivirus-definitions.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "detect-reboot-pending.ps1": {
+      "path": "scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "remediate-reboot-pending.ps1": {
+      "path": "scripts/remediation/reboot-pending/remediate-reboot-pending.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": false,
+          "status": "pass",
+          "findings": []
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "app-deployment-failure-alert.ps1": {
+      "path": "scripts/notification/app-deployment-failure-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 126
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "apple-token-expiration-alert.ps1": {
+      "path": "scripts/notification/apple-token-expiration-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 124
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "device-compliance-drift-alert.ps1": {
+      "path": "scripts/notification/device-compliance-drift-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 125
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "license-threshold-alert.ps1": {
+      "path": "scripts/notification/license-threshold-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 128
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "maa-pending-requests-monitor.ps1": {
+      "path": "scripts/notification/maa-pending-requests-monitor.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 161
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "new-device-enrollment-digest.ps1": {
+      "path": "scripts/notification/new-device-enrollment-digest.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 124
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "stale-device-cleanup-alert.ps1": {
+      "path": "scripts/notification/stale-device-cleanup-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 125
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "windows-update-failure-alert.ps1": {
+      "path": "scripts/notification/windows-update-failure-alert.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 124
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-device-compliance-report.ps1": {
+      "path": "scripts/compliance/get-device-compliance-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 113
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-maa-compliance-report.ps1": {
+      "path": "scripts/compliance/get-maa-compliance-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 118
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-noncompliant-devices-with-reasons.ps1": {
+      "path": "scripts/compliance/get-noncompliant-devices-with-reasons.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 121
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "cleanup-orphaned-apps.ps1": {
+      "path": "scripts/apps/cleanup-orphaned-apps.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 101
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-app-assignment-conflicts.ps1": {
+      "path": "scripts/apps/get-app-assignment-conflicts.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 90
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-app-installation-status-report.ps1": {
+      "path": "scripts/apps/get-app-installation-status-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 134
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-application-inventory-report.ps1": {
+      "path": "scripts/apps/get-application-inventory-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 132
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-duplicate-applications.ps1": {
+      "path": "scripts/apps/get-duplicate-applications.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 116
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-vpp-license-report.ps1": {
+      "path": "scripts/apps/get-vpp-license-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 101
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "collect-device-diagnostics.ps1": {
+      "path": "scripts/diagnostics/collect-device-diagnostics.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 106
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-device-checkin-health.ps1": {
+      "path": "scripts/diagnostics/get-device-checkin-health.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 102
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-enrollment-failure-report.ps1": {
+      "path": "scripts/diagnostics/get-enrollment-failure-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 100
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "backup-bitlocker-keys-to-keyvault.ps1": {
+      "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 123
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-compliance-policy-coverage.ps1": {
+      "path": "scripts/security/get-compliance-policy-coverage.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 91
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-defender-status-report.ps1": {
+      "path": "scripts/security/get-defender-status-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 96
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-firewall-and-asr-status.ps1": {
+      "path": "scripts/security/get-firewall-and-asr-status.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 91
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-intune-role-assignments.ps1": {
+      "path": "scripts/security/get-intune-role-assignments.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 96
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-windows-laps-audit.ps1": {
+      "path": "scripts/security/get-windows-laps-audit.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 94
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "rotate-bitlocker-keys.ps1": {
+      "path": "scripts/security/rotate-bitlocker-keys.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 115
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 316
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "rotate-macos-laps-passwords.ps1": {
+      "path": "scripts/security/rotate-macos-laps-passwords.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 139
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 435
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "add-devices-to-groups-from-csv.ps1": {
+      "path": "scripts/devices/add-devices-to-groups-from-csv.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 209
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 632
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "cleanup-autopilot-devices.ps1": {
+      "path": "scripts/devices/cleanup-autopilot-devices.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 137
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 498
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "cleanup-duplicate-device-records.ps1": {
+      "path": "scripts/devices/cleanup-duplicate-device-records.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 98
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "create-app-based-groups.ps1": {
+      "path": "scripts/devices/create-app-based-groups.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 126
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "fix-primary-user-assignment.ps1": {
+      "path": "scripts/devices/fix-primary-user-assignment.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 97
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-devices-by-scopetag.ps1": {
+      "path": "scripts/devices/get-devices-by-scopetag.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 145
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-stale-devices.ps1": {
+      "path": "scripts/devices/get-stale-devices.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 136
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-windows11-readiness-report.ps1": {
+      "path": "scripts/devices/get-windows11-readiness-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 96
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "rename-devices-from-csv.ps1": {
+      "path": "scripts/devices/rename-devices-from-csv.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 95
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "backup-intune-configuration.ps1": {
+      "path": "scripts/configuration/backup-intune-configuration.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 100
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-assignment-filter-audit.ps1": {
+      "path": "scripts/configuration/get-assignment-filter-audit.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 91
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-assignment-matrix-report.ps1": {
+      "path": "scripts/configuration/get-assignment-matrix-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 102
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-group-assignments.ps1": {
+      "path": "scripts/configuration/get-group-assignments.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 105
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "get-policy-drift-report.ps1": {
+      "path": "scripts/configuration/get-policy-drift-report.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 95
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "restore-intune-configuration.ps1": {
+      "path": "scripts/configuration/restore-intune-configuration.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 106
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "restart-devices.ps1": {
+      "path": "scripts/operational/restart-devices.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 133
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 453
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "sync-devices.ps1": {
+      "path": "scripts/operational/sync-devices.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 139
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
+        }
+      },
+      "overall": "pass"
+    },
+    "wipe-devices.ps1": {
+      "path": "scripts/operational/wipe-devices.ps1",
+      "type": "PowerShell",
+      "lastTested": "2026-07-23T03:05:27Z",
+      "tests": {
+        "parse": {
+          "errors": [],
+          "status": "pass"
+        },
+        "lint": {
+          "issues": 0,
+          "status": "pass",
+          "details": []
+        },
+        "metadata": {
+          "missing": [],
+          "status": "pass"
+        },
+        "runbookReady": {
+          "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
+          "findings": [
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 143
+            },
+            {
+              "reason": "Read-Host is interactive; runbooks have no stdin.",
+              "match": "Read-Host",
+              "line": 499
+            }
+          ]
+        },
+        "moduleDeps": {
+          "unknown": [],
+          "modules": [
+            "Az.Automation"
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2180,16 +2180,16 @@
     "check-apple-token-validity.ps1": {
       "path": "scripts/monitoring/check-apple-token-validity.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2197,22 +2197,22 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 127,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 127
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
           "modules": [
             "Az.Automation"
-          ]
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2220,16 +2220,16 @@
     "check-bitlocker-keys.ps1": {
       "path": "scripts/monitoring/check-bitlocker-keys.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2237,22 +2237,22 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 125,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 125
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
           "modules": [
             "Az.Automation"
-          ]
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2260,16 +2260,16 @@
     "check-certificate-profile-expiry.ps1": {
       "path": "scripts/monitoring/check-certificate-profile-expiry.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2277,20 +2277,20 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 94,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 94
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2298,16 +2298,16 @@
     "check-connector-health.ps1": {
       "path": "scripts/monitoring/check-connector-health.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2315,20 +2315,20 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 94,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 94
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2336,16 +2336,16 @@
     "check-filevault-keys.ps1": {
       "path": "scripts/monitoring/check-filevault-keys.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2353,22 +2353,22 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 125,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 125
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
           "modules": [
             "Az.Automation"
-          ]
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2376,16 +2376,16 @@
     "check-policy-changes.ps1": {
       "path": "scripts/monitoring/check-policy-changes.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2393,22 +2393,22 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 132,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 132
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
           "modules": [
             "Az.Automation"
-          ]
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2416,16 +2416,16 @@
     "check-unassigned-policies.ps1": {
       "path": "scripts/monitoring/check-unassigned-policies.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2433,22 +2433,22 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 123,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 123
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
           "modules": [
             "Az.Automation"
-          ]
+          ],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2456,16 +2456,16 @@
     "get-endpoint-analytics-report.ps1": {
       "path": "scripts/monitoring/get-endpoint-analytics-report.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2473,20 +2473,20 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 137,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 137
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2494,16 +2494,16 @@
     "get-intune-audit-logs.ps1": {
       "path": "scripts/monitoring/get-intune-audit-logs.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2511,20 +2511,20 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 129,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 129
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2532,16 +2532,16 @@
     "get-windows-update-compliance-report.ps1": {
       "path": "scripts/monitoring/get-windows-update-compliance-report.ps1",
       "type": "PowerShell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "parse": {
-          "status": "pass",
-          "errors": []
+          "errors": [],
+          "status": "pass"
         },
         "lint": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         },
         "metadata": {
           "missing": [],
@@ -2549,20 +2549,20 @@
         },
         "runbookReady": {
           "guarded": true,
+          "note": "Interactive patterns present but the script has environment detection.",
+          "status": "pass",
           "findings": [
             {
               "reason": "Read-Host is interactive; runbooks have no stdin.",
-              "line": 93,
-              "match": "Read-Host"
+              "match": "Read-Host",
+              "line": 93
             }
-          ],
-          "status": "pass",
-          "note": "Interactive patterns present but the script has environment detection."
+          ]
         },
         "moduleDeps": {
           "unknown": [],
-          "status": "pass",
-          "modules": []
+          "modules": [],
+          "status": "pass"
         }
       },
       "overall": "pass"
@@ -2570,12 +2570,12 @@
     "check-applecare-warranty-status.sh": {
       "path": "scripts/monitoring/check-applecare-warranty-status.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2583,12 +2583,12 @@
     "check-available-msupdate-updates.sh": {
       "path": "scripts/monitoring/check-available-msupdate-updates.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2596,12 +2596,12 @@
     "check-msupdate-status.sh": {
       "path": "scripts/monitoring/check-msupdate-status.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2609,12 +2609,12 @@
     "check-network-requirements.sh": {
       "path": "scripts/monitoring/check-network-requirements.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2622,12 +2622,12 @@
     "check-xprotect-status.sh": {
       "path": "scripts/monitoring/check-xprotect-status.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2635,12 +2635,12 @@
     "last-reboot.sh": {
       "path": "scripts/monitoring/last-reboot.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
@@ -2648,12 +2648,12 @@
     "local-admins.sh": {
       "path": "scripts/monitoring/local-admins.sh",
       "type": "Shell",
-      "lastTested": "2026-07-22T03:05:21Z",
+      "lastTested": "2026-07-23T03:05:27Z",
       "tests": {
         "shellcheck": {
-          "details": [],
           "issues": 0,
-          "status": "pass"
+          "status": "pass",
+          "details": []
         }
       },
       "overall": "pass"
