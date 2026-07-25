@@ -3,7 +3,7 @@
     BitLocker Keys Backup to Azure Key Vault
 
 .SYNOPSIS
-    Backs up BitLocker recovery keys from Entra ID (Azure AD) to Azure Key Vault using REST API.
+    Backs up BitLocker recovery keys from Entra ID (Entra ID) to Azure Key Vault using REST API.
 
 .DESCRIPTION
     This script connects to Microsoft Graph API to retrieve BitLocker recovery keys for Windows devices,
@@ -70,7 +70,7 @@
     
     To avoid the consent prompt:
     - Accept once and check "Consent on behalf of your organization" (admin only)
-    - Pre-consent in Azure AD portal under Enterprise Applications
+    - Pre-consent in Entra ID portal under Enterprise Applications
     - For automation, use a service principal with pre-configured permissions
 #>
 
@@ -273,17 +273,17 @@ function Get-BitLockerRecoveryKeyFromAzureAD {
     )
 
     try {
-        # Get the key IDs from Azure AD
+        # Get the key IDs from Entra ID
         $keyIdUri = "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$filter=deviceId eq '$AzureADDeviceId'"
         $keyIdResponse = Invoke-MgGraphRequest -Uri $keyIdUri -Method GET
     }
     catch {
-        Write-Warning "Error retrieving BitLocker key list from Azure AD for device $DeviceName : $($_.Exception.Message)"
+        Write-Warning "Error retrieving BitLocker key list from Entra ID for device $DeviceName : $($_.Exception.Message)"
         return $null
     }
 
     if ($keyIdResponse.value.Count -eq 0) {
-        Write-Verbose "No BitLocker keys found in Azure AD for device $DeviceName"
+        Write-Verbose "No BitLocker keys found in Entra ID for device $DeviceName"
         return $null
     }
 
@@ -305,7 +305,7 @@ function Get-BitLockerRecoveryKeyFromAzureAD {
             }
         }
         catch {
-            Write-Warning "Error retrieving BitLocker key $($keyInfo.id) from Azure AD for device $DeviceName : $($_.Exception.Message)"
+            Write-Warning "Error retrieving BitLocker key $($keyInfo.id) from Entra ID for device $DeviceName : $($_.Exception.Message)"
             $failedKeyCount++
         }
     }

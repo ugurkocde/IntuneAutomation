@@ -7,7 +7,7 @@ import { env } from "~/env";
 // hit a keyword and skip this call — only the ambiguous edge cases pay for it.
 const CLASSIFIER_MODEL = "claude-haiku-4-5";
 
-const CLASSIFIER_SYSTEM = `You decide whether a user prompt is a request to write or modify an admin script for Microsoft Intune, Microsoft Graph, Microsoft 365, Entra ID / Azure AD, or device management on Windows / macOS / iOS / Android.
+const CLASSIFIER_SYSTEM = `You decide whether a user prompt is a request to write or modify an admin script for Microsoft Intune, Microsoft Graph, Microsoft 365, Entra ID / Entra ID, or device management on Windows / macOS / iOS / Android.
 
 Reply with exactly one word — "yes" or "no" — and nothing else.
 

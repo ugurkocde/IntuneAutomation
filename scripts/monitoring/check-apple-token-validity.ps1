@@ -49,7 +49,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - DEP tokens are valid for one year from creation
     - Apple Push Notification Certificates are valid for one year from creation
     - Automatic sync occurs daily, manual sync can be triggered

@@ -64,7 +64,7 @@
     - Azure Automation: Uses Managed Identity authentication
     - Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)
     - Use -ForceModuleInstall to skip installation prompts in local environment
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Sync operations are triggered immediately but may take time to complete on the device
     - Use -ForceSync to override the 1-hour sync threshold
     - The script will show real-time progress and results

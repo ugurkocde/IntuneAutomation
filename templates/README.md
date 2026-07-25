@@ -132,7 +132,7 @@ See `REMEDIATION_TEMPLATE_GUIDE.md` for detailed usage instructions.
 - Secondary tags: `Reporting`, `Bulk`, `Remediation`, `Automation`, `Monitoring`
 
 #### `.MINROLE`
-- Specify the minimum Azure AD/Intune role required
+- Specify the minimum Entra ID/Intune role required
 - Examples: `Intune Administrator`, `Global Administrator`, `Security Administrator`
 
 #### `.PERMISSIONS`

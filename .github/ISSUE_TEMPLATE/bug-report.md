@@ -62,7 +62,7 @@ $PSVersionTable
 
 ### Permissions
 **What permissions/roles do you have?**
-- Azure AD Role: 
+- Entra ID Role: 
 - Intune Role: 
 - Graph API Permissions: 
 

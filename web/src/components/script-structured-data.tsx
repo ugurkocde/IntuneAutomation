@@ -154,7 +154,7 @@ function buildScriptFaqs(
   if (script.minRole) {
     faqs.push({
       question: `What Intune role do I need to run the ${title} script?`,
-      answer: `Running the ${title} script requires at least the ${script.minRole} role in Microsoft Entra ID (Azure AD), in addition to the declared Microsoft Graph permissions. Apply least privilege and avoid using Global Administrator unless a script explicitly requires it.`,
+      answer: `Running the ${title} script requires at least the ${script.minRole} role in Microsoft Entra ID (Entra ID), in addition to the declared Microsoft Graph permissions. Apply least privilege and avoid using Global Administrator unless a script explicitly requires it.`,
     });
   }
 
