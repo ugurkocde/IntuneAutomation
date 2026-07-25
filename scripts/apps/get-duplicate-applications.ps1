@@ -49,7 +49,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Reports are saved in both CSV and HTML formats
     - Analyzes applications uploaded to Intune, not device-installed applications
     - Duplicate detection criteria:
