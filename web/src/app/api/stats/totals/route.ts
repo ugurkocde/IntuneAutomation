@@ -9,7 +9,7 @@ export async function GET() {
     // Fetch aggregated stats from the script_analytics table
     const { data: analytics, error } = await supabase
       .from("script_analytics")
-      .select("total_views, total_downloads");
+      .select("total_views, total_downloads, total_deployments");
 
     if (error) {
       console.error("Failed to fetch analytics:", error);
@@ -17,6 +17,7 @@ export async function GET() {
         {
           totalViews: 0,
           totalDownloads: 0,
+          totalDeployments: 0,
           totalScripts: 0,
         },
         { status: 200 },
@@ -32,6 +33,10 @@ export async function GET() {
       (sum, stat) => sum + (stat.total_downloads || 0),
       0,
     );
+    const totalDeployments = (analytics || []).reduce(
+      (sum, stat) => sum + (stat.total_deployments || 0),
+      0,
+    );
     const totalScripts = (analytics || []).length;
 
     // Return with cache headers (5 minutes cache)
@@ -39,6 +44,7 @@ export async function GET() {
       {
         totalViews,
         totalDownloads,
+        totalDeployments,
         totalScripts,
       },
       {
@@ -53,6 +59,7 @@ export async function GET() {
       {
         totalViews: 0,
         totalDownloads: 0,
+        totalDeployments: 0,
         totalScripts: 0,
       },
       { status: 200 },

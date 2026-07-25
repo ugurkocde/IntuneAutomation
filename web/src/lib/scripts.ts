@@ -73,8 +73,11 @@ export interface ScriptTests {
 export interface ScriptUsageStats {
   totalViews: number;
   totalDownloads: number;
+  // "Deploy to Azure" clicks, surfaced as "runbooks deployed"
+  totalDeployments: number;
   weeklyViews: number;
   weeklyDownloads: number;
+  weeklyDeployments: number;
   lastViewedAt?: string;
 }
 

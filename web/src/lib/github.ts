@@ -404,8 +404,12 @@ class GitHubService {
     return {
       totalViews,
       totalDownloads,
+      // Deployments are never mocked - a fabricated "runbooks deployed" count
+      // would be indistinguishable from a real one in the UI
+      totalDeployments: 0,
       weeklyViews,
       weeklyDownloads,
+      weeklyDeployments: 0,
       lastViewedAt: new Date(
         Date.now() - random(0, 7 * 24 * 60 * 60 * 1000),
       ).toISOString(),
@@ -453,8 +457,10 @@ class GitHubService {
             ? {
                 totalViews: analytics.total_views,
                 totalDownloads: analytics.total_downloads,
+                totalDeployments: analytics.total_deployments,
                 weeklyViews: analytics.weekly_views,
                 weeklyDownloads: analytics.weekly_downloads,
+                weeklyDeployments: analytics.weekly_deployments,
                 lastViewedAt: analytics.last_viewed_at,
               }
             : this.generateMockUsageStats(id);

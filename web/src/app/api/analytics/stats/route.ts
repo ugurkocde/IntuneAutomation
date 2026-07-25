@@ -24,6 +24,8 @@ export async function GET() {
           weeklyViews: stat.weekly_views,
           totalDownloads: stat.total_downloads,
           weeklyDownloads: stat.weekly_downloads,
+          totalDeployments: stat.total_deployments ?? 0,
+          weeklyDeployments: stat.weekly_deployments ?? 0,
         };
         return acc;
       },

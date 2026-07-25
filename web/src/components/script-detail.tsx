@@ -425,7 +425,8 @@ export function ScriptDetail({
       // Open Azure portal with the pre-generated deployment URL
       window.open(templateInfo.deployUrl, "_blank");
 
-      // Track the deployment attempt
+      // Track the deploy click. We can only observe that the portal was opened,
+      // never whether the deployment itself completed.
       const userAgent =
         typeof window !== "undefined" ? navigator.userAgent : undefined;
       const sessionId =
@@ -433,7 +434,7 @@ export function ScriptDetail({
           ? sessionStorage.getItem("session_id") || undefined
           : undefined;
 
-      AnalyticsService.trackScriptDownload(script.id, script.title, "azure", {
+      AnalyticsService.trackScriptDeployment(script.id, script.title, {
         userAgent,
         sessionId,
       }).catch((error) => {

@@ -13,6 +13,7 @@ import { Check, Cloud, Copy, Github } from "lucide-react";
 import type { Script, ScriptTag } from "~/lib/scripts";
 import { useAnalyticsContext } from "~/components/analytics-provider";
 import { VerifiedBadge } from "~/components/verified-badge";
+import { AnalyticsService } from "~/lib/supabase-analytics";
 
 interface ScriptCardProps {
   script: Script;
@@ -92,6 +93,19 @@ export function ScriptCard({ script, onClick }: ScriptCardProps) {
       const template = registry.templates[script.id];
       if (!template) throw new Error("Template not found");
       window.open(template.deployUrl, "_blank");
+
+      // Track the deploy click. We can only observe that the portal was opened,
+      // never whether the deployment itself completed.
+      AnalyticsService.trackScriptDeployment(script.id, script.title, {
+        userAgent:
+          typeof window !== "undefined" ? navigator.userAgent : undefined,
+        sessionId:
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("session_id") || undefined
+            : undefined,
+      }).catch(() => {
+        // Silently fail - analytics shouldn't block user experience
+      });
     } catch (err) {
       console.error("Azure deployment failed:", err);
       window.open(scriptUrl, "_blank");

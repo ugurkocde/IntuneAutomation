@@ -13,6 +13,8 @@ interface Analytics {
   weeklyViews: number;
   totalDownloads: number;
   weeklyDownloads: number;
+  totalDeployments: number;
+  weeklyDeployments: number;
 }
 
 interface AnalyticsContextType {

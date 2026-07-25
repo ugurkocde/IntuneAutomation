@@ -23,8 +23,10 @@ export async function GET() {
           usageStats: {
             totalViews: analytics.total_views,
             totalDownloads: analytics.total_downloads,
+            totalDeployments: analytics.total_deployments,
             weeklyViews: analytics.weekly_views,
             weeklyDownloads: analytics.weekly_downloads,
+            weeklyDeployments: analytics.weekly_deployments,
             lastViewedAt: analytics.last_viewed_at,
           },
         };

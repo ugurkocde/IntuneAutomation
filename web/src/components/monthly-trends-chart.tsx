@@ -3,12 +3,27 @@
 import { useRef, useState } from "react";
 import type { MonthlyAnalytics } from "~/lib/supabase-analytics";
 
-const SERIES = [
-  { key: "views" as const, label: "Views", color: "var(--stat-views)" },
+type SeriesKey = Exclude<keyof MonthlyAnalytics, "month">;
+
+const SERIES: Array<{
+  key: SeriesKey;
+  label: string;
+  // Falls back to `label`; only set where the full label is too wide for the
+  // end-of-line direct label to fit the right-hand padding.
+  shortLabel?: string;
+  color: string;
+}> = [
+  { key: "views", label: "Views", color: "var(--stat-views)" },
   {
-    key: "downloads" as const,
+    key: "downloads",
     label: "Downloads",
     color: "var(--stat-downloads)",
+  },
+  {
+    key: "deployments",
+    label: "Runbooks deployed",
+    shortLabel: "Deployed",
+    color: "var(--stat-deployments)",
   },
 ];
 
@@ -58,7 +73,7 @@ function TrendChartSvg({
   const PLOT_H = H - PAD.top - PAD.bottom;
 
   const maxValue = niceCeil(
-    Math.max(...data.map((d) => Math.max(d.views, d.downloads))),
+    Math.max(...data.map((d) => Math.max(...SERIES.map((s) => d[s.key])))),
   );
 
   const x = (i: number) =>
@@ -80,6 +95,24 @@ function TrendChartSvg({
 
   const hovered = hoverIndex === null ? null : data[hoverIndex];
 
+  // Vertical layout for the end-of-line labels: keep at least LABEL_GAP between
+  // them (top-down), then shift the whole stack back up if it overflows the plot.
+  const LABEL_GAP = 12;
+  const labelLayout = SERIES.map((series) => {
+    const value = data[data.length - 1]![series.key];
+    return { series, value, labelY: y(value) };
+  }).sort((a, b) => a.labelY - b.labelY);
+  for (let i = 1; i < labelLayout.length; i++) {
+    const prev = labelLayout[i - 1]!;
+    const cur = labelLayout[i]!;
+    cur.labelY = Math.max(cur.labelY, prev.labelY + LABEL_GAP);
+  }
+  const overflow =
+    labelLayout[labelLayout.length - 1]!.labelY - (PAD.top + PLOT_H);
+  if (overflow > 0) {
+    for (const entry of labelLayout) entry.labelY -= overflow;
+  }
+
   return (
     <div className="relative">
       <svg
@@ -87,7 +120,7 @@ function TrendChartSvg({
         viewBox={`0 0 ${W} ${H}`}
         className="w-full"
         role="img"
-        aria-label="Monthly views and downloads over the charted period"
+        aria-label="Monthly views, downloads and runbook deployments over the charted period"
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
       >
@@ -167,31 +200,30 @@ function TrendChartSvg({
           />
         ))}
 
-        {/* End-of-line direct labels with surface-ringed markers */}
+        {/* End-of-line direct labels with surface-ringed markers. Markers sit on
+            the true value; the text is nudged apart so series ending on the same
+            value (common when counts are low) don't print on top of each other. */}
         {!compact &&
-          SERIES.map((s) => {
-            const last = data[data.length - 1]!;
-            return (
-              <g key={s.key}>
-                <circle
-                  cx={x(data.length - 1)}
-                  cy={y(last[s.key])}
-                  r={4}
-                  fill={s.color}
-                  stroke="var(--card)"
-                  strokeWidth={2}
-                />
-                <text
-                  x={x(data.length - 1) + 10}
-                  y={y(last[s.key]) + 3}
-                  fontSize={11}
-                  fill="var(--foreground)"
-                >
-                  {s.label}
-                </text>
-              </g>
-            );
-          })}
+          labelLayout.map(({ series: s, value, labelY }) => (
+            <g key={s.key}>
+              <circle
+                cx={x(data.length - 1)}
+                cy={y(value)}
+                r={4}
+                fill={s.color}
+                stroke="var(--card)"
+                strokeWidth={2}
+              />
+              <text
+                x={x(data.length - 1) + 10}
+                y={labelY + 3}
+                fontSize={11}
+                fill="var(--foreground)"
+              >
+                {s.shortLabel ?? s.label}
+              </text>
+            </g>
+          ))}
 
         {/* Hover markers */}
         {hoverIndex !== null &&
@@ -271,11 +303,14 @@ export function MonthlyTrendsChart({
   // Period totals shown in the legend so the headline numbers live inside
   // the chart card itself
   const totals = data.reduce(
-    (acc, d) => ({
-      views: acc.views + d.views,
-      downloads: acc.downloads + d.downloads,
-    }),
-    { views: 0, downloads: 0 },
+    (acc, d) => {
+      for (const s of SERIES) acc[s.key] += d[s.key];
+      return acc;
+    },
+    Object.fromEntries(SERIES.map((s) => [s.key, 0])) as Record<
+      SeriesKey,
+      number
+    >,
   );
 
   return (
@@ -324,8 +359,16 @@ export function MonthlyTrendsChart({
             <thead>
               <tr className="text-muted-foreground border-border border-b">
                 <th className="py-1.5 pr-4 font-medium">Month</th>
-                <th className="py-1.5 pr-4 text-right font-medium">Views</th>
-                <th className="py-1.5 text-right font-medium">Downloads</th>
+                {SERIES.map((s, i) => (
+                  <th
+                    key={s.key}
+                    className={`py-1.5 text-right font-medium ${
+                      i < SERIES.length - 1 ? "pr-4" : ""
+                    }`}
+                  >
+                    {s.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -338,12 +381,16 @@ export function MonthlyTrendsChart({
                       timeZone: "UTC",
                     })}
                   </td>
-                  <td className="py-1.5 pr-4 text-right tabular-nums">
-                    {d.views.toLocaleString("en-US")}
-                  </td>
-                  <td className="py-1.5 text-right tabular-nums">
-                    {d.downloads.toLocaleString("en-US")}
-                  </td>
+                  {SERIES.map((s, i) => (
+                    <td
+                      key={s.key}
+                      className={`py-1.5 text-right tabular-nums ${
+                        i < SERIES.length - 1 ? "pr-4" : ""
+                      }`}
+                    >
+                      {d[s.key].toLocaleString("en-US")}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>

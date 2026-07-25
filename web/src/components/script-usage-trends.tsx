@@ -42,7 +42,10 @@ export function ScriptUsageTrends({
     };
   }, [scriptId, months]);
 
-  if (!data || !data.some((d) => d.views > 0 || d.downloads > 0)) {
+  if (
+    !data ||
+    !data.some((d) => d.views > 0 || d.downloads > 0 || d.deployments > 0)
+  ) {
     return null;
   }
 

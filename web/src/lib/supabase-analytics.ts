@@ -32,7 +32,20 @@ export interface ScriptDownload {
   id?: number;
   script_id: string;
   script_title: string;
-  download_type: "copy" | "raw" | "github" | "azure";
+  download_type: "copy" | "raw" | "github";
+  user_ip?: string;
+  user_agent?: string;
+  session_id?: string;
+  created_at?: string;
+}
+
+// A "Deploy to Azure" click. We only ever learn that the user opened the Azure
+// portal with the ARM template, never whether the deployment itself succeeded.
+export interface ScriptDeployment {
+  id?: number;
+  script_id: string;
+  script_title: string;
+  deploy_target: "azure";
   user_ip?: string;
   user_agent?: string;
   session_id?: string;
@@ -43,8 +56,10 @@ export interface ScriptAnalytics {
   script_id: string;
   total_views: number;
   total_downloads: number;
+  total_deployments: number;
   weekly_views: number;
   weekly_downloads: number;
+  weekly_deployments: number;
   last_viewed_at?: string;
   updated_at: string;
 }
@@ -53,6 +68,7 @@ export interface MonthlyAnalytics {
   month: string;
   views: number;
   downloads: number;
+  deployments: number;
 }
 
 // Analytics service class
@@ -95,7 +111,7 @@ export class AnalyticsService {
   static async trackScriptDownload(
     scriptId: string,
     scriptTitle: string,
-    downloadType: "copy" | "raw" | "github" | "azure",
+    downloadType: "copy" | "raw" | "github",
     userInfo?: {
       userAgent?: string;
       sessionId?: string;
@@ -111,6 +127,41 @@ export class AnalyticsService {
         script_id: scriptId,
         script_title: scriptTitle,
         download_type: downloadType,
+        user_agent: userInfo?.userAgent,
+        session_id: userInfo?.sessionId,
+      });
+
+      if (error) {
+        return false;
+      }
+
+      // Analytics are now updated automatically by database triggers
+      // No need to manually update aggregated analytics
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Track when a user clicks "Deploy to Azure" to deploy a script as a runbook
+  static async trackScriptDeployment(
+    scriptId: string,
+    scriptTitle: string,
+    userInfo?: {
+      userAgent?: string;
+      sessionId?: string;
+    },
+  ) {
+    try {
+      // Check if Supabase is properly configured
+      if (!supabaseUrl || !supabaseAnonKey) {
+        return false;
+      }
+
+      const { error } = await supabase.from("script_deployments").insert({
+        script_id: scriptId,
+        script_title: scriptTitle,
+        deploy_target: "azure",
         user_agent: userInfo?.userAgent,
         session_id: userInfo?.sessionId,
       });
@@ -152,8 +203,10 @@ export class AnalyticsService {
           script_id: analytics.script_id,
           total_views: analytics.total_views,
           total_downloads: analytics.total_downloads,
+          total_deployments: analytics.total_deployments ?? 0,
           weekly_views: analytics.weekly_views,
           weekly_downloads: analytics.weekly_downloads,
+          weekly_deployments: analytics.weekly_deployments ?? 0,
           last_viewed_at: analytics.last_viewed_at,
           updated_at: analytics.updated_at,
         };

@@ -271,6 +271,23 @@ export function ScriptDetailPage({
       // Open Azure portal with the pre-generated deployment URL
       window.open(templateInfo.deployUrl, "_blank");
 
+      // Track the deploy click. We can only observe that the portal was opened,
+      // never whether the deployment itself completed.
+      const userAgent =
+        typeof window !== "undefined" ? navigator.userAgent : undefined;
+      const sessionId =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("session_id") || undefined
+          : undefined;
+
+      AnalyticsService.trackScriptDeployment(script.id, script.title, {
+        userAgent,
+        sessionId,
+      }).catch((error) => {
+        // Silently fail - analytics shouldn't block user experience
+        console.error("Failed to track deployment:", error);
+      });
+
       toast({
         title: "Deploying to Azure!",
         description:
@@ -465,6 +482,20 @@ export function ScriptDetailPage({
           <Download className="h-3 w-3" aria-hidden="true" />
           <span>
             {formatCompactNumber(script.usageStats.totalDownloads)} downloads
+          </span>
+        </>
+      ),
+    });
+  }
+  if (script.usageStats && script.usageStats.totalDeployments > 0) {
+    metaParts.push({
+      key: "deployments",
+      node: (
+        <>
+          <Cloud className="h-3 w-3" aria-hidden="true" />
+          <span>
+            {formatCompactNumber(script.usageStats.totalDeployments)} runbook
+            {script.usageStats.totalDeployments === 1 ? "" : "s"} deployed
           </span>
         </>
       ),
@@ -1129,8 +1160,8 @@ export function ScriptDetailPage({
                     Usage trends
                   </h2>
                   <p className="text-muted-foreground mt-2 text-sm">
-                    Views and downloads for this script per month, deduplicated
-                    and bot-filtered.
+                    Views, downloads and runbooks deployed for this script per
+                    month, deduplicated and bot-filtered.
                   </p>
                   <HairlinePanel className="mt-5 px-5 py-5">
                     {chart}

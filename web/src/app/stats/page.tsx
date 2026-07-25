@@ -60,14 +60,16 @@ export default async function StatsPage() {
     (acc, a) => ({
       downloads: acc.downloads + a.total_downloads,
       views: acc.views + a.total_views,
+      deployments: acc.deployments + a.total_deployments,
       weeklyDownloads: acc.weeklyDownloads + a.weekly_downloads,
     }),
-    { downloads: 0, views: 0, weeklyDownloads: 0 },
+    { downloads: 0, views: 0, deployments: 0, weeklyDownloads: 0 },
   );
 
   const tiles = [
     { label: "Total downloads", value: totals.downloads },
     { label: "Total views", value: totals.views },
+    { label: "Runbooks deployed", value: totals.deployments },
     { label: "Downloads this week", value: totals.weeklyDownloads },
     { label: "Scripts in library", value: trackedScripts },
   ];
@@ -93,7 +95,7 @@ export default async function StatsPage() {
             {/* Stat tiles */}
             <section
               aria-label="Overall totals"
-              className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-4"
+              className="mb-10 grid grid-cols-2 gap-4 md:grid-cols-5"
             >
               {tiles.map((tile) => (
                 <div
@@ -119,7 +121,8 @@ export default async function StatsPage() {
                 Monthly trends
               </h2>
               <p className="text-muted-foreground mb-4 text-sm">
-                Views and downloads per month over the last 12 months.
+                Views, downloads and runbooks deployed per month over the last
+                12 months.
               </p>
               <div className="bg-card border-border rounded-lg border p-4 sm:p-6">
                 <MonthlyTrendsChart data={monthly} />
