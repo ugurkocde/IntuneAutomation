@@ -82,14 +82,11 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // Only favicon.ico actually ships in public/. The PNG icon and apple-touch
+  // variants were declared but never generated, so every one of them 404'd.
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
     shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
   },
 };
 

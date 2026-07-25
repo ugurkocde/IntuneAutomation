@@ -32,7 +32,17 @@ const ScriptDetail = dynamic(
   },
 );
 
-export default function Home({ scriptCount }: { scriptCount: number }) {
+export default function Home({
+  scriptCount,
+  tagCounts,
+  githubStars,
+}: {
+  scriptCount: number;
+  // Build-time per-tag catalog counts, keyed by lowercase tag. Used by the
+  // hero catalog until the live script list loads.
+  tagCounts: Record<string, number>;
+  githubStars: number | null;
+}) {
   return (
     // reducedMotion="user" tells framer-motion to honor the user's OS
     // preference from the first SSR/CSR frame onward — avoids the one-frame
@@ -44,7 +54,11 @@ export default function Home({ scriptCount }: { scriptCount: number }) {
           <div className="bg-background flex min-h-screen flex-col">
             <Navbar />
             <main className="flex-1">
-              <HeroSection fallbackCount={scriptCount} />
+              <HeroSection
+                fallbackCount={scriptCount}
+                fallbackTagCounts={tagCounts}
+                githubStars={githubStars}
+              />
               <PopularScripts />
               <WhatsNewStrip />
               <HowItWorksSection />

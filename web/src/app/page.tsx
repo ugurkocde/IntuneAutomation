@@ -7,14 +7,46 @@ import {
   BreadcrumbSchema,
 } from "~/components/structured-data";
 import HomeClient from "./page-client";
-import { getCatalogScriptCount } from "~/lib/script-count";
+import { getCatalogScriptCount, getCatalogTagCounts } from "~/lib/script-count";
+import { env } from "~/env";
 
-export default function Home() {
+// Live star count for the hero trust strip. Revalidated hourly, authenticated
+// only when a PAT is configured, and best-effort: any failure renders the
+// generic "open source" wording instead.
+async function fetchGitHubStars(): Promise<number | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "IntuneAutomation-Website",
+    };
+    if (env.PAT) {
+      headers.Authorization = `Bearer ${env.PAT}`;
+    }
+
+    const response = await fetch(
+      "https://api.github.com/repos/ugurkocde/IntuneAutomation",
+      { headers, next: { revalidate: 3600 } },
+    );
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as { stargazers_count?: number };
+    return typeof data.stargazers_count === "number"
+      ? data.stargazers_count
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Home() {
   const baseUrl = "https://intuneautomation.com";
 
-  // Real catalog size, derived from the repo at build time. Passed to the
-  // client hero as the SSR/fallback value until the live script list loads.
+  // Real catalog size and per-tag breakdown, derived from the repo at build
+  // time. Passed to the client hero as the SSR/fallback values until the live
+  // script list loads.
   const scriptCount = getCatalogScriptCount();
+  const tagCounts = getCatalogTagCounts();
+  const githubStars = await fetchGitHubStars();
 
   // FAQ JSON-LD — mirrors the visible FAQ in src/components/faq-section.tsx
   // exactly (same 11 questions, identical wording). Ordered to match the user
@@ -93,7 +125,11 @@ export default function Home() {
         items={[{ name: "Home", url: "/" }]}
       />
       <FAQSchema faqs={faqs} />
-      <HomeClient scriptCount={scriptCount} />
+      <HomeClient
+        scriptCount={scriptCount}
+        tagCounts={tagCounts}
+        githubStars={githubStars}
+      />
     </>
   );
 }
