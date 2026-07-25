@@ -82,10 +82,15 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // Only favicon.ico actually ships in public/. The PNG icon and apple-touch
-  // variants were declared but never generated, so every one of them 404'd.
+  // All of these ship in public/. The PNGs are rasterized from the canonical
+  // vector source at public/brand/icon.svg.
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: "/favicon.ico",
   },
 };
@@ -122,12 +127,12 @@ export default function RootLayout({
         {/* Theme-color matches the dark/light --background tokens in globals.css. */}
         <meta
           name="theme-color"
-          content="#0c1326"
+          content="#050e18"
           media="(prefers-color-scheme: dark)"
         />
         <meta
           name="theme-color"
-          content="#f7f5ee"
+          content="#fbfaf6"
           media="(prefers-color-scheme: light)"
         />
 

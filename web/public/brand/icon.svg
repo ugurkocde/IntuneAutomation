@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  IntuneAutomation brand mark. Canonical vector source for the PWA icons in
+  public/ (icon-192.png, icon-512.png, apple-touch-icon.png).
+
+  Colors are the sRGB conversions of the dark theme tokens in
+  src/styles/globals.css (XML comments cannot carry the token prefix):
+    #050e18  background   oklch(0.16 0.025 250)
+    #00e6e8  brand-accent oklch(0.82 0.18 195)
+    #313f4d  brand-rule   oklch(0.36 0.03 250)
+
+  All glyph content sits inside the central 80 percent safe zone so the artwork
+  survives a maskable crop. No rounded corners: platforms apply their own mask.
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  role="img"
+  aria-label="IntuneAutomation"
+>
+  <defs>
+    <radialGradient id="phosphor-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#00e6e8" stop-opacity="0.14" />
+      <stop offset="1" stop-color="#00e6e8" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Full bleed terminal background -->
+  <rect width="512" height="512" fill="#050e18" />
+
+  <!-- Blueprint grid, 64px pitch -->
+  <path
+    d="M64 0V512M128 0V512M192 0V512M256 0V512M320 0V512M384 0V512M448 0V512M0 64H512M0 128H512M0 192H512M0 256H512M0 320H512M0 384H512M0 448H512"
+    stroke="#313f4d"
+    stroke-width="2"
+    opacity="0.55"
+  />
+
+  <!-- Phosphor bloom behind the prompt -->
+  <rect width="512" height="512" fill="url(#phosphor-glow)" />
+
+  <!-- Prompt chevron -->
+  <path
+    d="M148 168L236 256L148 344"
+    fill="none"
+    stroke="#00e6e8"
+    stroke-width="36"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Block cursor -->
+  <rect x="298" y="186" width="84" height="140" fill="#00e6e8" />
+</svg>
