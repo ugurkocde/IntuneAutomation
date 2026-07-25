@@ -1,12 +1,14 @@
 "use client";
 
-// Hero v4 — library-shape forward.
+// Hero v4, library-shape forward.
 // Signature visual: a CategoryMap on the right rendered as a filesystem-tree
-// catalog (~/intune-library/ + tag directories with live script counts). Each
+// catalog (~/intune-library/ + tag directories with per-tag counts rendered
+// server-side and swapped for live numbers once the script list loads). Each
 // row is a real link to /scripts/{tag}/. Honest about scale, on-brand with the
 // engineering aesthetic, no single script pretends to be "the" canonical one.
 // Atmosphere: layered cyan radial glow + grain + masked blueprint grid.
 // Typography: three weight-contrasted H1 lines with clip-path reveal on load.
+// Trust strip: catalog size, CI validation, GitHub stars, license.
 // Custom scroll cue.
 
 import { useCallback, useMemo } from "react";
@@ -16,41 +18,61 @@ import { ArrowRight, ArrowUpRight, Search, Sparkles } from "lucide-react";
 import { useScripts } from "~/components/scripts-provider";
 import type { ScriptTag } from "~/lib/scripts";
 
+const REPO_URL = "https://github.com/ugurkocde/IntuneAutomation";
+
+// Plain star formatting: exact below 1k, one decimal with a k suffix above.
+function formatStars(count: number): string {
+  return count > 1000 ? `${(count / 1000).toFixed(1)}k` : count.toString();
+}
+
 export default function HeroSection({
   fallbackCount,
+  fallbackTagCounts,
+  githubStars,
 }: {
   // Build-time catalog count from the server page. Used for SSR and until
   // the live script list loads so the copy never shows a stale number.
   fallbackCount: number;
+  // Build-time per-tag counts, keyed by lowercase tag. Same purpose as
+  // fallbackCount but for the catalog rows on the right.
+  fallbackTagCounts: Record<string, number>;
+  // Live repository stars from the server page, null when the fetch failed.
+  githubStars: number | null;
 }) {
   const { setSearchOpen, allScripts } = useScripts();
   const prefersReducedMotion = useReducedMotion();
 
   // Real count when scripts have loaded; otherwise the build-time count
-  // so the trust strip never renders an empty "scripts" attestation.
-  const scriptsCountLabel =
-    allScripts.length > 0 ? `${allScripts.length}+` : `${fallbackCount}+`;
+  // so the trust strip never renders an empty "scripts" attestation. Both
+  // are exact numbers, so neither carries a "+" suffix.
+  const scriptsCountLabel = (
+    allScripts.length > 0 ? allScripts.length : fallbackCount
+  ).toString();
 
   const handleSearchClick = useCallback(() => {
     setSearchOpen(true);
   }, [setSearchOpen]);
 
   // Motion choreography. Each block declares its own delay so the timeline is
-  // visible at a glance. Total settle under 1.2s.
+  // visible at a glance. Front-loaded so the headline paints early; the
+  // longest chain (trust strip) settles at about 1.1s.
   const init = prefersReducedMotion ? false : { opacity: 0, y: 12 };
   const animate = { opacity: 1, y: 0 };
   const ease = [0.22, 1, 0.36, 1] as const;
   const t = (delay: number, duration = 0.55) => ({ delay, duration, ease });
 
   return (
+    // The min-height budget subtracts the announcement banner plus the sticky
+    // navbar so the whole left column and the scroll cue stay inside the first
+    // viewport on a 900px-tall (and 800px-tall) laptop screen.
     <section
-      className="relative isolate overflow-hidden lg:flex lg:min-h-screen lg:items-center"
+      className="relative isolate overflow-hidden lg:flex lg:min-h-[calc(100svh-8rem)] lg:items-center"
       aria-label="IntuneAutomation introduction"
     >
       {/* -------- Atmosphere layers (back to front) -------- */}
       <HeroAtmosphere />
 
-      <div className="relative mx-auto w-full max-w-7xl px-4 pt-24 pb-20 sm:px-6 sm:pt-28 sm:pb-28 lg:py-24">
+      <div className="relative mx-auto w-full max-w-7xl px-4 pt-16 pb-20 sm:px-6 sm:pt-20 sm:pb-24 lg:py-14">
         <div className="grid grid-cols-1 items-start gap-14 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
           {/* ============================================== */}
           {/* LEFT — typography + CTAs                       */}
@@ -63,12 +85,11 @@ export default function HeroSection({
             <motion.div
               initial={init}
               animate={animate}
-              transition={t(0.05)}
-              className="mb-8"
+              transition={t(0)}
+              className="mb-6"
             >
               <Link
                 href="/generator/"
-                aria-label="Try the new Script Generator — beta"
                 className="border-border/70 hover:border-accent/50 hover:bg-card/60 focus-visible:ring-accent group bg-card/40 text-muted-foreground focus-visible:ring-offset-background inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-2.5 pl-3 font-mono text-[11px] tracking-[0.16em] uppercase transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <span
@@ -94,22 +115,25 @@ export default function HeroSection({
 
             {/* H1 — three-line weight-contrasted lockup with clip-reveal.
              * Last line uses the muted weight + cyan accent on "production"
-             * so the promise lands as the eye finishes the headline. */}
-            <h1 className="font-display text-foreground text-[clamp(2.4rem,7vw,6.5rem)] leading-[0.95]">
+             * so the promise lands as the eye finishes the headline. The clamp
+             * max is the largest size where "that actually work" still holds a
+             * single line in the left column on a laptop, so the lockup stays
+             * three lines instead of spilling to four. */}
+            <h1 className="font-display text-foreground text-[clamp(2.4rem,7vw,4.75rem)] leading-[0.95]">
               <RevealLine
-                delay={prefersReducedMotion ? 0 : 0.15}
+                delay={prefersReducedMotion ? 0 : 0.08}
                 weight="normal"
               >
                 Intune scripts
               </RevealLine>
               <RevealLine
-                delay={prefersReducedMotion ? 0 : 0.28}
+                delay={prefersReducedMotion ? 0 : 0.16}
                 weight="display"
               >
                 that actually work
               </RevealLine>
               <RevealLine
-                delay={prefersReducedMotion ? 0 : 0.41}
+                delay={prefersReducedMotion ? 0 : 0.24}
                 weight="muted"
               >
                 in{" "}
@@ -123,22 +147,22 @@ export default function HeroSection({
             <motion.p
               initial={init}
               animate={animate}
-              transition={t(0.58)}
-              className="text-muted-foreground mt-8 max-w-xl text-base leading-relaxed sm:text-lg"
+              transition={t(0.35)}
+              className="text-muted-foreground mt-6 max-w-xl text-base leading-relaxed sm:text-lg"
             >
               {scriptsCountLabel} open-source Intune scripts you can run locally
               or deploy as Azure Automation runbooks without writing any
               infrastructure code.
             </motion.p>
 
-            {/* CTAs — primary has real depth + custom focus; secondary is the
-             * GitHub anchor with live star count; tertiary is the search
-             * affordance with the `/` shortcut surfaced. */}
+            {/* CTAs: primary has real depth + custom focus; secondary jumps to
+             * the how-it-works section; tertiary is the search affordance with
+             * the `/` shortcut surfaced. */}
             <motion.div
               initial={init}
               animate={animate}
-              transition={t(0.7)}
-              className="mt-10 flex flex-row flex-wrap items-center gap-3 sm:gap-4"
+              transition={t(0.45)}
+              className="mt-8 flex flex-row flex-wrap items-center gap-3 sm:gap-4"
             >
               <Link
                 href="/scripts/"
@@ -183,12 +207,13 @@ export default function HeroSection({
               </button>
             </motion.div>
 
-            {/* Trust micro-strip — small linked attestations */}
+            {/* Trust micro-strip: every attestation links to the artifact that
+             * proves it (catalog, CI workflow, repository, license). */}
             <motion.div
               initial={init}
               animate={animate}
-              transition={t(0.82)}
-              className="text-muted-foreground mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-widest uppercase"
+              transition={t(0.55)}
+              className="text-muted-foreground mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] tracking-widest uppercase"
             >
               <Link
                 href="/scripts/"
@@ -196,9 +221,33 @@ export default function HeroSection({
               >
                 <Dot /> {scriptsCountLabel} scripts
               </Link>
-              <span className="inline-flex items-center gap-1.5">
+              <a
+                href={`${REPO_URL}/actions/workflows/script-analysis.yml`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
                 <Dot /> PSScriptAnalyzer validated in CI
-              </span>
+              </a>
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Dot />{" "}
+                {githubStars === null
+                  ? "Open source on GitHub"
+                  : `${formatStars(githubStars)} GitHub stars`}
+              </a>
+              <a
+                href={`${REPO_URL}/blob/main/LICENSE`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Dot /> MIT licensed
+              </a>
             </motion.div>
           </div>
 
@@ -206,16 +255,19 @@ export default function HeroSection({
           {/* RIGHT — Category map                           */}
           {/* The library's shape at a glance. Each tile     */}
           {/* clicks through to a filtered view. Honest about*/}
-          {/* scale — no single script pretends to be "the"  */}
+          {/* scale, no single script pretends to be "the"   */}
           {/* canonical example.                              */}
           {/* ============================================== */}
           <motion.div
             initial={prefersReducedMotion ? false : { opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={t(0.32, 0.7)}
+            transition={t(0.2, 0.7)}
             className="min-w-0"
           >
-            <CategoryMap fallbackCount={fallbackCount} />
+            <CategoryMap
+              fallbackCount={fallbackCount}
+              fallbackTagCounts={fallbackTagCounts}
+            />
           </motion.div>
         </div>
       </div>
@@ -239,12 +291,16 @@ function HeroAtmosphere() {
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-32 -right-32 -z-20 h-[680px] w-[680px] rounded-full opacity-30 blur-3xl dark:opacity-70"
-        style={{
-          background:
-            "radial-gradient(circle at center, color-mix(in oklab, var(--brand-accent) 28%, transparent) 0%, color-mix(in oklab, var(--brand-accent) 12%, transparent) 35%, transparent 70%)",
-        }}
       >
-        <div className="animate-drift h-full w-full" />
+        {/* The gradient lives on the drifting child so the keyframes actually
+         * move and breathe the glow; the parent only positions and blurs it. */}
+        <div
+          className="animate-drift h-full w-full rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle at center, color-mix(in oklab, var(--brand-accent) 28%, transparent) 0%, color-mix(in oklab, var(--brand-accent) 12%, transparent) 35%, transparent 70%)",
+          }}
+        />
       </div>
 
       {/* Secondary cool glow anchored lower-left, much fainter */}
@@ -338,6 +394,27 @@ function Dot() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  DottedLeader: CSS-drawn leader between a catalog label and its count       */
+/* -------------------------------------------------------------------------- */
+
+function DottedLeader() {
+  return (
+    <span
+      aria-hidden="true"
+      className="text-muted-foreground/40 mx-1 flex-1 self-stretch select-none"
+      style={{
+        // One 1px dot per 8px tile, centered vertically in the row so it
+        // tracks the text without relying on a repeated glyph run.
+        backgroundImage:
+          "radial-gradient(circle, currentColor 1px, transparent 1px)",
+        backgroundSize: "8px 100%",
+        backgroundRepeat: "repeat-x",
+      }}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  ScrollCue — custom hardware-ready indicator                                */
 /* -------------------------------------------------------------------------- */
 
@@ -379,9 +456,10 @@ function ScrollCue() {
 
 /* -------------------------------------------------------------------------- */
 /*  CategoryMap — the library's shape at a glance.                             */
-/*  Six topic tiles, each with a live script count and a one-liner. Clicking   */
-/*  a tile filters /scripts/ to that tag. Honest about the library being a    */
-/*  catalog — no single script pretends to be canonical.                       */
+/*  Each row is a topic directory with a script count, rendered from the       */
+/*  server-side catalog counts and swapped for live numbers once the script    */
+/*  list arrives, so crawlers and the first paint both see real figures.       */
+/*  Clicking a row filters /scripts/ to that tag.                              */
 /* -------------------------------------------------------------------------- */
 
 interface CategoryEntry {
@@ -408,10 +486,17 @@ const CATEGORY_TREE: CategoryEntry[] = [
 
 const COMPACT_VISIBLE = 6;
 
-function CategoryMap({ fallbackCount }: { fallbackCount: number }) {
+function CategoryMap({
+  fallbackCount,
+  fallbackTagCounts,
+}: {
+  fallbackCount: number;
+  fallbackTagCounts: Record<string, number>;
+}) {
   const { allScripts } = useScripts();
 
-  // Real per-tag counts from allScripts. Falls back to em-dash until loaded.
+  // Live per-tag counts from allScripts. Empty until the list loads, at which
+  // point every row swaps from the server-side count to the live one.
   const counts = useMemo(() => {
     const map = new Map<ScriptTag, number>();
     for (const script of allScripts) {
@@ -423,6 +508,10 @@ function CategoryMap({ fallbackCount }: { fallbackCount: number }) {
   }, [allScripts]);
 
   const totalCount = allScripts.length;
+  const countFor = (entry: CategoryEntry) =>
+    totalCount > 0
+      ? (counts.get(entry.tag) ?? 0)
+      : (fallbackTagCounts[entry.slug] ?? 0);
   const compactList = CATEGORY_TREE.slice(0, COMPACT_VISIBLE);
   const moreCategoriesCount = Math.max(
     0,
@@ -471,7 +560,7 @@ function CategoryMap({ fallbackCount }: { fallbackCount: number }) {
               key={entry.tag}
               entry={entry}
               connector="├──"
-              count={counts.get(entry.tag) ?? null}
+              count={countFor(entry)}
             />
           ))}
           <BrowseAllBranch connector="└──" moreCount={moreCategoriesCount} />
@@ -486,7 +575,7 @@ function CategoryMap({ fallbackCount }: { fallbackCount: number }) {
                 key={entry.tag}
                 entry={entry}
                 connector={isLast ? "└──" : "├──"}
-                count={counts.get(entry.tag) ?? null}
+                count={countFor(entry)}
               />
             );
           })}
@@ -503,7 +592,7 @@ function CatalogRow({
 }: {
   entry: CategoryEntry;
   connector: string;
-  count: number | null;
+  count: number;
 }) {
   return (
     <li>
@@ -522,13 +611,8 @@ function CatalogRow({
           {entry.slug}
         </span>
         <span style={{ color: "var(--brand-accent-hi)" }}>/</span>
-        <span
-          aria-hidden="true"
-          className="text-muted-foreground/40 mx-1 flex-1 overflow-hidden tracking-[0.18em] select-none"
-        >
-          ··················································································
-        </span>
-        <span className="text-foreground tabular-nums">{count ?? "—"}</span>
+        <DottedLeader />
+        <span className="text-foreground tabular-nums">{count}</span>
         <ArrowUpRight
           className="text-muted-foreground group-hover:text-accent-hi h-3 w-3 shrink-0 translate-y-[1px] transition-all group-hover:-translate-y-px"
           aria-hidden="true"
@@ -560,12 +644,7 @@ function BrowseAllBranch({
         <span className="text-muted-foreground group-hover:text-foreground transition-colors">
           + {moreCount} more topics
         </span>
-        <span
-          aria-hidden="true"
-          className="text-muted-foreground/40 mx-1 flex-1 overflow-hidden tracking-[0.18em] select-none"
-        >
-          ··················································································
-        </span>
+        <DottedLeader />
         <span className="text-muted-foreground group-hover:text-foreground transition-colors">
           browse all
         </span>

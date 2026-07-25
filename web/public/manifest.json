@@ -2,13 +2,18 @@
   "name": "IntuneAutomation.com",
   "short_name": "IntuneAutomation",
   "description": "A curated collection of PowerShell scripts to automate Microsoft Intune tasks",
-  "theme_color": "#0078d4",
-  "background_color": "#ffffff",
+  "theme_color": "#050e18",
+  "background_color": "#fbfaf6",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
   "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -22,19 +27,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities", "developer"],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-narrow.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ]
+  "categories": ["productivity", "utilities", "developer"]
 }

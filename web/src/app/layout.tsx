@@ -82,14 +82,16 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // All of these ship in public/. The PNGs are rasterized from the canonical
+  // vector source at public/brand/icon.svg.
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -125,12 +127,12 @@ export default function RootLayout({
         {/* Theme-color matches the dark/light --background tokens in globals.css. */}
         <meta
           name="theme-color"
-          content="#0c1326"
+          content="#050e18"
           media="(prefers-color-scheme: dark)"
         />
         <meta
           name="theme-color"
-          content="#f7f5ee"
+          content="#fbfaf6"
           media="(prefers-color-scheme: light)"
         />
 
