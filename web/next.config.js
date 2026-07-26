@@ -4,8 +4,6 @@
  */
 import "./src/env.js";
 import createMDX from "@next/mdx";
-import remarkGfm from "remark-gfm";
-import rehypeSlug from "rehype-slug";
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -59,10 +57,12 @@ const config = {
   },
 };
 
+// Plugins are named as strings, not imported function references: Turbopack has
+// to serialize the loader options, and a function reference is not serializable.
 const withMDX = createMDX({
   options: {
-    remarkPlugins: [remarkGfm],
-    rehypePlugins: [rehypeSlug],
+    remarkPlugins: [["remark-gfm", {}]],
+    rehypePlugins: [["rehype-slug", {}]],
   },
 });
 
