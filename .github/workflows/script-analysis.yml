@@ -7,6 +7,16 @@ on:
     paths:
       - "scripts/**/*.ps1"
       - "scripts/**/*.sh"
+      - "templates/**/*.ps1"
+      - ".github/scripts/run-script-tests.ps1"
+      - ".github/workflows/script-analysis.yml"
+  pull_request:
+    paths:
+      - "scripts/**/*.ps1"
+      - "scripts/**/*.sh"
+      - "templates/**/*.ps1"
+      - ".github/scripts/run-script-tests.ps1"
+      - ".github/workflows/script-analysis.yml"
   schedule:
     # Run daily at 2 AM UTC
     - cron: "0 2 * * *"

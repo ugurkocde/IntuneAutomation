@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-enrollment-failure-report.ps1
@@ -150,7 +151,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementServiceConfig.Read.All",
@@ -158,7 +159,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -257,12 +258,12 @@ function Get-FailureExplanation {
 try {
     $cutoffDate = (Get-Date).AddDays(-$DaysBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
-    Write-Information "Retrieving enrollment troubleshooting events (last $DaysBack days)..." -InformationAction Continue
+    Write-Output "Retrieving enrollment troubleshooting events (last $DaysBack days)..."
     $events = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/troubleshootingEvents?`$filter=eventDateTime ge $cutoffDate"
 
     # The collection mixes event types; enrollment failures carry failureCategory
     $enrollmentEvents = @($events | Where-Object { $_.'@odata.type' -like "*enrollmentTroubleshootingEvent" -or $_.failureCategory })
-    Write-Information "✓ Found $($enrollmentEvents.Count) enrollment events (of $(@($events).Count) troubleshooting events)" -InformationAction Continue
+    Write-Output "✓ Found $($enrollmentEvents.Count) enrollment events (of $(@($events).Count) troubleshooting events)"
 
     [System.Collections.Generic.List[Object]]$report = @()
 
@@ -285,7 +286,7 @@ try {
     # ----- Autopilot events (optional) -----
     [System.Collections.Generic.List[Object]]$autopilotReport = @()
     if ($IncludeAutopilotEvents) {
-        Write-Information "Retrieving Autopilot deployment events..." -InformationAction Continue
+        Write-Output "Retrieving Autopilot deployment events..."
         $autopilotEvents = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/autopilotEvents"
 
         foreach ($autopilotEvent in $autopilotEvents) {
@@ -302,59 +303,59 @@ try {
                     EnrollmentState = $autopilotEvent.enrollmentState
                 })
         }
-        Write-Information "✓ Found $($autopilotReport.Count) Autopilot events in the window" -InformationAction Continue
+        Write-Output "✓ Found $($autopilotReport.Count) Autopilot events in the window"
     }
 
     # ----- Display results -----
-    Write-Information "`nENROLLMENT FAILURE REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Window: last $DaysBack days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nENROLLMENT FAILURE REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Window: last $DaysBack days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($report.Count -eq 0) {
-        Write-Information "`nNo enrollment failures recorded in the window." -InformationAction Continue
+        Write-Output "`nNo enrollment failures recorded in the window."
     }
     else {
         foreach ($categoryGroup in ($report | Group-Object -Property FailureCategory | Sort-Object Count -Descending)) {
             $categoryLabel = if ($categoryGroup.Name) { $categoryGroup.Name } else { "uncategorized" }
-            Write-Information "`n[$categoryLabel] $($categoryGroup.Count) failure(s)" -InformationAction Continue
-            Write-Information "  Explanation: $(Get-FailureExplanation -FailureCategory $categoryGroup.Name)" -InformationAction Continue
+            Write-Output "`n[$categoryLabel] $($categoryGroup.Count) failure(s)"
+            Write-Output "  Explanation: $(Get-FailureExplanation -FailureCategory $categoryGroup.Name)"
 
             foreach ($row in ($categoryGroup.Group | Sort-Object EventTime -Descending)) {
                 $detail = "  $($row.EventTime) | $($row.User) | $($row.OperatingSystem) $($row.OsVersion) | $($row.EnrollmentType)"
-                Write-Information $detail -InformationAction Continue
+                Write-Output $detail
                 if ($row.FailureReason) {
-                    Write-Information "    Reason: $($row.FailureReason)" -InformationAction Continue
+                    Write-Output "    Reason: $($row.FailureReason)"
                 }
             }
         }
     }
 
     if ($IncludeAutopilotEvents -and $autopilotReport.Count -gt 0) {
-        Write-Information "`nAUTOPILOT DEPLOYMENT EVENTS" -InformationAction Continue
-        Write-Information ("=" * 50) -InformationAction Continue
+        Write-Output "`nAUTOPILOT DEPLOYMENT EVENTS"
+        Write-Output ("=" * 50)
         foreach ($row in ($autopilotReport | Sort-Object DeploymentStart -Descending)) {
-            Write-Information "  $($row.DeploymentStart) | $($row.SerialNumber) | state: $($row.DeploymentState) | $($row.UserPrincipal)" -InformationAction Continue
+            Write-Output "  $($row.DeploymentStart) | $($row.SerialNumber) | state: $($row.DeploymentState) | $($row.UserPrincipal)"
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) enrollment failures$(if ($IncludeAutopilotEvents) { ", $($autopilotReport.Count) Autopilot events" })" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) enrollment failures$(if ($IncludeAutopilotEvents) { ", $($autopilotReport.Count) Autopilot events" })"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Enrollment_Failures_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
 
         if ($IncludeAutopilotEvents -and $autopilotReport.Count -gt 0) {
             $autopilotCsvPath = Join-Path $OutputPath "Autopilot_Events_$timestamp.csv"
             $autopilotReport | Export-Csv -Path $autopilotCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Information "✓ CSV report saved: $autopilotCsvPath" -InformationAction Continue
+            Write-Output "✓ CSV report saved: $autopilotCsvPath"
         }
     }
 }
@@ -365,7 +366,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

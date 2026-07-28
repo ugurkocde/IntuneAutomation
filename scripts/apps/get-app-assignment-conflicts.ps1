@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-app-assignment-conflicts.ps1
@@ -140,14 +141,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "Group.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -235,11 +236,11 @@ function Get-TargetKey {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving apps with assignments..." -InformationAction Continue
+    Write-Output "Retrieving apps with assignments..."
     $apps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$expand=assignments"
 
     $assignedApps = @($apps | Where-Object { @($_.assignments).Count -gt 0 })
-    Write-Information "✓ Found $($assignedApps.Count) apps with assignments (of $(@($apps).Count) total)" -InformationAction Continue
+    Write-Output "✓ Found $($assignedApps.Count) apps with assignments (of $(@($apps).Count) total)"
 
     [System.Collections.Generic.List[Object]]$conflicts = @()
 
@@ -318,38 +319,38 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nAPP ASSIGNMENT CONFLICT REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nAPP ASSIGNMENT CONFLICT REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($conflicts.Count -eq 0) {
-        Write-Information "`nNo assignment conflicts found." -InformationAction Continue
+        Write-Output "`nNo assignment conflicts found."
     }
     else {
         foreach ($conflictGroup in ($conflicts | Group-Object -Property ConflictType | Sort-Object Name)) {
-            Write-Information "`n[$($conflictGroup.Name)] $($conflictGroup.Count) finding(s)" -InformationAction Continue
+            Write-Output "`n[$($conflictGroup.Name)] $($conflictGroup.Count) finding(s)"
             foreach ($row in ($conflictGroup.Group | Sort-Object AppName)) {
                 $line = "  $($row.AppName)"
                 if ($row.Group) { $line += " | group: $($row.Group)" }
-                Write-Information $line -InformationAction Continue
-                Write-Information "    $($row.Details)" -InformationAction Continue
+                Write-Output $line
+                Write-Output "    $($row.Details)"
             }
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($assignedApps.Count) assigned apps analyzed, $($conflicts.Count) conflicts found" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($assignedApps.Count) assigned apps analyzed, $($conflicts.Count) conflicts found"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "App_Assignment_Conflicts_$timestamp.csv"
         $conflicts | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -359,7 +360,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

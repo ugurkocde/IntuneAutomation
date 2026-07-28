@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Approver status is now resolved from MAA policy approver groups (transitive membership) to populate IsApprover, ApproversCount and AdminsWithoutMAA; resource coverage table computes per-category protected counts from MAA policy types instead of a hardcoded zero; role assignment group members are resolved via transitiveMembers; resource list calls request only the fields used; single-result Graph collections are wrapped in @() so counts are accurate; unused -DetailedAnalysis switch and AuditLog.Read.All permission removed
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; device management scripts are queried via the beta endpoint and approvers are resolved by enumerating role assignment group members
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-maa-compliance-report.ps1
@@ -180,12 +181,12 @@ Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment
 
 # Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+    Write-Output "Connecting to Microsoft Graph..."
     
     if ($RunningInAzureAutomation) {
         # Use Managed Identity in Azure Automation
         Connect-MgGraph -Identity -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph using Managed Identity" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph using Managed Identity"
     }
     else {
         # Use interactive authentication for local execution
@@ -197,7 +198,7 @@ try {
             "Directory.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph with interactive authentication" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph with interactive authentication"
     }
 }
 catch {
@@ -1078,9 +1079,9 @@ function Export-MAADataToCSV {
 # ============================================================================
 
 try {
-    Write-Information "Starting MAA Compliance Dashboard Report generation..." -InformationAction Continue
-    Write-Information "Analysis Period: Last $DaysToAnalyze days" -InformationAction Continue
-    Write-Information "Output Path: $OutputPath" -InformationAction Continue
+    Write-Output "Starting MAA Compliance Dashboard Report generation..."
+    Write-Output "Analysis Period: Last $DaysToAnalyze days"
+    Write-Output "Output Path: $OutputPath"
     
     # Create output directory if it doesn't exist
     if (-not (Test-Path $OutputPath)) {
@@ -1097,11 +1098,11 @@ try {
     # Step 2: Analyze compliance metrics
     $ComplianceMetrics = Get-MAAComplianceMetric -Policies $MAAPolicies -Requests $MAARequests -Resources $ProtectedResources -Admins $Administrators
     
-    Write-Information "Analysis complete:" -InformationAction Continue
-    Write-Information "  - Policies: $($MAAPolicies.Count)" -InformationAction Continue
-    Write-Information "  - Requests: $($MAARequests.Count)" -InformationAction Continue
-    Write-Information "  - Coverage: $($ComplianceMetrics.CoveragePercentage)%" -InformationAction Continue
-    Write-Information "  - Approval Rate: $($ComplianceMetrics.ApprovalRate)%" -InformationAction Continue
+    Write-Output "Analysis complete:"
+    Write-Output "  - Policies: $($MAAPolicies.Count)"
+    Write-Output "  - Requests: $($MAARequests.Count)"
+    Write-Output "  - Coverage: $($ComplianceMetrics.CoveragePercentage)%"
+    Write-Output "  - Approval Rate: $($ComplianceMetrics.ApprovalRate)%"
     
     # Step 3: Generate HTML report
     $HTMLReport = New-HTMLReport -Metrics $ComplianceMetrics -Policies $MAAPolicies -Requests $MAARequests -Resources $ProtectedResources -Admins $Administrators -IncludeRecommendations $IncludeRecommendations
@@ -1110,7 +1111,7 @@ try {
     $HTMLFullPath = Join-Path $OutputPath $HTMLFileName
     $HTMLReport | Out-File -FilePath $HTMLFullPath -Encoding UTF8
     
-    Write-Information "✓ HTML report saved to: $HTMLFullPath" -InformationAction Continue
+    Write-Output "✓ HTML report saved to: $HTMLFullPath"
     
     # Step 4: Export CSV data if requested
     if ($ExportDetailedCSV) {
@@ -1135,10 +1136,10 @@ try {
     $SummaryFullPath = Join-Path $OutputPath $SummaryFileName
     $SummaryData | Export-Csv -Path $SummaryFullPath -NoTypeInformation -Encoding utf8
     
-    Write-Information "✓ Summary CSV saved to: $SummaryFullPath" -InformationAction Continue
+    Write-Output "✓ Summary CSV saved to: $SummaryFullPath"
     
     # Display summary
-    Write-Information "
+    Write-Output "
 ========================================
 MAA Compliance Report Summary
 ========================================
@@ -1150,11 +1151,11 @@ Average Approval Time: $($ComplianceMetrics.AverageApprovalTime) hours
 ========================================
 Reports saved to: $OutputPath
 ========================================
-" -InformationAction Continue
+"
     
     # Open HTML report if running locally
     if (-not $RunningInAzureAutomation) {
-        Write-Information "Opening HTML report in default browser..." -InformationAction Continue
+        Write-Output "Opening HTML report in default browser..."
         try {
             Start-Process $HTMLFullPath
         }
@@ -1172,7 +1173,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnect errors

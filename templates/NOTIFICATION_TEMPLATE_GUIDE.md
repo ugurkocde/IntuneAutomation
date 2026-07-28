@@ -336,8 +336,9 @@ Grant these permissions to your Managed Identity (customize based on your needs)
 
 1. **Enable Verbose Logging**:
    ```powershell
-   Write-Information "Debug info: $($Variable | ConvertTo-Json)" -InformationAction Continue
+   Write-Verbose "Debug info: $($Variable | ConvertTo-Json)" -Verbose
    ```
+   Use `Write-Output` for script progress, outcomes, and summaries that must appear in Azure Automation job history. Reserve `Write-Verbose` for detailed diagnostics.
 
 2. **Test API Calls Separately**:
    ```powershell

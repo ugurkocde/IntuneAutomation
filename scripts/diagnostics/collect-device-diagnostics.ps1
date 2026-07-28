@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\collect-device-diagnostics.ps1 -DeviceNames "PC-001","PC-002"
@@ -156,7 +157,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.ReadWrite.All",
             "Group.Read.All",
@@ -164,7 +165,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -299,13 +300,13 @@ function Save-DiagnosticPackage {
 try {
     $null = New-Item -Path $OutputPath -ItemType Directory -Force
 
-    Write-Information "Resolving target devices..." -InformationAction Continue
+    Write-Output "Resolving target devices..."
     $targetDevices = Get-TargetDevice
 
     if (@($targetDevices).Count -eq 0) {
         throw "No Windows devices found to collect diagnostics from"
     }
-    Write-Information "✓ Targeting $(@($targetDevices).Count) Windows device(s)" -InformationAction Continue
+    Write-Output "✓ Targeting $(@($targetDevices).Count) Windows device(s)"
 
     $downloaded = 0
     $failed = 0
@@ -339,7 +340,7 @@ try {
                 $body = @{ templateType = @{ templateType = "predefined" } } | ConvertTo-Json
                 $request = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($device.id)/createDeviceLogCollectionRequest" -Method POST -Body $body -ContentType "application/json"
                 $pendingRequests[$device.id] = @{ Device = $device; RequestId = $request.id }
-                Write-Information "✓ Collection triggered on '$($device.deviceName)'" -InformationAction Continue
+                Write-Output "✓ Collection triggered on '$($device.deviceName)'"
             }
             catch {
                 Write-Warning "Failed to trigger collection on '$($device.deviceName)': $($_.Exception.Message)"
@@ -349,7 +350,7 @@ try {
 
         # Poll until requests complete or the timeout is reached
         if ($pendingRequests.Count -gt 0) {
-            Write-Information "Waiting for $($pendingRequests.Count) collection(s) to complete (timeout: $TimeoutMinutes minutes)..." -InformationAction Continue
+            Write-Output "Waiting for $($pendingRequests.Count) collection(s) to complete (timeout: $TimeoutMinutes minutes)..."
             $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 
             while ($pendingRequests.Count -gt 0 -and (Get-Date) -lt $deadline) {
@@ -384,14 +385,14 @@ try {
     }
 
     # Summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Diagnostics Collection Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Devices targeted:  $(@($targetDevices).Count)" -InformationAction Continue
-    Write-Information "Packages saved:    $downloaded" -InformationAction Continue
-    Write-Information "Failures/timeouts: $($failed + $pendingRequests.Count)" -InformationAction Continue
-    Write-Information "Output folder:     $OutputPath" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Diagnostics Collection Summary"
+    Write-Output "========================================"
+    Write-Output "Devices targeted:  $(@($targetDevices).Count)"
+    Write-Output "Packages saved:    $downloaded"
+    Write-Output "Failures/timeouts: $($failed + $pendingRequests.Count)"
+    Write-Output "Output folder:     $OutputPath"
+    Write-Output "========================================"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -400,7 +401,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

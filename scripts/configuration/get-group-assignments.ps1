@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-group-assignments.ps1 -GroupName "Sales Devices"
@@ -155,7 +156,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All",
@@ -163,7 +164,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -221,7 +222,7 @@ function Get-MgGraphAllPage {
 try {
     # ----- Resolve the group -----
     if ($PSCmdlet.ParameterSetName -eq "ByName") {
-        Write-Information "Resolving group '$GroupName'..." -InformationAction Continue
+        Write-Output "Resolving group '$GroupName'..."
         $escapedName = $GroupName -replace "'", "''"
         $groups = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/groups?`$filter=displayName eq '$escapedName'&`$select=id,displayName"
 
@@ -239,7 +240,7 @@ try {
         $group = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/groups/${GroupId}?`$select=id,displayName" -Method GET
     }
 
-    Write-Information "✓ Group: $($group.displayName) ($GroupId)" -InformationAction Continue
+    Write-Output "✓ Group: $($group.displayName) ($GroupId)"
 
     # ----- Scan all assignment surfaces -----
     $surfaceDefinitions = @(
@@ -256,7 +257,7 @@ try {
     [System.Collections.Generic.List[Object]]$results = @()
 
     foreach ($surface in $surfaceDefinitions) {
-        Write-Information "Scanning: $($surface.Label)..." -InformationAction Continue
+        Write-Output "Scanning: $($surface.Label)..."
         $objects = Get-MgGraphAllPage -Uri $surface.Uri
 
         foreach ($object in $objects) {
@@ -297,35 +298,35 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nASSIGNMENTS FOR GROUP: $($group.displayName)" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nASSIGNMENTS FOR GROUP: $($group.displayName)"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($results.Count -eq 0) {
-        Write-Information "`nNothing is assigned to this group." -InformationAction Continue
+        Write-Output "`nNothing is assigned to this group."
         if (-not $IncludeTenantWide) {
-            Write-Information "Tip: run with -IncludeTenantWide to also see All Users / All Devices assignments." -InformationAction Continue
+            Write-Output "Tip: run with -IncludeTenantWide to also see All Users / All Devices assignments."
         }
     }
     else {
         foreach ($surfaceGroup in ($results | Group-Object -Property Surface | Sort-Object Name)) {
-            Write-Information "`n$($surfaceGroup.Name) ($($surfaceGroup.Count))" -InformationAction Continue
+            Write-Output "`n$($surfaceGroup.Name) ($($surfaceGroup.Count))"
             foreach ($row in ($surfaceGroup.Group | Sort-Object Name)) {
                 $details = $row.Assignment
                 if ($row.Intent) { $details += ", intent: $($row.Intent)" }
                 if ($row.FilterMode) { $details += ", filter: $($row.FilterMode)" }
-                Write-Information "  $($row.Name) [$details]" -InformationAction Continue
+                Write-Output "  $($row.Name) [$details]"
             }
         }
     }
 
     # Summary
     $excludedCount = @($results | Where-Object { $_.Assignment -eq "Excluded" }).Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($results.Count) assignments ($excludedCount exclusions)" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($results.Count) assignments ($excludedCount exclusions)"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
@@ -333,7 +334,7 @@ try {
         $safeGroupName = ($group.displayName -replace '[\\/:*?"<>|]', '_')
         $csvPath = Join-Path $OutputPath "Group_Assignments_${safeGroupName}_$timestamp.csv"
         $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -343,7 +344,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

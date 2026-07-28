@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -178,14 +179,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "Organization.Read.All",
             "Mail.Send"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -327,7 +328,7 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving subscribed SKUs..." -InformationAction Continue
+    Write-Output "Retrieving subscribed SKUs..."
     $skus = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/subscribedSkus?`$select=skuPartNumber,skuId,consumedUnits,prepaidUnits,servicePlans,capabilityStatus"
 
     [System.Collections.Generic.List[Object]]$skuReport = @()
@@ -368,11 +369,11 @@ try {
     }
 
     $flaggedSkus = @($skuReport | Where-Object { $_.Flagged })
-    Write-Information "✓ Analyzed $($skuReport.Count) SKU(s), $($flaggedSkus.Count) above threshold or unhealthy" -InformationAction Continue
+    Write-Output "✓ Analyzed $($skuReport.Count) SKU(s), $($flaggedSkus.Count) above threshold or unhealthy"
 
     # ----- Send notification -----
     if ($flaggedSkus.Count -eq 0 -and -not $AlwaysSend) {
-        Write-Information "No SKU crossed the $ThresholdPercent% threshold - no email sent (use -AlwaysSend for status mails)" -InformationAction Continue
+        Write-Output "No SKU crossed the $ThresholdPercent% threshold - no email sent (use -AlwaysSend for status mails)"
     }
     else {
         $recipients = @($EmailRecipients -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -392,14 +393,14 @@ try {
     }
 
     # Summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "License Threshold Alert Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "License Threshold Alert Summary"
+    Write-Output "========================================"
     foreach ($row in ($skuReport | Sort-Object UtilizationPct -Descending)) {
         $flagLabel = if ($row.Flagged) { " [FLAGGED]" } else { "" }
-        Write-Information "$($row.SkuPartNumber): $($row.Consumed)/$($row.Enabled) ($($row.UtilizationPct)%)$flagLabel" -InformationAction Continue
+        Write-Output "$($row.SkuPartNumber): $($row.Consumed)/$($row.Enabled) ($($row.UtilizationPct)%)$flagLabel"
     }
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "========================================"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -408,7 +409,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

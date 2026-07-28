@@ -28,13 +28,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\backup-intune-configuration.ps1
@@ -150,13 +151,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -244,7 +245,7 @@ function Export-BackupObject {
 # ============================================================================
 
 try {
-    Write-Information "Starting Intune configuration backup..." -InformationAction Continue
+    Write-Output "Starting Intune configuration backup..."
 
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $backupRoot = Join-Path $OutputPath "IntuneConfigBackup_$timestamp"
@@ -259,7 +260,7 @@ try {
 
     # ----- Classic device configuration profiles -----
     if ($Areas -contains "DeviceConfigurations") {
-        Write-Information "Exporting device configuration profiles..." -InformationAction Continue
+        Write-Output "Exporting device configuration profiles..."
         $folder = Join-Path $backupRoot "DeviceConfigurations"
         $null = New-Item -Path $folder -ItemType Directory -Force
 
@@ -270,12 +271,12 @@ try {
 
         $manifest.areas["DeviceConfigurations"] = @($profiles).Count
         $manifest.totalObjects += @($profiles).Count
-        Write-Information "✓ Exported $(@($profiles).Count) device configuration profiles" -InformationAction Continue
+        Write-Output "✓ Exported $(@($profiles).Count) device configuration profiles"
     }
 
     # ----- Settings catalog policies -----
     if ($Areas -contains "SettingsCatalog") {
-        Write-Information "Exporting settings catalog policies..." -InformationAction Continue
+        Write-Output "Exporting settings catalog policies..."
         $folder = Join-Path $backupRoot "SettingsCatalog"
         $null = New-Item -Path $folder -ItemType Directory -Force
 
@@ -291,12 +292,12 @@ try {
 
         $manifest.areas["SettingsCatalog"] = @($policies).Count
         $manifest.totalObjects += @($policies).Count
-        Write-Information "✓ Exported $(@($policies).Count) settings catalog policies" -InformationAction Continue
+        Write-Output "✓ Exported $(@($policies).Count) settings catalog policies"
     }
 
     # ----- Compliance policies -----
     if ($Areas -contains "CompliancePolicies") {
-        Write-Information "Exporting compliance policies..." -InformationAction Continue
+        Write-Output "Exporting compliance policies..."
         $folder = Join-Path $backupRoot "CompliancePolicies"
         $null = New-Item -Path $folder -ItemType Directory -Force
 
@@ -309,12 +310,12 @@ try {
 
         $manifest.areas["CompliancePolicies"] = @($compliancePolicies).Count
         $manifest.totalObjects += @($compliancePolicies).Count
-        Write-Information "✓ Exported $(@($compliancePolicies).Count) compliance policies" -InformationAction Continue
+        Write-Output "✓ Exported $(@($compliancePolicies).Count) compliance policies"
     }
 
     # ----- Administrative template (ADMX) policies -----
     if ($Areas -contains "AdmxPolicies") {
-        Write-Information "Exporting administrative template policies..." -InformationAction Continue
+        Write-Output "Exporting administrative template policies..."
         $folder = Join-Path $backupRoot "AdmxPolicies"
         $null = New-Item -Path $folder -ItemType Directory -Force
 
@@ -330,12 +331,12 @@ try {
 
         $manifest.areas["AdmxPolicies"] = @($admxPolicies).Count
         $manifest.totalObjects += @($admxPolicies).Count
-        Write-Information "✓ Exported $(@($admxPolicies).Count) administrative template policies" -InformationAction Continue
+        Write-Output "✓ Exported $(@($admxPolicies).Count) administrative template policies"
     }
 
     # ----- Platform scripts (Windows PowerShell + macOS shell) -----
     if ($Areas -contains "PlatformScripts") {
-        Write-Information "Exporting platform scripts..." -InformationAction Continue
+        Write-Output "Exporting platform scripts..."
         $folder = Join-Path $backupRoot "PlatformScripts"
         $null = New-Item -Path $folder -ItemType Directory -Force
 
@@ -366,7 +367,7 @@ try {
                 $scriptCount++
             }
 
-            Write-Information "✓ Exported $(@($platformScripts).Count) $($surface.Label)" -InformationAction Continue
+            Write-Output "✓ Exported $(@($platformScripts).Count) $($surface.Label)"
         }
 
         $manifest.areas["PlatformScripts"] = $scriptCount
@@ -377,15 +378,15 @@ try {
     $manifestPath = Join-Path $backupRoot "manifest.json"
     $manifest | ConvertTo-Json -Depth 5 | Out-File -FilePath $manifestPath -Encoding utf8
 
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Backup Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Backup Summary"
+    Write-Output "========================================"
     foreach ($area in $manifest.areas.Keys) {
-        Write-Information "$($area): $($manifest.areas[$area]) objects" -InformationAction Continue
+        Write-Output "$($area): $($manifest.areas[$area]) objects"
     }
-    Write-Information "Total: $($manifest.totalObjects) objects" -InformationAction Continue
-    Write-Information "Backup folder: $backupRoot" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "Total: $($manifest.totalObjects) objects"
+    Write-Output "Backup folder: $backupRoot"
+    Write-Output "========================================"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -394,7 +395,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

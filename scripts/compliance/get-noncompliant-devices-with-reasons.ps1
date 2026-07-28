@@ -26,15 +26,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Output directory is created automatically when missing; per-device and per-policy Graph calls are spaced with a short delay to reduce throttling; summary counts are wrapped in @() so single-result queries report accurate totals; progress bar output is suppressed in Azure Automation
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-noncompliant-devices-with-reasons.ps1
@@ -155,7 +156,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -189,13 +190,13 @@ try {
         Write-Output "Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -263,7 +264,7 @@ function ConvertTo-HtmlSafe {
 # ============================================================================
 
 try {
-    Write-Information "Starting non-compliant device reason report..." -InformationAction Continue
+    Write-Output "Starting non-compliant device reason report..."
 
     # Load System.Web for HTML encoding (available in Windows PowerShell and PowerShell 7+)
     Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
@@ -273,9 +274,9 @@ try {
     $deviceSelect = "id,deviceName,operatingSystem,osVersion,complianceState,userPrincipalName,userDisplayName,managedDeviceOwnerType,lastSyncDateTime,complianceGracePeriodExpirationDateTime"
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=$filterClause&`$select=$deviceSelect"
 
-    Write-Information "Retrieving devices in state(s): $($ComplianceStates -join ', ')..." -InformationAction Continue
+    Write-Output "Retrieving devices in state(s): $($ComplianceStates -join ', ')..."
     $devices = Get-MgGraphAllPage -Uri $devicesUri
-    Write-Information "Found $($devices.Count) device(s) matching the requested compliance state(s)" -InformationAction Continue
+    Write-Output "Found $($devices.Count) device(s) matching the requested compliance state(s)"
 
     $report = @()
     $processedCount = 0
@@ -404,7 +405,7 @@ try {
     # Export to CSV
     try {
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "CSV report saved: $csvPath"
     }
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -510,7 +511,7 @@ try {
         $htmlContent += "</body></html>"
 
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-        Write-Information "HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "HTML report saved: $htmlPath"
 
         if ($OpenReport -and -not $IsAzureAutomation) {
             try {
@@ -526,25 +527,25 @@ try {
     }
 
     # Display summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information "NON-COMPLIANT DEVICE REASON SUMMARY" -InformationAction Continue
-    Write-Information "====================================" -InformationAction Continue
-    Write-Information "States included: $($ComplianceStates -join ', ')" -InformationAction Continue
-    Write-Information "Affected devices: $distinctDevices" -InformationAction Continue
-    Write-Information "Total failing settings: $totalReasons" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output "NON-COMPLIANT DEVICE REASON SUMMARY"
+    Write-Output "===================================="
+    Write-Output "States included: $($ComplianceStates -join ', ')"
+    Write-Output "Affected devices: $distinctDevices"
+    Write-Output "Total failing settings: $totalReasons"
 
     if ($topReasons) {
-        Write-Information "`nTop reasons:" -InformationAction Continue
+        Write-Output "`nTop reasons:"
         foreach ($r in $topReasons) {
-            Write-Information ("  {0,-4} {1}" -f $r.Count, $r.Name) -InformationAction Continue
+            Write-Output ("  {0,-4} {1}" -f $r.Count, $r.Name)
         }
     }
 
-    Write-Information "`nReports saved to:" -InformationAction Continue
-    Write-Information "CSV:  $csvPath" -InformationAction Continue
-    Write-Information "HTML: $htmlPath" -InformationAction Continue
+    Write-Output "`nReports saved to:"
+    Write-Output "CSV:  $csvPath"
+    Write-Output "HTML: $htmlPath"
 
-    Write-Information "`nNon-compliant device reason report completed successfully." -InformationAction Continue
+    Write-Output "`nNon-compliant device reason report completed successfully."
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -553,7 +554,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed (may have already been disconnected)"

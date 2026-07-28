@@ -23,15 +23,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Managed device query now requests only the fields used by the report; output directory is created automatically when missing; per-device policy state calls are spaced with a short delay to reduce throttling; policy-state and summary counts are wrapped in @() so single-result queries report accurate totals; progress bar output is suppressed in Azure Automation
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-device-compliance-report.ps1
@@ -149,7 +150,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -185,13 +186,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -253,19 +254,19 @@ function Get-MgGraphAllPage {
 # ============================================================================
 
 try {
-    Write-Information "Starting device compliance report generation..." -InformationAction Continue
+    Write-Output "Starting device compliance report generation..."
 
     # Get all managed devices (only the fields used by the report)
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     $deviceSelect = "id,deviceName,userPrincipalName,userDisplayName,operatingSystem,osVersion,model,manufacturer,serialNumber,lastSyncDateTime,enrolledDateTime,managementState,managedDeviceOwnerType,complianceGracePeriodExpirationDateTime"
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=$deviceSelect"
-    Write-Information "✓ Found $($devices.Count) managed devices" -InformationAction Continue
+    Write-Output "✓ Found $($devices.Count) managed devices"
 
     # Get compliance policies
     try {
-        Write-Information "Retrieving compliance policies..." -InformationAction Continue
+        Write-Output "Retrieving compliance policies..."
         $compliancePolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
-        Write-Information "✓ Found $($compliancePolicies.Count) compliance policies" -InformationAction Continue
+        Write-Output "✓ Found $($compliancePolicies.Count) compliance policies"
     }
     catch {
         Write-Warning "Could not retrieve compliance policies: $($_.Exception.Message)"
@@ -276,7 +277,7 @@ try {
     $report = @()
     $processedCount = 0
 
-    Write-Information "Processing device compliance data..." -InformationAction Continue
+    Write-Output "Processing device compliance data..."
 
     foreach ($device in $devices) {
         $processedCount++
@@ -366,7 +367,7 @@ try {
     # Export to CSV
     try {
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -455,7 +456,7 @@ try {
         $htmlContent += "</body></html>"
         
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-        Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML report saved: $htmlPath"
         
         if ($OpenReport -and -not $IsAzureAutomation) {
             try {
@@ -472,20 +473,20 @@ try {
     }
 
     # Display summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information "📊 COMPLIANCE REPORT SUMMARY" -InformationAction Continue
-    Write-Information "================================" -InformationAction Continue
-    Write-Information "Total Devices: $($report.Count)" -InformationAction Continue
-    Write-Information "Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)" -InformationAction Continue
-    Write-Information "Non-Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)" -InformationAction Continue
-    Write-Information "Unknown Status: $(@($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count)" -InformationAction Continue
-    Write-Information "Stale Devices (>7 days): $(@($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output "📊 COMPLIANCE REPORT SUMMARY"
+    Write-Output "================================"
+    Write-Output "Total Devices: $($report.Count)"
+    Write-Output "Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Compliant' }).Count)"
+    Write-Output "Non-Compliant Devices: $(@($report | Where-Object { $_.OverallCompliance -eq 'Non-Compliant' }).Count)"
+    Write-Output "Unknown Status: $(@($report | Where-Object { $_.OverallCompliance -eq 'Unknown' }).Count)"
+    Write-Output "Stale Devices (>7 days): $(@($report | Where-Object { $_.DaysSinceLastSync -ne 'Never' -and [double]$_.DaysSinceLastSync -gt 7 }).Count)"
 
-    Write-Information "`nReports saved to:" -InformationAction Continue
-    Write-Information "📄 CSV: $csvPath" -InformationAction Continue
-    Write-Information "🌐 HTML: $htmlPath" -InformationAction Continue
+    Write-Output "`nReports saved to:"
+    Write-Output "📄 CSV: $csvPath"
+    Write-Output "🌐 HTML: $htmlPath"
 
-    Write-Information "`n🎉 Device compliance report generation completed successfully!" -InformationAction Continue
+    Write-Output "`n🎉 Device compliance report generation completed successfully!"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -495,7 +496,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

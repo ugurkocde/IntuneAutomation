@@ -87,13 +87,13 @@ foreach ($Module in $RequiredModules) {
 
 # Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+    Write-Output "Connecting to Microsoft Graph..."
     $Scopes = @(
         # Add your required permissions here
         "Permission.ReadWrite.All"
     )
     Connect-MgGraph -Scopes $Scopes -NoWelcome
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -174,7 +174,7 @@ function Invoke-CustomFunction {
 # ============================================================================
 
 try {
-    Write-Information "Starting script execution..." -InformationAction Continue
+    Write-Output "Starting script execution..."
     
     # Validate parameters
     if ([string]::IsNullOrWhiteSpace($RequiredParameter)) {
@@ -182,7 +182,7 @@ try {
     }
     
     # Main script logic goes here
-    Write-Information "Processing with parameter: $RequiredParameter" -InformationAction Continue
+    Write-Output "Processing with parameter: $RequiredParameter"
     
     # Example API call
     # $Results = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/your-endpoint"
@@ -202,7 +202,7 @@ try {
     # $Results | Export-Csv -Path "output.csv" -NoTypeInformation -Encoding utf8
     # $HtmlContent | Out-File -FilePath "output.html" -Encoding utf8
 
-    Write-Information "✓ Script completed successfully" -InformationAction Continue
+    Write-Output "✓ Script completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -212,7 +212,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnect errors
@@ -223,7 +223,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -231,4 +231,4 @@ Script: [Script Name]
 Parameters: $RequiredParameter
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

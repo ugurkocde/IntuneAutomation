@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\fix-primary-user-assignment.ps1
@@ -147,14 +148,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.ReadWrite.All",
             "User.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -233,9 +234,9 @@ function Resolve-UserUpn {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving Windows devices with logged-on user data..." -InformationAction Continue
+    Write-Output "Retrieving Windows devices with logged-on user data..."
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,userPrincipalName,userId,usersLoggedOn,lastSyncDateTime"
-    Write-Information "✓ Found $(@($devices).Count) Windows devices" -InformationAction Continue
+    Write-Output "✓ Found $(@($devices).Count) Windows devices"
 
     [System.Collections.Generic.List[Object]]$report = @()
     $updated = 0
@@ -277,7 +278,7 @@ try {
                 try {
                     $body = @{ "@odata.id" = "https://graph.microsoft.com/beta/users/$actualUserId" } | ConvertTo-Json
                     Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($device.id)/users/`$ref" -Method POST -Body $body -ContentType "application/json"
-                    Write-Information "✓ Primary user updated on '$($device.deviceName)': $actualUserUpn" -InformationAction Continue
+                    Write-Output "✓ Primary user updated on '$($device.deviceName)': $actualUserUpn"
                     $result = "Updated"
                     $updated++
                 }
@@ -303,38 +304,38 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nPRIMARY USER MISMATCH REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nPRIMARY USER MISMATCH REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($report.Count -eq 0) {
-        Write-Information "`nNo primary user mismatches found." -InformationAction Continue
+        Write-Output "`nNo primary user mismatches found."
     }
     else {
         foreach ($row in ($report | Sort-Object DeviceName)) {
-            Write-Information "  $($row.DeviceName): primary '$($row.CurrentPrimary)' vs actual '$($row.ActualUser)' [$($row.Result)]" -InformationAction Continue
+            Write-Output "  $($row.DeviceName): primary '$($row.CurrentPrimary)' vs actual '$($row.ActualUser)' [$($row.Result)]"
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $(@($devices).Count) Windows devices | $alreadyCorrect correct | $($report.Count) mismatched | $noData without usable logon data" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $(@($devices).Count) Windows devices | $alreadyCorrect correct | $($report.Count) mismatched | $noData without usable logon data"
     if ($Apply) {
-        Write-Information "Updated: $updated | Failed: $failed" -InformationAction Continue
+        Write-Output "Updated: $updated | Failed: $failed"
     }
     elseif ($report.Count -gt 0) {
-        Write-Information "Run again with -Apply to update the primary users (add -WhatIf for a dry run)" -InformationAction Continue
+        Write-Output "Run again with -Apply to update the primary users (add -WhatIf for a dry run)"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Primary_User_Mismatches_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -344,7 +345,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

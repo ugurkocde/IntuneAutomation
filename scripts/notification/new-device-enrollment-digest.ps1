@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -174,14 +175,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "Mail.Send"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -347,7 +348,7 @@ function New-EmailBody {
 
 try {
     $cutoff = (Get-Date).AddDays(-$DaysBack)
-    Write-Information "Collecting devices enrolled since $($cutoff.ToString('yyyy-MM-dd'))..." -InformationAction Continue
+    Write-Output "Collecting devices enrolled since $($cutoff.ToString('yyyy-MM-dd'))..."
 
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,ownerType,deviceEnrollmentType,enrolledDateTime,userPrincipalName"
 
@@ -368,11 +369,11 @@ try {
             })
     }
 
-    Write-Information "✓ Found $($newDevices.Count) new enrollment(s) in the last $DaysBack days" -InformationAction Continue
+    Write-Output "✓ Found $($newDevices.Count) new enrollment(s) in the last $DaysBack days"
 
     # ----- Send notification -----
     if ($newDevices.Count -eq 0 -and -not $AlwaysSend) {
-        Write-Information "No new enrollments - no email sent (use -AlwaysSend for empty digests)" -InformationAction Continue
+        Write-Output "No new enrollments - no email sent (use -AlwaysSend for empty digests)"
     }
     else {
         $recipients = @($EmailRecipients -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -386,15 +387,15 @@ try {
     }
 
     # Summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Enrollment Digest Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Window:          last $DaysBack days" -InformationAction Continue
-    Write-Information "New enrollments: $($newDevices.Count)" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Enrollment Digest Summary"
+    Write-Output "========================================"
+    Write-Output "Window:          last $DaysBack days"
+    Write-Output "New enrollments: $($newDevices.Count)"
     foreach ($group in ($newDevices | Group-Object Platform | Sort-Object Count -Descending)) {
-        Write-Information "  $($group.Name): $($group.Count)" -InformationAction Continue
+        Write-Output "  $($group.Name): $($group.Count)"
     }
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "========================================"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -403,7 +404,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

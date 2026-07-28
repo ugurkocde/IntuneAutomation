@@ -36,9 +36,10 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); request expiry now derives from the real expirationDateTime property instead of an assumed 30-day lifetime; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); pending request fields now map to real operationApprovalRequest properties (requestor identitySet, requiredOperationApprovalPolicyTypes)
     1.0 - Initial release
@@ -56,7 +57,7 @@
     Notification
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\maa-pending-requests-monitor.ps1 -EmailRecipients "security@company.com" -SenderUPN "intune-alerts@company.com" -UrgentThresholdHours 24
@@ -231,12 +232,12 @@ Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment
 
 # Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+    Write-Output "Connecting to Microsoft Graph..."
     
     if ($RunningInAzureAutomation) {
         # Use Managed Identity in Azure Automation
         Connect-MgGraph -Identity -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph using Managed Identity" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph using Managed Identity"
     }
     else {
         # Use interactive authentication for local execution
@@ -249,7 +250,7 @@ try {
             "Mail.Send"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph with interactive authentication" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph with interactive authentication"
     }
 }
 catch {
@@ -810,10 +811,10 @@ function Send-EmailNotification {
 # ============================================================================
 
 try {
-    Write-Information "Starting MAA Pending Requests Monitor..." -InformationAction Continue
-    Write-Information "Urgent Threshold: $UrgentThresholdHours hours" -InformationAction Continue
-    Write-Information "Escalation Threshold: $EscalationThresholdHours hours" -InformationAction Continue
-    Write-Information "Email Recipients: $EmailRecipients" -InformationAction Continue
+    Write-Output "Starting MAA Pending Requests Monitor..."
+    Write-Output "Urgent Threshold: $UrgentThresholdHours hours"
+    Write-Output "Escalation Threshold: $EscalationThresholdHours hours"
+    Write-Output "Email Recipients: $EmailRecipients"
     
     # Get notification state
     $NotificationState = Get-NotificationState
@@ -836,7 +837,7 @@ try {
         ProcessedCount = $ProcessedRequests.Count
     }
     
-    Write-Information "Analysis complete: $($Summary.TotalPending) pending, $($Summary.UrgentCount) urgent, $($Summary.EscalatedCount) escalated" -InformationAction Continue
+    Write-Output "Analysis complete: $($Summary.TotalPending) pending, $($Summary.UrgentCount) urgent, $($Summary.EscalatedCount) escalated"
     
     # Step 4: Determine if notification should be sent
     $NewRequests = @()
@@ -869,12 +870,12 @@ try {
     }
     
     if (-not $ShouldSendNotification) {
-        Write-Information "✓ No notification needed. No new or urgent requests." -InformationAction Continue
+        Write-Output "✓ No notification needed. No new or urgent requests."
         exit 0
     }
     
     # Step 5: Create and send email notification
-    Write-Information "Sending notification: $NotificationReason" -InformationAction Continue
+    Write-Output "Sending notification: $NotificationReason"
     
     # Prepare email subject
     $AlertLevel = if ($Summary.EscalatedCount -gt 0) { "ESCALATED" }
@@ -897,7 +898,7 @@ try {
     $EmailSent = Send-EmailNotification -Body $EmailBody -Recipients $Recipients -Subject $Subject
     
     if ($EmailSent) {
-        Write-Information "✓ Notification sent successfully" -InformationAction Continue
+        Write-Output "✓ Notification sent successfully"
         
         # Update notification state
         $NotificationState.NotifiedRequests = $PendingRequests.Id
@@ -910,7 +911,7 @@ try {
         exit 1
     }
     
-    Write-Information "✓ MAA Pending Requests Monitor completed successfully" -InformationAction Continue
+    Write-Output "✓ MAA Pending Requests Monitor completed successfully"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -921,7 +922,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnect errors
@@ -932,7 +933,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 MAA Monitoring Summary
 ========================================
@@ -944,4 +945,4 @@ Processed (24h): $($Summary.ProcessedCount)
 Notification Sent: $(if ($ShouldSendNotification) { 'Yes' } else { 'No' })
 Recipients: $EmailRecipients
 ========================================
-" -InformationAction Continue
+"

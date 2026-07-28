@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-device policy state calls are paced and fetch failures are summarized in a warning; device listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); assigned compliance policy is now resolved via per-device deviceCompliancePolicyStates for reported devices
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -159,7 +160,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -193,7 +194,7 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All",
@@ -201,7 +202,7 @@ try {
         )
         
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -680,7 +681,7 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Starting device compliance drift monitoring..." -InformationAction Continue
+    Write-Output "Starting device compliance drift monitoring..."
     
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
@@ -689,8 +690,8 @@ try {
         throw "No valid email recipients provided"
     }
     
-    Write-Information "Email recipients: $($EmailRecipientList -join ', ')" -InformationAction Continue
-    Write-Information "Compliance threshold: $ComplianceThresholdPercent%" -InformationAction Continue
+    Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
+    Write-Output "Compliance threshold: $ComplianceThresholdPercent%"
     
     # Initialize results arrays
     $AllDevices = @()
@@ -706,12 +707,12 @@ try {
     # GET COMPLIANCE POLICIES
     # ========================================================================
     
-    Write-Information "Retrieving compliance policies..." -InformationAction Continue
+    Write-Output "Retrieving compliance policies..."
     
     try {
         $PoliciesUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
         $CompliancePolicies = Get-MgGraphAllPage -Uri $PoliciesUri
-        Write-Information "Found $($CompliancePolicies.Count) compliance policies" -InformationAction Continue
+        Write-Output "Found $($CompliancePolicies.Count) compliance policies"
     }
     catch {
         Write-Warning "Failed to retrieve compliance policies: $($_.Exception.Message)"
@@ -721,12 +722,12 @@ try {
     # GET ALL MANAGED DEVICES WITH COMPLIANCE STATUS
     # ========================================================================
     
-    Write-Information "Retrieving managed devices with compliance status..." -InformationAction Continue
+    Write-Output "Retrieving managed devices with compliance status..."
     
     try {
         $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer,jailBroken,managementAgent"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
-        Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
+        Write-Output "Found $($Devices.Count) managed devices"
         
         foreach ($Device in $Devices) {
             try {
@@ -800,7 +801,7 @@ try {
             }
         }
         
-        Write-Information "✓ Processed $($AllDevices.Count) devices successfully" -InformationAction Continue
+        Write-Output "✓ Processed $($AllDevices.Count) devices successfully"
 
         if ($PolicyStateFetchFailures -gt 0) {
             Write-Warning "Could not retrieve compliance policy states for $PolicyStateFetchFailures device(s); their assigned policy is reported as Unknown"
@@ -830,11 +831,11 @@ try {
         ThresholdMet         = $CompliancePercentage -ge $ComplianceThresholdPercent
     }
     
-    Write-Information "  • Compliant devices: $($CompliantDevices.Count) ($CompliancePercentage%)" -InformationAction Continue
-    Write-Information "  • Non-compliant devices: $($NonCompliantDevices.Count)" -InformationAction Continue
-    Write-Information "  • Conflict devices: $($ConflictDevices.Count)" -InformationAction Continue
-    Write-Information "  • Error devices: $($ErrorDevices.Count)" -InformationAction Continue
-    Write-Information "  • Grace period devices: $($GracePeriodDevices.Count)" -InformationAction Continue
+    Write-Output "  • Compliant devices: $($CompliantDevices.Count) ($CompliancePercentage%)"
+    Write-Output "  • Non-compliant devices: $($NonCompliantDevices.Count)"
+    Write-Output "  • Conflict devices: $($ConflictDevices.Count)"
+    Write-Output "  • Error devices: $($ErrorDevices.Count)"
+    Write-Output "  • Grace period devices: $($GracePeriodDevices.Count)"
     
     # ========================================================================
     # SEND NOTIFICATIONS IF COMPLIANCE DRIFT DETECTED
@@ -846,7 +847,7 @@ try {
                            ($ErrorDevices.Count -gt 0)
     
     if ($RequiresNotification) {
-        Write-Information "Preparing email notification for compliance drift..." -InformationAction Continue
+        Write-Output "Preparing email notification for compliance drift..."
         
         $Subject = if ($CompliancePercentage -lt $ComplianceThresholdPercent) {
             "[Intune Alert] COMPLIANCE DRIFT: $CompliancePercentage% Below Threshold ($ComplianceThresholdPercent%)"
@@ -863,7 +864,7 @@ try {
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
-            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+            Write-Output "✓ Email notification sent to $($EmailRecipientList.Count) recipients"
         }
         else {
             Write-Warning "Email notification could not be delivered to all recipients"
@@ -871,41 +872,41 @@ try {
         }
     }
     else {
-        Write-Information "✓ No compliance drift detected. All devices meet compliance requirements." -InformationAction Continue
+        Write-Output "✓ No compliance drift detected. All devices meet compliance requirements."
     }
     
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
     
-    Write-Information "`n🛡️ DEVICE COMPLIANCE DRIFT MONITORING SUMMARY" -InformationAction Continue
-    Write-Information "===============================================" -InformationAction Continue
-    Write-Information "Total Managed Devices: $TotalDevices" -InformationAction Continue
-    Write-Information "Compliance Threshold: $ComplianceThresholdPercent%" -InformationAction Continue
-    Write-Information "Current Compliance: $CompliancePercentage%" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
-    
-    Write-Information "Compliance Status Breakdown:" -InformationAction Continue
-    Write-Information "  • Compliant: $($CompliantDevices.Count) ($CompliancePercentage%)" -InformationAction Continue
-    Write-Information "  • Non-Compliant: $($NonCompliantDevices.Count)" -InformationAction Continue
-    Write-Information "  • Conflicts: $($ConflictDevices.Count)" -InformationAction Continue
-    Write-Information "  • Errors: $($ErrorDevices.Count)" -InformationAction Continue
-    Write-Information "  • Grace Period: $($GracePeriodDevices.Count)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "`n🛡️ DEVICE COMPLIANCE DRIFT MONITORING SUMMARY"
+    Write-Output "==============================================="
+    Write-Output "Total Managed Devices: $TotalDevices"
+    Write-Output "Compliance Threshold: $ComplianceThresholdPercent%"
+    Write-Output "Current Compliance: $CompliancePercentage%"
+    Write-Output ""
+
+    Write-Output "Compliance Status Breakdown:"
+    Write-Output "  • Compliant: $($CompliantDevices.Count) ($CompliancePercentage%)"
+    Write-Output "  • Non-Compliant: $($NonCompliantDevices.Count)"
+    Write-Output "  • Conflicts: $($ConflictDevices.Count)"
+    Write-Output "  • Errors: $($ErrorDevices.Count)"
+    Write-Output "  • Grace Period: $($GracePeriodDevices.Count)"
+    Write-Output ""
     
     if ($NonCompliantDevices.Count -gt 0) {
-        Write-Information "Platform Breakdown (Non-Compliant Devices):" -InformationAction Continue
+        Write-Output "Platform Breakdown (Non-Compliant Devices):"
         $PlatformGroups = $NonCompliantDevices | Group-Object Platform | Sort-Object Name
         foreach ($Group in $PlatformGroups) {
-            Write-Information "  • $($Group.Name): $($Group.Count) devices" -InformationAction Continue
+            Write-Output "  • $($Group.Name): $($Group.Count) devices"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     $StatusIcon = if ($CompliancePercentage -ge $ComplianceThresholdPercent) { "✅" } else { "⚠️" }
-    Write-Information "$StatusIcon Compliance Status: $(if ($CompliancePercentage -ge $ComplianceThresholdPercent) { 'MEETING THRESHOLD' } else { 'BELOW THRESHOLD' })" -InformationAction Continue
+    Write-Output "$StatusIcon Compliance Status: $(if ($CompliancePercentage -ge $ComplianceThresholdPercent) { 'MEETING THRESHOLD' } else { 'BELOW THRESHOLD' })"
     
-    Write-Information "`n✓ Device compliance drift monitoring completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Device compliance drift monitoring completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -914,7 +915,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Silently ignore disconnect errors as they're not critical
@@ -926,7 +927,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -941,7 +942,7 @@ Grace Period Devices: $($GracePeriodDevices.Count)
 Email Recipients: $($EmailRecipientList.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue
+"
 
 # Fail the run if notification delivery failed
 if ($NotificationFailed) {

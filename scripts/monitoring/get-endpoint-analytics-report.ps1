@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - The ShowProgress switch now drives Write-Progress during metric collection; analytics queries select only the fields the report consumes; output directory is created automatically before exports; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); work from anywhere metrics now use the allDevices metricDevices endpoint
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-endpoint-analytics-report.ps1
@@ -171,7 +172,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -205,13 +206,13 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -275,13 +276,13 @@ function Get-MgGraphAllPage {
 # ============================================================================
 
 try {
-    Write-Information "Starting Endpoint Analytics report generation..." -InformationAction Continue
+    Write-Output "Starting Endpoint Analytics report generation..."
 
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $allMetrics = @{}
 
     # Device Scores - Always collect for overview
-    Write-Information "Retrieving device scores..." -InformationAction Continue
+    Write-Output "Retrieving device scores..."
     if ($ShowProgress -and -not $IsAzureAutomation) {
         Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving device scores" -PercentComplete 10
     }
@@ -289,7 +290,7 @@ try {
         $deviceScoresUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceScores?`$select=id,deviceName,model,endpointAnalyticsScore,startupPerformanceScore,appReliabilityScore,batteryHealthScore"
         $deviceScores = Get-MgGraphAllPage -Uri $deviceScoresUri
         $allMetrics['DeviceScores'] = $deviceScores
-        Write-Information "✓ Retrieved $($deviceScores.Count) device score records" -InformationAction Continue
+        Write-Output "✓ Retrieved $($deviceScores.Count) device score records"
     }
     catch {
         Write-Warning "Failed to retrieve device scores: $($_.Exception.Message)"
@@ -298,7 +299,7 @@ try {
 
     # Startup Performance
     if ($IncludeStartupPerformance) {
-        Write-Information "Retrieving startup performance metrics..." -InformationAction Continue
+        Write-Output "Retrieving startup performance metrics..."
         if ($ShowProgress -and -not $IsAzureAutomation) {
             Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving startup performance metrics" -PercentComplete 30
         }
@@ -306,12 +307,12 @@ try {
             $startupHistoryUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceStartupHistory"
             $startupHistory = Get-MgGraphAllPage -Uri $startupHistoryUri
             $allMetrics['StartupHistory'] = $startupHistory
-            Write-Information "✓ Retrieved $($startupHistory.Count) startup history records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($startupHistory.Count) startup history records"
 
             $devicePerformanceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDevicePerformance?`$select=id,deviceName,model,manufacturer,coreBootTimeInMs,groupPolicyBootTimeInMs"
             $devicePerformance = Get-MgGraphAllPage -Uri $devicePerformanceUri
             $allMetrics['DevicePerformance'] = $devicePerformance
-            Write-Information "✓ Retrieved $($devicePerformance.Count) device performance records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($devicePerformance.Count) device performance records"
         }
         catch {
             Write-Warning "Failed to retrieve startup performance: $($_.Exception.Message)"
@@ -322,7 +323,7 @@ try {
 
     # Application Reliability
     if ($IncludeAppReliability) {
-        Write-Information "Retrieving application reliability metrics..." -InformationAction Continue
+        Write-Output "Retrieving application reliability metrics..."
         if ($ShowProgress -and -not $IsAzureAutomation) {
             Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving application reliability metrics" -PercentComplete 50
         }
@@ -330,12 +331,12 @@ try {
             $appHealthDeviceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthDevicePerformanceDetails"
             $appHealthDevice = Get-MgGraphAllPage -Uri $appHealthDeviceUri
             $allMetrics['AppHealthDevice'] = $appHealthDevice
-            Write-Information "✓ Retrieved $($appHealthDevice.Count) app health device records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($appHealthDevice.Count) app health device records"
 
             $appHealthAppUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthApplicationPerformance?`$select=appDisplayName,appCrashCount,activeDeviceCount"
             $appHealthApp = Get-MgGraphAllPage -Uri $appHealthAppUri
             $allMetrics['AppHealthApplication'] = $appHealthApp
-            Write-Information "✓ Retrieved $($appHealthApp.Count) app health application records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($appHealthApp.Count) app health application records"
         }
         catch {
             Write-Warning "Failed to retrieve application reliability: $($_.Exception.Message)"
@@ -346,7 +347,7 @@ try {
 
     # Battery Health
     if ($IncludeBatteryHealth) {
-        Write-Information "Retrieving battery health metrics..." -InformationAction Continue
+        Write-Output "Retrieving battery health metrics..."
         if ($ShowProgress -and -not $IsAzureAutomation) {
             Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving battery health metrics" -PercentComplete 70
         }
@@ -354,12 +355,12 @@ try {
             $batteryOsUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthOsPerformance"
             $batteryOs = Get-MgGraphAllPage -Uri $batteryOsUri
             $allMetrics['BatteryOsPerformance'] = $batteryOs
-            Write-Information "✓ Retrieved $($batteryOs.Count) battery OS performance records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($batteryOs.Count) battery OS performance records"
 
             $batteryDeviceUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthDevicePerformance?`$select=id,deviceName,model,deviceBatteryHealthScore,maxCapacityPercentage,batteryAgeInDays"
             $batteryDevice = Get-MgGraphAllPage -Uri $batteryDeviceUri
             $allMetrics['BatteryDevicePerformance'] = $batteryDevice
-            Write-Information "✓ Retrieved $($batteryDevice.Count) battery device performance records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($batteryDevice.Count) battery device performance records"
         }
         catch {
             Write-Warning "Failed to retrieve battery health: $($_.Exception.Message)"
@@ -370,7 +371,7 @@ try {
 
     # Work From Anywhere
     if ($IncludeWorkFromAnywhere) {
-        Write-Information "Retrieving work from anywhere metrics..." -InformationAction Continue
+        Write-Output "Retrieving work from anywhere metrics..."
         if ($ShowProgress -and -not $IsAzureAutomation) {
             Write-Progress -Activity "Endpoint Analytics Report" -Status "Retrieving work from anywhere metrics" -PercentComplete 90
         }
@@ -378,7 +379,7 @@ try {
             $wfaUri = "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics('allDevices')/metricDevices"
             $wfaMetrics = Get-MgGraphAllPage -Uri $wfaUri
             $allMetrics['WorkFromAnywhere'] = $wfaMetrics
-            Write-Information "✓ Retrieved $($wfaMetrics.Count) work from anywhere records" -InformationAction Continue
+            Write-Output "✓ Retrieved $($wfaMetrics.Count) work from anywhere records"
         }
         catch {
             Write-Warning "Failed to retrieve work from anywhere metrics: $($_.Exception.Message)"
@@ -393,18 +394,18 @@ try {
     # Create output directory if it does not exist
     if (-not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        Write-Output "Created output directory: $OutputPath"
     }
 
     # Export results to CSV
-    Write-Information "Exporting results to CSV..." -InformationAction Continue
+    Write-Output "Exporting results to CSV..."
 
     foreach ($key in $allMetrics.Keys) {
         if ($allMetrics[$key].Count -gt 0) {
             $csvPath = Join-Path $OutputPath "EndpointAnalytics_${key}_$timestamp.csv"
             try {
                 $allMetrics[$key] | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
-                Write-Information "✓ Exported $key to: $csvPath" -InformationAction Continue
+                Write-Output "✓ Exported $key to: $csvPath"
             }
             catch {
                 Write-Warning "Failed to export $key to CSV: $($_.Exception.Message)"
@@ -414,13 +415,13 @@ try {
 
     # Export to JSON if requested
     if ($ExportJson) {
-        Write-Information "Exporting results to JSON..." -InformationAction Continue
+        Write-Output "Exporting results to JSON..."
         foreach ($key in $allMetrics.Keys) {
             if ($allMetrics[$key].Count -gt 0) {
                 $jsonPath = Join-Path $OutputPath "EndpointAnalytics_${key}_$timestamp.json"
                 try {
                     $allMetrics[$key] | ConvertTo-Json -Depth 10 | Out-File -FilePath $jsonPath -Encoding utf8
-                    Write-Information "✓ Exported $key to: $jsonPath" -InformationAction Continue
+                    Write-Output "✓ Exported $key to: $jsonPath"
                 }
                 catch {
                     Write-Warning "Failed to export $key to JSON: $($_.Exception.Message)"
@@ -430,7 +431,7 @@ try {
     }
 
     # Calculate Analytics and Statistics
-    Write-Information "Calculating analytics statistics..." -InformationAction Continue
+    Write-Output "Calculating analytics statistics..."
 
     # Device Scores Analytics
     $avgEndpointScore = if ($allMetrics['DeviceScores'].Count -gt 0) {
@@ -481,7 +482,7 @@ try {
     }
 
     # Generate HTML Summary Report
-    Write-Information "Generating HTML summary report..." -InformationAction Continue
+    Write-Output "Generating HTML summary report..."
 
     $htmlContent = @"
 <!DOCTYPE html>
@@ -681,14 +682,14 @@ try {
     $htmlPath = Join-Path $OutputPath "EndpointAnalytics_Summary_$timestamp.html"
     try {
         $htmlContent | Out-File -FilePath $htmlPath -Encoding utf8
-        Write-Information "✓ HTML summary report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML summary report saved: $htmlPath"
     }
     catch {
         Write-Warning "Failed to generate HTML report: $($_.Exception.Message)"
     }
 
-    Write-Information "`n✓ Endpoint Analytics report generation completed successfully!" -InformationAction Continue
-    Write-Information "Reports saved to: $OutputPath" -InformationAction Continue
+    Write-Output "`n✓ Endpoint Analytics report generation completed successfully!"
+    Write-Output "Reports saved to: $OutputPath"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -697,7 +698,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed (may have already been disconnected)"

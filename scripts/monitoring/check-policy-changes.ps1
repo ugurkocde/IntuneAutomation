@@ -26,15 +26,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Audit log filter timestamp is now built from UTC; severity check on activityResult is now case-insensitive (Graph returns "Success"/"Failure" capitalized); output directory is created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\check-policy-changes.ps1
@@ -168,7 +169,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -204,13 +205,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -320,33 +321,33 @@ function Get-ChangeSeverity {
 # ============================================================================
 
 try {
-    Write-Information "Starting Policies changes analysis..." -InformationAction Continue
+    Write-Output "Starting Policies changes analysis..."
     
     # Calculate start date in UTC so the filter matches Graph timestamps
     $StartDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack)
     $StartDateFormatted = $StartDate.ToString("yyyy-MM-ddTHH:mm:ssZ")
     
-    Write-Information "Analyzing changes from: $($StartDate.ToString('yyyy-MM-dd HH:mm:ss'))" -InformationAction Continue
+    Write-Output "Analyzing changes from: $($StartDate.ToString('yyyy-MM-dd HH:mm:ss'))"
     
     # ========================================================================
     # GET AUDIT LOGS FOR SETTINGS CATALOG CHANGES
     # ========================================================================
     
-    Write-Information "Retrieving audit logs for Policies changes..." -InformationAction Continue
+    Write-Output "Retrieving audit logs for Policies changes..."
     
     try {
         # Query for Policies changes (DeviceConfiguration category)
         $AuditLogsUri = "https://graph.microsoft.com/beta/deviceManagement/auditEvents?`$filter=activityDateTime ge $StartDateFormatted and category eq 'DeviceConfiguration'&`$orderby=activityDateTime desc&`$top=50"
         $AuditLogs = Get-MgGraphAllPage -Uri $AuditLogsUri
         
-        Write-Information "Retrieved $($AuditLogs.Count) DeviceConfiguration audit events" -InformationAction Continue
+        Write-Output "Retrieved $($AuditLogs.Count) DeviceConfiguration audit events"
         
         # Filter for Policies (DeviceManagementConfigurationPolicy) activities
         $PoliciesActivities = $AuditLogs | Where-Object { 
             $_.activityType -like "*DeviceManagementConfigurationPolicy*"
         }
         
-        Write-Information "✓ Found $($PoliciesActivities.Count) policy changes" -InformationAction Continue
+        Write-Output "✓ Found $($PoliciesActivities.Count) policy changes"
     }
     catch {
         Write-Warning "Failed to retrieve audit logs: $($_.Exception.Message)"
@@ -357,27 +358,27 @@ try {
     # FILTER AND PROCESS CHANGES
     # ========================================================================
     
-    Write-Information "Processing Policies policy changes..." -InformationAction Continue
+    Write-Output "Processing Policies policy changes..."
     
     # Filter changes if OnlyShowChanges is specified
     if ($OnlyShowChanges) {
         $PoliciesActivities = $PoliciesActivities | Where-Object {
             $_.activityType -like "*Update*" -or $_.activityType -like "*Modify*"
         }
-        Write-Information "Filtered to show only policy modifications: $($PoliciesActivities.Count) changes" -InformationAction Continue
+        Write-Output "Filtered to show only policy modifications: $($PoliciesActivities.Count) changes"
     }
     
     # Get the last 5 changes
     $Last5Changes = $PoliciesActivities | Select-Object -First 5
     
     if ($Last5Changes.Count -eq 0) {
-        Write-Information "No Policies policy changes found in the specified time period." -InformationAction Continue
+        Write-Output "No Policies policy changes found in the specified time period."
         return
     }
     
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "LAST 5 POLICIES POLICY CHANGES" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "LAST 5 POLICIES POLICY CHANGES"
+    Write-Output "========================================"
     
     # Prepare CSV data for export
     $CsvData = @()
@@ -397,11 +398,11 @@ try {
                 $UserName = $Change.actor.userPrincipalName
             }
             
-            Write-Information "`n[$ChangeNumber] $($Change.activityDateTime)" -InformationAction Continue
-            Write-Information "Policy: $PolicyName" -InformationAction Continue
-            Write-Information "Action: $($Change.activityType)" -InformationAction Continue
-            Write-Information "User: $UserName" -InformationAction Continue
-            Write-Information "Result: $($Change.activityResult)" -InformationAction Continue
+            Write-Output "`n[$ChangeNumber] $($Change.activityDateTime)"
+            Write-Output "Policy: $PolicyName"
+            Write-Output "Action: $($Change.activityType)"
+            Write-Output "User: $UserName"
+            Write-Output "Result: $($Change.activityResult)"
             
             # Collect change details for CSV export
             $ChangeDetails = ""
@@ -409,12 +410,12 @@ try {
             
             # Show modified properties (before/after values)
             if ($Change.resources -and $Change.resources[0].modifiedProperties) {
-                Write-Information "Changes:" -InformationAction Continue
+                Write-Output "Changes:"
                 $ChangeDetailsList = @()
                 foreach ($Property in $Change.resources[0].modifiedProperties) {
                     $OldValue = if ($Property.oldValue) { $Property.oldValue } else { "(empty)" }
                     $NewValue = if ($Property.newValue) { $Property.newValue } else { "(empty)" }
-                    Write-Information "  - $($Property.displayName): '$OldValue' → '$NewValue'" -InformationAction Continue
+                    Write-Output "  - $($Property.displayName): '$OldValue' → '$NewValue'"
                     
                     if ($IncludeDetails) {
                         $ChangeDetailsList += "$($Property.displayName): '$OldValue' → '$NewValue'"
@@ -423,7 +424,7 @@ try {
                 $ChangeDetails = $ChangeDetailsList -join "; "
             }
             else {
-                Write-Information "  No detailed change information available" -InformationAction Continue
+                Write-Output "  No detailed change information available"
             }
             
             # Add to CSV data
@@ -454,13 +455,13 @@ try {
         # Create output directory if it does not exist
         if (-not (Test-Path $OutputPath)) {
             New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-            Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+            Write-Output "Created output directory: $OutputPath"
         }
 
         $OutputFile = Join-Path -Path $OutputPath -ChildPath "PolicyChanges_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
         try {
             $CsvData | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8
-            Write-Information "✓ Report exported to: $OutputFile" -InformationAction Continue
+            Write-Output "✓ Report exported to: $OutputFile"
         }
         catch {
             Write-Warning "Failed to export CSV report: $($_.Exception.Message)"
@@ -487,8 +488,8 @@ For full details, please check the attached CSV report or review the Intune audi
 "@
             
             # Note: Email sending would require additional modules like Send-MailMessage or Microsoft Graph
-            Write-Information "Email alert prepared for: $AlertEmailAddress" -InformationAction Continue
-            Write-Information "Subject: $Subject" -InformationAction Continue
+            Write-Output "Email alert prepared for: $AlertEmailAddress"
+            Write-Output "Subject: $Subject"
             Write-Warning "Email sending functionality requires additional configuration (SMTP settings or Microsoft Graph permissions)"
         }
         catch {
@@ -496,7 +497,7 @@ For full details, please check the attached CSV report or review the Intune audi
         }
     }
     
-    Write-Information "`n✓ Policies changes analysis completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Policies changes analysis completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -506,7 +507,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Warning "Failed to disconnect from Microsoft Graph: $($_.Exception.Message)"
@@ -517,7 +518,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -525,4 +526,4 @@ Script: Policies Changes Monitor
 Time Period: Last $DaysBack days
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Summary now reuses collected results instead of re-querying every device; key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields (isEncrypted replaces the invalid encryptionState property); pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\check-bitlocker-keys.ps1
@@ -161,7 +162,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -197,13 +198,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "BitlockerKey.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -339,16 +340,16 @@ function Format-LastSyncDate {
 # ============================================================================
 
 try {
-    Write-Information "Starting BitLocker key storage check..." -InformationAction Continue
+    Write-Output "Starting BitLocker key storage check..."
     
     # Validate output path
     if (-not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        Write-Output "Created output directory: $OutputPath"
     }
     
     # Get all Windows devices from Intune
-    Write-Information "Retrieving Windows devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving Windows devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,serialNumber,model,manufacturer,osVersion,azureADDeviceId,complianceState,isEncrypted,lastSyncDateTime"
     $devices = Get-MgGraphPaginatedData -Uri $devicesUri
     
@@ -357,7 +358,7 @@ try {
         return
     }
     
-    Write-Information "Found $($devices.Count) Windows devices. Checking BitLocker key status..." -InformationAction Continue
+    Write-Output "Found $($devices.Count) Windows devices. Checking BitLocker key status..."
     
     $results = @()
     $processedCount = 0
@@ -425,7 +426,7 @@ try {
     }
     
     # Display results
-    Write-Information "`nBitLocker Key Storage Results:" -InformationAction Continue
+    Write-Output "`nBitLocker Key Storage Results:"
     $results | Format-Table -AutoSize
     
     # Calculate and display summary statistics from the results collected above
@@ -433,20 +434,20 @@ try {
     $devicesWithoutKeys = $totalDevices - $devicesWithKeys
     $compliancePercentage = [math]::Round(($devicesWithKeys / $totalDevices) * 100, 1)
     
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "BitLocker Key Storage Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total Windows devices in Intune: $totalDevices" -InformationAction Continue
-    Write-Information "Devices with BitLocker keys in Entra ID: $devicesWithKeys" -InformationAction Continue  
-    Write-Information "Devices without BitLocker keys: $devicesWithoutKeys" -InformationAction Continue
-    Write-Information "Compliance percentage: $compliancePercentage%" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "BitLocker Key Storage Summary"
+    Write-Output "========================================"
+    Write-Output "Total Windows devices in Intune: $totalDevices"
+    Write-Output "Devices with BitLocker keys in Entra ID: $devicesWithKeys"
+    Write-Output "Devices without BitLocker keys: $devicesWithoutKeys"
+    Write-Output "Compliance percentage: $compliancePercentage%"
+    Write-Output "========================================"
     
     # Export results to CSV
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $csvPath = Join-Path $OutputPath "BitLocker-Key-Storage-Report-$timestamp.csv"
     $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
-    Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
+    Write-Output "✓ Results exported to: $csvPath"
     
     # Export to JSON if requested
     if ($ExportJson) {
@@ -462,17 +463,17 @@ try {
             Devices       = $results
         }
         $jsonData | ConvertTo-Json -Depth 3 | Set-Content -Path $jsonPath
-        Write-Information "✓ Results exported to JSON: $jsonPath" -InformationAction Continue
+        Write-Output "✓ Results exported to JSON: $jsonPath"
     }
     
     # Show devices without keys if any exist and not in OnlyShowMissing mode
     if ($devicesWithoutKeys -gt 0 -and -not $OnlyShowMissing) {
-        Write-Information "`nDevices without BitLocker keys in Entra ID:" -InformationAction Continue
+        Write-Output "`nDevices without BitLocker keys in Entra ID:"
         $devicesWithoutKeysList = $results | Where-Object { $_."BitLocker Key in Entra ID" -eq "No" } | Select-Object DeviceName, SerialNumber, Status
         $devicesWithoutKeysList | Format-Table -AutoSize
     }
     
-    Write-Information "✓ BitLocker key storage check completed successfully" -InformationAction Continue
+    Write-Output "✓ BitLocker key storage check completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -482,7 +483,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Unable to disconnect from Microsoft Graph: $($_.Exception.Message)"
@@ -493,7 +494,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -504,4 +505,4 @@ Compliance Rate: $compliancePercentage%
 Report Location: $OutputPath
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

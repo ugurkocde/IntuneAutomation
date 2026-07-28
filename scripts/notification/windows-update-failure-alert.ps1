@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -174,14 +175,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "Mail.Send"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -358,11 +359,11 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Scanning Windows Update rings..." -InformationAction Continue
+    Write-Output "Scanning Windows Update rings..."
 
     $allConfigurations = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations"
     $updateRings = @($allConfigurations | Where-Object { $_.'@odata.type' -like "*windowsUpdateForBusinessConfiguration" })
-    Write-Information "✓ Found $($updateRings.Count) update rings" -InformationAction Continue
+    Write-Output "✓ Found $($updateRings.Count) update rings"
 
     [System.Collections.Generic.List[Object]]$ringErrors = @()
 
@@ -382,7 +383,7 @@ try {
             }
         }
     }
-    Write-Information "✓ Found $($ringErrors.Count) device error(s) across all rings" -InformationAction Continue
+    Write-Output "✓ Found $($ringErrors.Count) device error(s) across all rings"
 
     # Feature update profiles near or past end of support
     [System.Collections.Generic.List[Object]]$profileWarnings = @()
@@ -411,7 +412,7 @@ try {
     $totalFindings = $ringErrors.Count + $profileWarnings.Count
 
     if ($totalFindings -eq 0 -and -not $AlwaysSend) {
-        Write-Information "No update failures or profile warnings found - no email sent (use -AlwaysSend for status mails)" -InformationAction Continue
+        Write-Output "No update failures or profile warnings found - no email sent (use -AlwaysSend for status mails)"
     }
     else {
         $recipients = @($EmailRecipients -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -431,13 +432,13 @@ try {
     }
 
     # Summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Windows Update Failure Alert Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Update rings scanned:  $($updateRings.Count)" -InformationAction Continue
-    Write-Information "Device errors found:   $($ringErrors.Count)" -InformationAction Continue
-    Write-Information "Profile warnings:      $($profileWarnings.Count)" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Windows Update Failure Alert Summary"
+    Write-Output "========================================"
+    Write-Output "Update rings scanned:  $($updateRings.Count)"
+    Write-Output "Device errors found:   $($ringErrors.Count)"
+    Write-Output "Profile warnings:      $($profileWarnings.Count)"
+    Write-Output "========================================"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -446,7 +447,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

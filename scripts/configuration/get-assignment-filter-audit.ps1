@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-assignment-filter-audit.ps1
@@ -141,14 +142,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -204,14 +205,14 @@ function Get-MgGraphAllPage {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving assignment filters..." -InformationAction Continue
+    Write-Output "Retrieving assignment filters..."
     $filters = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters"
 
     if (@($filters).Count -eq 0) {
-        Write-Information "No assignment filters exist in this tenant." -InformationAction Continue
+        Write-Output "No assignment filters exist in this tenant."
         return
     }
-    Write-Information "✓ Found $(@($filters).Count) assignment filters" -InformationAction Continue
+    Write-Output "✓ Found $(@($filters).Count) assignment filters"
 
     # ----- Collect filter references from every assignment surface -----
     $surfaceDefinitions = @(
@@ -229,7 +230,7 @@ try {
     $filterUsage = @{}
 
     foreach ($surface in $surfaceDefinitions) {
-        Write-Information "Scanning: $($surface.Label)..." -InformationAction Continue
+        Write-Output "Scanning: $($surface.Label)..."
         $objects = Get-MgGraphAllPage -Uri $surface.Uri
 
         foreach ($object in $objects) {
@@ -281,48 +282,48 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nASSIGNMENT FILTER AUDIT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nASSIGNMENT FILTER AUDIT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     $unusedFilters = @($report | Where-Object { $_.IsUnused })
     $duplicateFilters = @($report | Where-Object { $_.DuplicateOf })
 
-    Write-Information "`nUsed filters:" -InformationAction Continue
+    Write-Output "`nUsed filters:"
     foreach ($row in ($report | Where-Object { -not $_.IsUnused } | Sort-Object FilterName)) {
-        Write-Information "  $($row.FilterName) [$($row.Platform)] - $($row.UsageCount) references" -InformationAction Continue
+        Write-Output "  $($row.FilterName) [$($row.Platform)] - $($row.UsageCount) references"
         foreach ($reference in ($row.UsedBy -split "; ")) {
-            Write-Information "    - $reference" -InformationAction Continue
+            Write-Output "    - $reference"
         }
     }
 
     if ($unusedFilters.Count -gt 0) {
-        Write-Information "`nUnused filters (candidates for cleanup):" -InformationAction Continue
+        Write-Output "`nUnused filters (candidates for cleanup):"
         foreach ($row in ($unusedFilters | Sort-Object FilterName)) {
-            Write-Information "  $($row.FilterName) [$($row.Platform)] - rule: $($row.Rule)" -InformationAction Continue
+            Write-Output "  $($row.FilterName) [$($row.Platform)] - rule: $($row.Rule)"
         }
     }
 
     if ($duplicateFilters.Count -gt 0) {
-        Write-Information "`nDuplicate filters (same platform and rule):" -InformationAction Continue
+        Write-Output "`nDuplicate filters (same platform and rule):"
         foreach ($row in ($duplicateFilters | Sort-Object FilterName)) {
-            Write-Information "  $($row.FilterName) duplicates: $($row.DuplicateOf)" -InformationAction Continue
+            Write-Output "  $($row.FilterName) duplicates: $($row.DuplicateOf)"
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $(@($filters).Count) filters, $($unusedFilters.Count) unused, $($duplicateFilters.Count) involved in duplicates" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $(@($filters).Count) filters, $($unusedFilters.Count) unused, $($duplicateFilters.Count) involved in duplicates"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Intune_Filter_Audit_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -332,7 +333,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

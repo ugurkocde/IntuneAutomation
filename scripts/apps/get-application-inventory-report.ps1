@@ -23,16 +23,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), genuinely retry a device after a 429 with max 3 attempts (continue was skipping it), request only needed device fields via $select
     1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
     1.1 - Enrich publisher/platform/size from aggregate detectedApps endpoint (per-device expand returns null/unknown), enforce MaxDevices as a hard cap, drop unused DeviceManagementApps.Read.All permission
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-application-inventory-report.ps1
@@ -168,7 +169,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -204,12 +205,12 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -321,10 +322,10 @@ $SystemApps = @(
 # ============================================================================
 
 try {
-    Write-Information "Starting application inventory report generation..." -InformationAction Continue
+    Write-Output "Starting application inventory report generation..."
 
     # Get all managed devices
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     # $select trims the payload to the fields the report reads
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userPrincipalName,userDisplayName,model,manufacturer,lastSyncDateTime,managementState,managedDeviceOwnerType,complianceState"
     if ($MaxDevices -gt 0) {
@@ -333,12 +334,12 @@ try {
         $devicesUri += "&`$top=$pageSize"
     }
     $devices = Get-MgGraphAllPage -Uri $devicesUri -MaxResults $MaxDevices
-    Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
+    Write-Output "`n✓ Found $($devices.Count) managed devices"
 
     # Build a metadata lookup from the aggregate detectedApps endpoint. The
     # per-device $expand=detectedApps response omits publisher (null), platform
     # ("unknown") and size (0), so we enrich each app by joining on its id.
-    Write-Information "Building detected application metadata lookup..." -InformationAction Continue
+    Write-Output "Building detected application metadata lookup..."
     $detectedAppLookup = @{}
     $allDetectedApps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/detectedApps"
     foreach ($detectedApp in $allDetectedApps) {
@@ -346,14 +347,14 @@ try {
             $detectedAppLookup[$detectedApp.id] = $detectedApp
         }
     }
-    Write-Information "✓ Loaded metadata for $($detectedAppLookup.Count) detected applications" -InformationAction Continue
+    Write-Output "✓ Loaded metadata for $($detectedAppLookup.Count) detected applications"
 
     # Create application inventory array
     $applicationInventory = @()
     $processedDevices = 0
     $totalApplications = 0
 
-    Write-Information "Processing device applications..." -InformationAction Continue
+    Write-Output "Processing device applications..."
 
     # Index-based loop so a throttled device can be retried without being skipped
     $deviceIndex = 0
@@ -445,7 +446,7 @@ try {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
                 $throttleAttempts++
                 if ($throttleAttempts -lt 3) {
-                    Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                    Write-Output "`nRate limit hit, waiting 60 seconds..."
                     Start-Sleep -Seconds 60
                     # Retry the same device without advancing the index
                     continue
@@ -496,7 +497,7 @@ try {
     # Export to CSV
     try {
         $applicationInventory | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -640,7 +641,7 @@ try {
 "@
 
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-        Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML report saved: $htmlPath"
     
         if ($OpenReport) {
             try {
@@ -657,25 +658,25 @@ try {
 
     # Display summary
     Write-Output ""
-    Write-Information "📱 APPLICATION INVENTORY SUMMARY" -InformationAction Continue
-    Write-Information "=================================" -InformationAction Continue
-    Write-Information "Total Application Instances: $totalApplications" -InformationAction Continue
-    Write-Information "Unique Applications: $uniqueApplications" -InformationAction Continue
-    Write-Information "Unique Publishers: $uniquePublishers" -InformationAction Continue
-    Write-Information "Devices Processed: $uniqueDevices" -InformationAction Continue
+    Write-Output "📱 APPLICATION INVENTORY SUMMARY"
+    Write-Output "================================="
+    Write-Output "Total Application Instances: $totalApplications"
+    Write-Output "Unique Applications: $uniqueApplications"
+    Write-Output "Unique Publishers: $uniquePublishers"
+    Write-Output "Devices Processed: $uniqueDevices"
 
     if ($topApplications.Count -gt 0) {
-        Write-Information "`nTop 5 Most Common Applications:" -InformationAction Continue
+        Write-Output "`nTop 5 Most Common Applications:"
         $topApplications | Select-Object -First 5 | ForEach-Object {
-            Write-Information "  • $($_.ApplicationName): $($_.DeviceCount) devices" -InformationAction Continue
+            Write-Output "  • $($_.ApplicationName): $($_.DeviceCount) devices"
         }
     }
 
-    Write-Information "`nReports saved to:" -InformationAction Continue
-    Write-Information "📄 CSV: $csvPath" -InformationAction Continue
-    Write-Information "🌐 HTML: $htmlPath" -InformationAction Continue
+    Write-Output "`nReports saved to:"
+    Write-Output "📄 CSV: $csvPath"
+    Write-Output "🌐 HTML: $htmlPath"
 
-    Write-Information "`n🎉 Application inventory report generation completed successfully!" -InformationAction Continue
+    Write-Output "`n🎉 Application inventory report generation completed successfully!"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -685,7 +686,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

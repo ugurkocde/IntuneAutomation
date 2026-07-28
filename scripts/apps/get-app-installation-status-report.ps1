@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), -MaxApps now truly caps processed apps instead of only setting page size, genuinely retry an app after a 429 with max 3 attempts (continue was skipping it), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-app-installation-status-report.ps1
@@ -170,7 +171,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -206,13 +207,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -394,10 +395,10 @@ function Get-InstallStateDisplay {
 # ============================================================================
 
 try {
-    Write-Information "Starting application installation status report generation..." -InformationAction Continue
+    Write-Output "Starting application installation status report generation..."
 
     # Get all mobile apps
-    Write-Information "Retrieving managed applications..." -InformationAction Continue
+    Write-Output "Retrieving managed applications..."
     # $select trims the payload to the fields the report reads; @odata.type is always returned on typed collections
     $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,isAssigned"
 
@@ -413,13 +414,13 @@ try {
         $allApps = $allApps | Where-Object { $_.displayName -like "*$FilterByAppName*" }
     }
 
-    Write-Information "✓ Found $($allApps.Count) managed applications" -InformationAction Continue
+    Write-Output "✓ Found $($allApps.Count) managed applications"
 
     # Create installation status collection
     $installationStatusList = @()
     $processedApps = 0
 
-    Write-Information "Processing application installation status..." -InformationAction Continue
+    Write-Output "Processing application installation status..."
 
     # Index-based loop so a throttled app can be retried without being skipped
     $appIndex = 0
@@ -483,7 +484,7 @@ try {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
                 $throttleAttempts++
                 if ($throttleAttempts -lt 3) {
-                    Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                    Write-Output "`nRate limit hit, waiting 60 seconds..."
                     Start-Sleep -Seconds 60
                     # Retry the same app without advancing the index
                     continue
@@ -502,7 +503,7 @@ try {
 
     if ($installationStatusList.Count -eq 0) {
         Write-Warning "No installation status records found matching the specified filters."
-        Write-Information "Try adjusting your filter parameters or check if applications are deployed to devices." -InformationAction Continue
+        Write-Output "Try adjusting your filter parameters or check if applications are deployed to devices."
         Disconnect-MgGraph | Out-Null
         exit 0
     }
@@ -556,7 +557,7 @@ try {
     # Export to CSV
     try {
         $installationStatusList | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -739,7 +740,7 @@ try {
 "@
 
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-        Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML report saved: $htmlPath"
 
         if ($OpenReport) {
             try {
@@ -756,27 +757,27 @@ try {
 
     # Display summary
     Write-Output ""
-    Write-Information "APPLICATION INSTALLATION STATUS SUMMARY" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total Installation Records: $totalInstallations" -InformationAction Continue
-    Write-Information "Successful Installations: $successfulInstalls ($successRate%)" -InformationAction Continue
-    Write-Information "Failed Installations: $failedInstalls ($failureRate%)" -InformationAction Continue
-    Write-Information "Pending Installations: $pendingInstalls" -InformationAction Continue
-    Write-Information "Unique Applications: $uniqueApps" -InformationAction Continue
-    Write-Information "Unique Devices: $uniqueDevices" -InformationAction Continue
+    Write-Output "APPLICATION INSTALLATION STATUS SUMMARY"
+    Write-Output "========================================"
+    Write-Output "Total Installation Records: $totalInstallations"
+    Write-Output "Successful Installations: $successfulInstalls ($successRate%)"
+    Write-Output "Failed Installations: $failedInstalls ($failureRate%)"
+    Write-Output "Pending Installations: $pendingInstalls"
+    Write-Output "Unique Applications: $uniqueApps"
+    Write-Output "Unique Devices: $uniqueDevices"
 
     if ($topFailedApps -and $topFailedApps.Count -gt 0) {
-        Write-Information "`nTop 5 Failed Applications:" -InformationAction Continue
+        Write-Output "`nTop 5 Failed Applications:"
         $topFailedApps | Select-Object -First 5 | ForEach-Object {
-            Write-Information "  $($_.ApplicationName): $($_.FailureCount) failures on $($_.UniqueDevices) devices" -InformationAction Continue
+            Write-Output "  $($_.ApplicationName): $($_.FailureCount) failures on $($_.UniqueDevices) devices"
         }
     }
 
-    Write-Information "`nReports saved to:" -InformationAction Continue
-    Write-Information "CSV: $csvPath" -InformationAction Continue
-    Write-Information "HTML: $htmlPath" -InformationAction Continue
+    Write-Output "`nReports saved to:"
+    Write-Output "CSV: $csvPath"
+    Write-Output "HTML: $htmlPath"
 
-    Write-Information "`nApplication installation status report generation completed successfully!" -InformationAction Continue
+    Write-Output "`nApplication installation status report generation completed successfully!"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -786,7 +787,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

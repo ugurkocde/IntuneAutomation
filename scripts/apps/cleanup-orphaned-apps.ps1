@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\cleanup-orphaned-apps.ps1
@@ -151,13 +152,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementApps.ReadWrite.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -213,9 +214,9 @@ function Get-MgGraphAllPage {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving app catalog with assignments..." -InformationAction Continue
+    Write-Output "Retrieving app catalog with assignments..."
     $apps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$expand=assignments"
-    Write-Information "✓ Found $(@($apps).Count) apps" -InformationAction Continue
+    Write-Output "✓ Found $(@($apps).Count) apps"
 
     $cutoffDate = (Get-Date).AddDays(-$OlderThanDays)
     [System.Collections.Generic.List[Object]]$report = @()
@@ -248,7 +249,7 @@ try {
             if ($PSCmdlet.ShouldProcess("$($app.displayName) ($appType, $reason)", "Delete Intune app")) {
                 try {
                     Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)" -Method DELETE
-                    Write-Information "✓ Deleted: $($app.displayName)" -InformationAction Continue
+                    Write-Output "✓ Deleted: $($app.displayName)"
                     $action = "Deleted"
                     $deleted++
                 }
@@ -276,42 +277,42 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nORPHANED APP REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Age filter: created more than $OlderThanDays days ago" -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nORPHANED APP REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Age filter: created more than $OlderThanDays days ago"
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($report.Count -eq 0) {
-        Write-Information "`nNo orphaned or superseded apps found." -InformationAction Continue
+        Write-Output "`nNo orphaned or superseded apps found."
     }
     else {
         foreach ($reasonGroup in ($report | Group-Object -Property Reason | Sort-Object Name)) {
-            Write-Information "`n$($reasonGroup.Name) ($($reasonGroup.Count) apps)" -InformationAction Continue
+            Write-Output "`n$($reasonGroup.Name) ($($reasonGroup.Count) apps)"
             foreach ($row in ($reasonGroup.Group | Sort-Object AppName)) {
-                Write-Information "  $($row.AppName) [$($row.AppType)] created $($row.Created) - $($row.Action)" -InformationAction Continue
+                Write-Output "  $($row.AppName) [$($row.AppType)] created $($row.Created) - $($row.Action)"
             }
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) cleanup candidates of $(@($apps).Count) total apps" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) cleanup candidates of $(@($apps).Count) total apps"
     if ($Remove) {
-        Write-Information "Deleted: $deleted | Failed: $deleteFailed" -InformationAction Continue
+        Write-Output "Deleted: $deleted | Failed: $deleteFailed"
     }
     elseif ($report.Count -gt 0) {
-        Write-Information "Run again with -Remove to delete (add -WhatIf for a dry run). Deleting does NOT uninstall from devices." -InformationAction Continue
+        Write-Output "Run again with -Remove to delete (add -WhatIf for a dry run). Deleting does NOT uninstall from devices."
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Orphaned_Apps_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -321,7 +322,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

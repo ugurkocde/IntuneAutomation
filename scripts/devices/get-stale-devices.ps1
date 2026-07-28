@@ -27,14 +27,15 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-stale-devices.ps1 -DaysStale 30
@@ -172,7 +173,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -208,12 +209,12 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -366,11 +367,11 @@ function Get-PlatformFilter {
 # ============================================================================
 
 try {
-    Write-Information "Starting stale device detection..." -InformationAction Continue
-    Write-Information "Configuration:" -InformationAction Continue
-    Write-Information "  - Days considered stale: $DaysStale" -InformationAction Continue
-    Write-Information "  - Platform filter: $Platform" -InformationAction Continue
-    Write-Information "  - Include never checked in: $($IncludeNeverCheckedIn.IsPresent)" -InformationAction Continue
+    Write-Output "Starting stale device detection..."
+    Write-Output "Configuration:"
+    Write-Output "  - Days considered stale: $DaysStale"
+    Write-Output "  - Platform filter: $Platform"
+    Write-Output "  - Include never checked in: $($IncludeNeverCheckedIn.IsPresent)"
     
     # Build the API URI with optional platform filter
     $BaseUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
@@ -378,19 +379,19 @@ try {
     
     if ($PlatformFilter) {
         $Uri = "$BaseUri?`$filter=$PlatformFilter"
-        Write-Information "  - Applying platform filter: $PlatformFilter" -InformationAction Continue
+        Write-Output "  - Applying platform filter: $PlatformFilter"
     }
     else {
         $Uri = $BaseUri
     }
     
     # Retrieve all managed devices
-    Write-Information "Retrieving managed devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving managed devices from Intune..."
     $AllDevices = Get-MgGraphAllResult -Uri $Uri
-    Write-Information "✓ Retrieved $($AllDevices.Count) devices" -InformationAction Continue
+    Write-Output "✓ Retrieved $($AllDevices.Count) devices"
     
     # Process devices to find stale ones
-    Write-Information "Analyzing devices for staleness..." -InformationAction Continue
+    Write-Output "Analyzing devices for staleness..."
     $StaleDevices = @()
     $ProcessedCount = 0
     
@@ -413,26 +414,26 @@ try {
     }
     
     # Display results
-    Write-Information "✓ Analysis completed" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "STALE DEVICE REPORT" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total devices analyzed: $($AllDevices.Count)" -InformationAction Continue
-    Write-Information "Stale devices found: $($StaleDevices.Count)" -InformationAction Continue
-    Write-Information "Staleness threshold: $DaysStale days" -InformationAction Continue
-    Write-Information "Platform filter: $Platform" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "✓ Analysis completed"
+    Write-Output ""
+    Write-Output "========================================"
+    Write-Output "STALE DEVICE REPORT"
+    Write-Output "========================================"
+    Write-Output "Total devices analyzed: $($AllDevices.Count)"
+    Write-Output "Stale devices found: $($StaleDevices.Count)"
+    Write-Output "Staleness threshold: $DaysStale days"
+    Write-Output "Platform filter: $Platform"
+    Write-Output "========================================"
+    Write-Output ""
     
     if ($StaleDevices.Count -gt 0) {
         # Group by platform for summary
         $PlatformSummary = $StaleDevices | Group-Object Platform | Sort-Object Name
-        Write-Information "Stale devices by platform:" -InformationAction Continue
+        Write-Output "Stale devices by platform:"
         foreach ($Group in $PlatformSummary) {
-            Write-Information "  - $($Group.Name): $($Group.Count) devices" -InformationAction Continue
+            Write-Output "  - $($Group.Name): $($Group.Count) devices"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
         
         # Display the stale devices
         $StaleDevices | Sort-Object Platform, DeviceName | Format-Table -AutoSize
@@ -441,7 +442,7 @@ try {
         if ($ExportPath) {
             try {
                 $StaleDevices | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding utf8
-                Write-Information "✓ Results exported to: $ExportPath" -InformationAction Continue
+                Write-Output "✓ Results exported to: $ExportPath"
             }
             catch {
                 Write-Warning "Failed to export to CSV: $($_.Exception.Message)"
@@ -449,10 +450,10 @@ try {
         }
     }
     else {
-        Write-Information "No stale devices found matching the specified criteria." -InformationAction Continue
+        Write-Output "No stale devices found matching the specified criteria."
     }
     
-    Write-Information "✓ Script completed successfully" -InformationAction Continue
+    Write-Output "✓ Script completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -462,7 +463,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected
@@ -474,7 +475,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -484,4 +485,4 @@ Devices Analyzed: $($AllDevices.Count)
 Stale Devices Found: $($StaleDevices.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

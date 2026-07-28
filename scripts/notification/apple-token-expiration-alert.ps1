@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; APNS certificates without an expiration date are recorded as Unknown expiry instead of failing; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -158,7 +159,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -192,7 +193,7 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementServiceConfig.Read.All",
             "DeviceManagementConfiguration.Read.All",
@@ -200,7 +201,7 @@ try {
         )
         
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -445,7 +446,7 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Starting Apple token expiration monitoring..." -InformationAction Continue
+    Write-Output "Starting Apple token expiration monitoring..."
     
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
@@ -454,8 +455,8 @@ try {
         throw "No valid email recipients provided"
     }
     
-    Write-Information "Email recipients: $($EmailRecipientList -join ', ')" -InformationAction Continue
-    Write-Information "Notification threshold: $NotificationDays days" -InformationAction Continue
+    Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
+    Write-Output "Notification threshold: $NotificationDays days"
     
     # Initialize results arrays
     $AllTokens = @()
@@ -466,12 +467,12 @@ try {
     # GET DEP TOKENS
     # ========================================================================
     
-    Write-Information "Retrieving Apple DEP tokens..." -InformationAction Continue
+    Write-Output "Retrieving Apple DEP tokens..."
     
     try {
         $DepTokensUri = "https://graph.microsoft.com/beta/deviceManagement/depOnboardingSettings"
         $DepTokens = Get-MgGraphAllPage -Uri $DepTokensUri
-        Write-Information "Found $($DepTokens.Count) DEP token entries" -InformationAction Continue
+        Write-Output "Found $($DepTokens.Count) DEP token entries"
         
         foreach ($Token in $DepTokens) {
             try {
@@ -521,7 +522,7 @@ try {
     # GET APPLE PUSH NOTIFICATION CERTIFICATE
     # ========================================================================
     
-    Write-Information "Retrieving Apple Push Notification Certificate..." -InformationAction Continue
+    Write-Output "Retrieving Apple Push Notification Certificate..."
     
     try {
         $ApnsCertUri = "https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate"
@@ -593,7 +594,7 @@ try {
     # ========================================================================
     
     if ($TokensRequiringAttention.Count -gt 0) {
-        Write-Information "Preparing email notification..." -InformationAction Continue
+        Write-Output "Preparing email notification..."
         
         $CriticalCount = ($TokensRequiringAttention | Where-Object { $_.HealthStatus -eq "Critical" }).Count
         $WarningCount = ($TokensRequiringAttention | Where-Object { $_.HealthStatus -eq "Warning" }).Count
@@ -613,7 +614,7 @@ try {
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
-            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+            Write-Output "✓ Email notification sent to $($EmailRecipientList.Count) recipients"
         }
         else {
             Write-Warning "Email notification could not be delivered to all recipients"
@@ -621,39 +622,39 @@ try {
         }
     }
     else {
-        Write-Information "✓ All tokens are healthy. No notification required." -InformationAction Continue
+        Write-Output "✓ All tokens are healthy. No notification required."
     }
     
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
     
-    Write-Information "`n🍎 APPLE TOKEN EXPIRATION MONITORING SUMMARY" -InformationAction Continue
-    Write-Information "=============================================" -InformationAction Continue
-    Write-Information "Total Tokens/Certificates: $($AllTokens.Count)" -InformationAction Continue
-    Write-Information "  • DEP Tokens: $(($AllTokens | Where-Object { $_.TokenType -eq 'DEP' }).Count)" -InformationAction Continue
-    Write-Information "  • APNS Certificates: $(($AllTokens | Where-Object { $_.TokenType -eq 'APNS' }).Count)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "`n🍎 APPLE TOKEN EXPIRATION MONITORING SUMMARY"
+    Write-Output "============================================="
+    Write-Output "Total Tokens/Certificates: $($AllTokens.Count)"
+    Write-Output "  • DEP Tokens: $(($AllTokens | Where-Object { $_.TokenType -eq 'DEP' }).Count)"
+    Write-Output "  • APNS Certificates: $(($AllTokens | Where-Object { $_.TokenType -eq 'APNS' }).Count)"
+    Write-Output ""
     
     $CriticalCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Critical" }).Count
     $WarningCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Warning" }).Count
     $HealthyCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Healthy" }).Count
     
-    Write-Information "Health Status:" -InformationAction Continue
-    Write-Information "  • Critical: $CriticalCount" -InformationAction Continue
-    Write-Information "  • Warning: $WarningCount" -InformationAction Continue
-    Write-Information "  • Healthy: $HealthyCount" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "Health Status:"
+    Write-Output "  • Critical: $CriticalCount"
+    Write-Output "  • Warning: $WarningCount"
+    Write-Output "  • Healthy: $HealthyCount"
+    Write-Output ""
     
     if ($TokensRequiringAttention.Count -gt 0) {
-        Write-Information "Tokens Requiring Attention:" -InformationAction Continue
+        Write-Output "Tokens Requiring Attention:"
         foreach ($Token in ($TokensRequiringAttention | Sort-Object HealthStatus, DaysUntilExpiration)) {
             $StatusIcon = if ($Token.HealthStatus -eq "Critical") { "❌" } else { "⚠️" }
-            Write-Information "  $StatusIcon $($Token.TokenName) ($($Token.TokenType)) - $($Token.ExpirationStatus)" -InformationAction Continue
+            Write-Output "  $StatusIcon $($Token.TokenName) ($($Token.TokenType)) - $($Token.ExpirationStatus)"
         }
     }
     
-    Write-Information "`n✓ Apple token expiration monitoring completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Apple token expiration monitoring completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -662,7 +663,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Silently ignore disconnect errors as they're not critical
@@ -674,7 +675,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -685,7 +686,7 @@ Email Recipients: $($EmailRecipientList.Count)
 Notification Threshold: $NotificationDays days
 Status: Completed
 ========================================
-" -InformationAction Continue
+"
 
 # Fail the run if notification delivery failed
 if ($NotificationFailed) {

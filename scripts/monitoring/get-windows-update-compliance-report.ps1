@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-windows-update-compliance-report.ps1
@@ -143,13 +144,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -208,10 +209,10 @@ try {
     [System.Collections.Generic.List[Object]]$report = @()
 
     # ----- Update rings -----
-    Write-Information "Retrieving update rings..." -InformationAction Continue
+    Write-Output "Retrieving update rings..."
     $allConfigurations = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?`$expand=assignments"
     $updateRings = @($allConfigurations | Where-Object { $_.'@odata.type' -like "*windowsUpdateForBusinessConfiguration" })
-    Write-Information "✓ Found $($updateRings.Count) update rings" -InformationAction Continue
+    Write-Output "✓ Found $($updateRings.Count) update rings"
 
     foreach ($ring in $updateRings) {
         # Per-device deployment status for the ring
@@ -242,9 +243,9 @@ try {
     }
 
     # ----- Feature update profiles -----
-    Write-Information "Retrieving feature update profiles..." -InformationAction Continue
+    Write-Output "Retrieving feature update profiles..."
     $featureProfiles = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsFeatureUpdateProfiles?`$expand=assignments"
-    Write-Information "✓ Found $(@($featureProfiles).Count) feature update profiles" -InformationAction Continue
+    Write-Output "✓ Found $(@($featureProfiles).Count) feature update profiles"
 
     foreach ($featureProfile in $featureProfiles) {
         $endOfSupport = if ($featureProfile.endOfSupportDate) { [DateTime]::Parse($featureProfile.endOfSupportDate.ToString()) } else { $null }
@@ -271,9 +272,9 @@ try {
     }
 
     # ----- Quality update profiles (expedite) -----
-    Write-Information "Retrieving quality update profiles..." -InformationAction Continue
+    Write-Output "Retrieving quality update profiles..."
     $qualityProfiles = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdateProfiles?`$expand=assignments"
-    Write-Information "✓ Found $(@($qualityProfiles).Count) quality update profiles" -InformationAction Continue
+    Write-Output "✓ Found $(@($qualityProfiles).Count) quality update profiles"
 
     foreach ($qualityProfile in $qualityProfiles) {
         $report.Add([PSCustomObject]@{
@@ -289,9 +290,9 @@ try {
     }
 
     # ----- Driver update profiles -----
-    Write-Information "Retrieving driver update profiles..." -InformationAction Continue
+    Write-Output "Retrieving driver update profiles..."
     $driverProfiles = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles?`$expand=assignments"
-    Write-Information "✓ Found $(@($driverProfiles).Count) driver update profiles" -InformationAction Continue
+    Write-Output "✓ Found $(@($driverProfiles).Count) driver update profiles"
 
     foreach ($driverProfile in $driverProfiles) {
         $report.Add([PSCustomObject]@{
@@ -307,45 +308,45 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nWINDOWS UPDATE COMPLIANCE REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nWINDOWS UPDATE COMPLIANCE REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     foreach ($areaGroup in ($report | Group-Object -Property Area)) {
-        Write-Information "`n$($areaGroup.Name) ($($areaGroup.Count)):" -InformationAction Continue
+        Write-Output "`n$($areaGroup.Name) ($($areaGroup.Count)):"
         foreach ($row in ($areaGroup.Group | Sort-Object Name)) {
             $assignedLabel = if ($row.IsAssigned) { "assigned" } else { "NOT ASSIGNED" }
             $line = "  $($row.Name) [$assignedLabel]"
             if ($row.Flag) { $line += " [$($row.Flag)]" }
-            Write-Information $line -InformationAction Continue
-            Write-Information "    $($row.Detail)" -InformationAction Continue
+            Write-Output $line
+            Write-Output "    $($row.Detail)"
             if ($row.Area -eq "Update Ring") {
-                Write-Information "    Devices: $($row.DeviceSuccess) ok, $($row.DeviceErrors) errors, $($row.DeviceOther) other" -InformationAction Continue
+                Write-Output "    Devices: $($row.DeviceSuccess) ok, $($row.DeviceErrors) errors, $($row.DeviceOther) other"
             }
         }
     }
 
     if ($report.Count -eq 0) {
-        Write-Information "`nNo Windows Update configuration found in this tenant." -InformationAction Continue
+        Write-Output "`nNo Windows Update configuration found in this tenant."
     }
 
     # Summary
     $flaggedRows = @($report | Where-Object { $_.Flag })
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) update deployment objects | $($flaggedRows.Count) flagged" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) update deployment objects | $($flaggedRows.Count) flagged"
     foreach ($row in $flaggedRows) {
-        Write-Information "  [$($row.Flag)] $($row.Area): $($row.Name)" -InformationAction Continue
+        Write-Output "  [$($row.Flag)] $($row.Area): $($row.Name)"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Windows_Update_Compliance_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -355,7 +356,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

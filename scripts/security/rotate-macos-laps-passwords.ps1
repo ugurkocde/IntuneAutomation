@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Confirmation prompt is now local-only: Azure Automation runs require -Force and exit with an error instead of hanging on Read-Host; rotation calls retry once after 60 seconds on throttling; results collection switched to a generic list
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\rotate-macos-laps-passwords.ps1
@@ -175,7 +176,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -211,14 +212,14 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.PrivilegedOperations.All",
             "DeviceManagementManagedDevices.ReadWrite.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -364,13 +365,13 @@ function Invoke-LAPSPasswordRotation {
 # ============================================================================
 
 try {
-    Write-Information "Starting macOS LAPS password rotation..." -InformationAction Continue
+    Write-Output "Starting macOS LAPS password rotation..."
 
     # Validate output path if export is requested
     if ($ExportReport) {
         if (-not (Test-Path $OutputPath)) {
             New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-            Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+            Write-Output "Created output directory: $OutputPath"
         }
     }
 
@@ -379,7 +380,7 @@ try {
 
     # Get devices based on parameters
     if ($DeviceId) {
-        Write-Information "Retrieving device with ID: $DeviceId" -InformationAction Continue
+        Write-Output "Retrieving device with ID: $DeviceId"
         $deviceUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$DeviceId')"
         try {
             $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
@@ -391,7 +392,7 @@ try {
         }
     }
     elseif ($DeviceName) {
-        Write-Information "Retrieving device: $DeviceName" -InformationAction Continue
+        Write-Output "Retrieving device: $DeviceName"
         $deviceUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=$filter and deviceName eq '$DeviceName'"
         $devices = Get-MgGraphPaginatedData -Uri $deviceUri
 
@@ -401,7 +402,7 @@ try {
         }
     }
     else {
-        Write-Information "Retrieving all macOS devices from Intune..." -InformationAction Continue
+        Write-Output "Retrieving all macOS devices from Intune..."
         $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=$filter"
         $devices = Get-MgGraphPaginatedData -Uri $devicesUri
     }
@@ -413,11 +414,11 @@ try {
 
     # Apply device limit if specified
     if ($DeviceLimit -gt 0 -and $devices.Count -gt $DeviceLimit) {
-        Write-Information "Limiting processing to $DeviceLimit devices (out of $($devices.Count) total)" -InformationAction Continue
+        Write-Output "Limiting processing to $DeviceLimit devices (out of $($devices.Count) total)"
         $devices = $devices | Select-Object -First $DeviceLimit
     }
 
-    Write-Information "Found $($devices.Count) macOS device(s) to process" -InformationAction Continue
+    Write-Output "Found $($devices.Count) macOS device(s) to process"
 
     # Show test mode warning
     if ($TestMode) {
@@ -431,10 +432,10 @@ try {
             Write-Error "Azure Automation runs cannot prompt for confirmation. Re-run with -Force to rotate LAPS passwords for $($devices.Count) device(s)."
             exit 1
         }
-        Write-Information "`nYou are about to rotate LAPS passwords for $($devices.Count) device(s)." -InformationAction Continue
+        Write-Output "`nYou are about to rotate LAPS passwords for $($devices.Count) device(s)."
         $confirmation = Read-Host "Do you want to continue? (Y/N)"
         if ($confirmation -notmatch '^[Yy]') {
-            Write-Information "Operation cancelled by user" -InformationAction Continue
+            Write-Output "Operation cancelled by user"
             return
         }
     }
@@ -454,7 +455,7 @@ try {
             Write-Progress -Activity "Rotating LAPS Passwords" -Status "Processing: $($device.deviceName)" -PercentComplete $percentComplete
         }
 
-        Write-Information "[$processedCount/$($devices.Count)] Processing: $($device.deviceName)" -InformationAction Continue
+        Write-Output "[$processedCount/$($devices.Count)] Processing: $($device.deviceName)"
 
         # Rotate LAPS password
         $rotationResult = Invoke-LAPSPasswordRotation -DeviceId $device.id -DeviceName $device.deviceName -OwnerType $device.ownerType -TestMode $TestMode
@@ -478,7 +479,7 @@ try {
             default { "-" }
         }
 
-        Write-Information "  $statusSymbol Status: $($rotationResult.Status) - $($rotationResult.Message)" -InformationAction Continue
+        Write-Output "  $statusSymbol Status: $($rotationResult.Status) - $($rotationResult.Message)"
 
         # Add additional device information to result
         $rotationResult | Add-Member -MemberType NoteProperty -Name "SerialNumber" -Value $device.serialNumber
@@ -499,42 +500,42 @@ try {
     }
 
     # Display summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "LAPS Password Rotation Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total devices processed: $processedCount" -InformationAction Continue
-    Write-Information "Successful rotations: $successCount" -InformationAction Continue
-    Write-Information "Failed rotations: $failedCount" -InformationAction Continue
-    Write-Information "Skipped devices: $skippedCount" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "LAPS Password Rotation Summary"
+    Write-Output "========================================"
+    Write-Output "Total devices processed: $processedCount"
+    Write-Output "Successful rotations: $successCount"
+    Write-Output "Failed rotations: $failedCount"
+    Write-Output "Skipped devices: $skippedCount"
     if ($TestMode) {
-        Write-Information "Mode: TEST MODE (no actual changes made)" -InformationAction Continue
+        Write-Output "Mode: TEST MODE (no actual changes made)"
     }
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "========================================"
 
     # Export results if requested
     if ($ExportReport) {
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $csvPath = Join-Path $OutputPath "LAPS-Rotation-Report-$timestamp.csv"
         $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
-        Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
+        Write-Output "✓ Results exported to: $csvPath"
 
         # Also export failed devices separately if any
         if ($failedCount -gt 0) {
             $failedPath = Join-Path $OutputPath "LAPS-Rotation-Failed-$timestamp.csv"
             $results | Where-Object { $_.Status -in @("Failed", "Error") } | Export-Csv -Path $failedPath -NoTypeInformation -Encoding utf8
-            Write-Information "✓ Failed devices exported to: $failedPath" -InformationAction Continue
+            Write-Output "✓ Failed devices exported to: $failedPath"
         }
     }
 
     # Show failed devices if any
     if ($failedCount -gt 0) {
-        Write-Information "`nFailed devices:" -InformationAction Continue
+        Write-Output "`nFailed devices:"
         $results | Where-Object { $_.Status -in @("Failed", "Error") } |
             Select-Object DeviceName, Status, Message |
             Format-Table -AutoSize
     }
 
-    Write-Information "✓ LAPS password rotation completed" -InformationAction Continue
+    Write-Output "✓ LAPS password rotation completed"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -544,7 +545,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Unable to disconnect from Microsoft Graph: $($_.Exception.Message)"

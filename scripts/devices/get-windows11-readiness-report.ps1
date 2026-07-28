@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-windows11-readiness-report.ps1
@@ -146,14 +147,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -233,7 +234,7 @@ function Get-FailedCheck {
 
 try {
     # Tenant-level readiness summary
-    Write-Information "Retrieving tenant hardware readiness summary..." -InformationAction Continue
+    Write-Output "Retrieving tenant hardware readiness summary..."
     $readinessSummary = $null
     try {
         $readinessSummary = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereHardwareReadinessMetric" -Method GET
@@ -243,7 +244,7 @@ try {
     }
 
     # Per-device work-from-anywhere data
-    Write-Information "Retrieving per-device readiness data..." -InformationAction Continue
+    Write-Output "Retrieving per-device readiness data..."
     $selectFields = "id,deviceName,serialNumber,manufacturer,model,ownership,managedBy,osDescription,osVersion,upgradeEligibility,osCheckFailed,processor64BitCheckFailed,processorFamilyCheckFailed,processorCoreCountCheckFailed,processorSpeedCheckFailed,ramCheckFailed,secureBootCheckFailed,storageCheckFailed,tpmCheckFailed"
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics/allDevices/metricDevices?`$select=$selectFields"
 
@@ -251,7 +252,7 @@ try {
         Write-Warning "No work-from-anywhere analytics data found. Endpoint Analytics may not be enabled, or devices have not reported yet."
         return
     }
-    Write-Information "✓ Found analytics data for $(@($devices).Count) devices" -InformationAction Continue
+    Write-Output "✓ Found analytics data for $(@($devices).Count) devices"
 
     [System.Collections.Generic.List[Object]]$report = @()
     foreach ($device in $devices) {
@@ -276,51 +277,51 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nWINDOWS 11 READINESS REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nWINDOWS 11 READINESS REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($readinessSummary) {
-        Write-Information "`nTenant summary (Endpoint Analytics):" -InformationAction Continue
-        Write-Information "  Total devices:    $($readinessSummary.totalDeviceCount)" -InformationAction Continue
-        Write-Information "  Upgrade eligible: $($readinessSummary.upgradeEligibleDeviceCount)" -InformationAction Continue
+        Write-Output "`nTenant summary (Endpoint Analytics):"
+        Write-Output "  Total devices:    $($readinessSummary.totalDeviceCount)"
+        Write-Output "  Upgrade eligible: $($readinessSummary.upgradeEligibleDeviceCount)"
     }
 
     foreach ($eligibilityGroup in ($report | Group-Object -Property UpgradeEligibility | Sort-Object Name)) {
         $groupLabel = if ($eligibilityGroup.Name) { $eligibilityGroup.Name } else { "unknown" }
-        Write-Information "`n[$groupLabel] $($eligibilityGroup.Count) device(s)" -InformationAction Continue
+        Write-Output "`n[$groupLabel] $($eligibilityGroup.Count) device(s)"
 
         foreach ($row in ($eligibilityGroup.Group | Sort-Object FailedCheckCount -Descending)) {
             $line = "  $($row.DeviceName) | $($row.Manufacturer) $($row.Model) | $($row.OsVersion)"
             if ($row.FailedChecks) {
                 $line += " | blocked by: $($row.FailedChecks)"
             }
-            Write-Information $line -InformationAction Continue
+            Write-Output $line
         }
     }
 
     # Summary of the most common blockers
     $blockedDevices = @($report | Where-Object { $_.FailedCheckCount -gt 0 })
     if ($blockedDevices.Count -gt 0) {
-        Write-Information "`nMost common blocking checks:" -InformationAction Continue
+        Write-Output "`nMost common blocking checks:"
         $allFailures = $blockedDevices | ForEach-Object { $_.FailedChecks -split "; " }
         foreach ($failureGroup in ($allFailures | Group-Object | Sort-Object Count -Descending)) {
-            Write-Information "  $($failureGroup.Name): $($failureGroup.Count) devices" -InformationAction Continue
+            Write-Output "  $($failureGroup.Name): $($failureGroup.Count) devices"
         }
     }
 
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) devices reported, $($blockedDevices.Count) with failed hardware checks" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) devices reported, $($blockedDevices.Count) with failed hardware checks"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Windows11_Readiness_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -330,7 +331,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"
