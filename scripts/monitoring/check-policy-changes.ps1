@@ -50,7 +50,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Policies use modern configuration templates
     - Policies require beta Graph endpoint access
     - Audit data is available for up to 30 days by default

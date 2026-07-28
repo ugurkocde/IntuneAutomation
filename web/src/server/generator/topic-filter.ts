@@ -14,7 +14,7 @@ const DOMAIN_KEYWORDS = [
   "defender",
   "bitlocker",
   "conditional access",
-  "azure ad",
+  "Entra ID",
   "entra",
   "microsoft 365",
   "microsoft graph",
@@ -106,7 +106,7 @@ const STRONG_DOMAIN_KEYWORDS = [
   "defender",
   "bitlocker",
   "conditional access",
-  "azure ad",
+  "Entra ID",
   "entra",
   "microsoft 365",
   "microsoft graph",
@@ -146,7 +146,7 @@ const WEAK_KEYWORD_SET = new Set(
   WEAK_DOMAIN_KEYWORDS.map((k) => k.toLowerCase()),
 );
 
-// Multi-word keywords must be checked as substrings (e.g. "azure ad").
+// Multi-word keywords must be checked as substrings (e.g. "Entra ID").
 const STRONG_MULTI_WORD = STRONG_DOMAIN_KEYWORDS.filter((k) => k.includes(" "));
 const WEAK_MULTI_WORD = WEAK_DOMAIN_KEYWORDS.filter((k) => k.includes(" "));
 

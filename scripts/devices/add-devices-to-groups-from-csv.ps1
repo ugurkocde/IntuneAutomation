@@ -8,7 +8,7 @@
 .DESCRIPTION
     This script reads a CSV file containing device identifiers and group names, then adds
     the specified devices to their corresponding Entra ID groups. It supports multiple
-    device identifiers (Device Name, Serial Number, Azure AD Device ID) for flexible
+    device identifiers (Device Name, Serial Number, Entra ID Device ID) for flexible
     device matching and can add devices to multiple groups.
 
     The script validates that devices exist in Intune before processing, checks for
@@ -63,7 +63,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
-    - CSV file should contain columns: DeviceName, SerialNumber, DeviceId (Azure AD), GroupName
+    - CSV file should contain columns: DeviceName, SerialNumber, DeviceId (Entra ID), GroupName
     - At least one device identifier (DeviceName, SerialNumber, or DeviceId) must be provided per row
     - The GroupName column is required for all rows
     - Devices already in target groups will be skipped
@@ -159,7 +159,7 @@ if ($GenerateTemplate) {
         Write-Information "Template includes examples showing:" -InformationAction Continue
         Write-Information "  - Using DeviceName and SerialNumber together" -InformationAction Continue
         Write-Information "  - Using only SerialNumber" -InformationAction Continue
-        Write-Information "  - Using only DeviceId (Azure AD Device ID)" -InformationAction Continue
+        Write-Information "  - Using only DeviceId (Entra ID Device ID)" -InformationAction Continue
         Write-Information "  - Using only DeviceName" -InformationAction Continue
         Write-Information "  - Multiple devices assigned to the same group" -InformationAction Continue
         Write-Information "" -InformationAction Continue
@@ -441,7 +441,7 @@ function Get-EntraIdDevice {
         return $null
     }
     catch {
-        Write-Warning "Error looking up Entra ID device for Azure AD Device ID $AzureAdDeviceId : $($_.Exception.Message)"
+        Write-Warning "Error looking up Entra ID device for Entra ID Device ID $AzureAdDeviceId : $($_.Exception.Message)"
         return $null
     }
 }
