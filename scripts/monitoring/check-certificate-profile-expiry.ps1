@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\check-certificate-profile-expiry.ps1
@@ -144,13 +145,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -227,7 +228,7 @@ function Get-EmbeddedCertificateExpiry {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving configuration profiles..." -InformationAction Continue
+    Write-Output "Retrieving configuration profiles..."
     $allConfigurations = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?`$expand=assignments"
 
     # Certificate-related profile types across all platforms
@@ -236,10 +237,10 @@ try {
         })
 
     if ($certificateProfiles.Count -eq 0) {
-        Write-Information "`nNo SCEP, PKCS, or trusted certificate profiles found in this tenant." -InformationAction Continue
+        Write-Output "`nNo SCEP, PKCS, or trusted certificate profiles found in this tenant."
         return
     }
-    Write-Information "✓ Found $($certificateProfiles.Count) certificate profiles" -InformationAction Continue
+    Write-Output "✓ Found $($certificateProfiles.Count) certificate profiles"
 
     $now = Get-Date
     [System.Collections.Generic.List[Object]]$report = @()
@@ -293,45 +294,45 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nCERTIFICATE PROFILE AUDIT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Expiry warning window: $ExpiryWarningDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nCERTIFICATE PROFILE AUDIT"
+    Write-Output ("=" * 50)
+    Write-Output "Expiry warning window: $ExpiryWarningDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     foreach ($kindGroup in ($report | Group-Object -Property Kind | Sort-Object Name)) {
-        Write-Information "`n$($kindGroup.Name) profiles ($($kindGroup.Count)):" -InformationAction Continue
+        Write-Output "`n$($kindGroup.Name) profiles ($($kindGroup.Count)):"
         foreach ($row in ($kindGroup.Group | Sort-Object ProfileName)) {
             $assignedLabel = if ($row.IsAssigned) { "assigned" } else { "NOT ASSIGNED" }
             $line = "  $($row.ProfileName) [$assignedLabel]"
             if ($row.Flag) { $line += " [$($row.Flag)]" }
-            Write-Information $line -InformationAction Continue
+            Write-Output $line
 
             if ($row.ValiditySetting) {
-                Write-Information "    Issued cert validity: $($row.ValiditySetting)" -InformationAction Continue
+                Write-Output "    Issued cert validity: $($row.ValiditySetting)"
             }
             if ($row.EmbeddedCertExpiry) {
-                Write-Information "    Embedded certificate expires: $($row.EmbeddedCertExpiry)" -InformationAction Continue
+                Write-Output "    Embedded certificate expires: $($row.EmbeddedCertExpiry)"
             }
-            Write-Information "    Deployment: $($row.DevicesOk) ok, $($row.DevicesError) errors" -InformationAction Continue
+            Write-Output "    Deployment: $($row.DevicesOk) ok, $($row.DevicesError) errors"
         }
     }
 
     # Summary
     $flagged = @($report | Where-Object { $_.Flag })
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) certificate profiles | $($flagged.Count) flagged" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) certificate profiles | $($flagged.Count) flagged"
     foreach ($row in $flagged) {
-        Write-Information "  [$($row.Flag)] $($row.ProfileName)" -InformationAction Continue
+        Write-Output "  [$($row.Flag)] $($row.ProfileName)"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Certificate_Profile_Audit_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -341,7 +342,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

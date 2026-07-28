@@ -26,15 +26,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-app report and assignment calls are paced and the app listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -160,7 +161,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -194,7 +195,7 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "DeviceManagementManagedDevices.Read.All",
@@ -202,7 +203,7 @@ try {
         )
         
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -709,7 +710,7 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Starting app deployment failure monitoring..." -InformationAction Continue
+    Write-Output "Starting app deployment failure monitoring..."
     
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
@@ -718,8 +719,8 @@ try {
         throw "No valid email recipients provided"
     }
     
-    Write-Information "Email recipients: $($EmailRecipientList -join ', ')" -InformationAction Continue
-    Write-Information "Failure threshold: $FailureThresholdPercent%" -InformationAction Continue
+    Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
+    Write-Output "Failure threshold: $FailureThresholdPercent%"
     
     # Initialize results arrays
     $AllApps = @()
@@ -739,12 +740,12 @@ try {
     # GET ALL MOBILE APPLICATIONS
     # ========================================================================
     
-    Write-Information "Retrieving mobile applications..." -InformationAction Continue
+    Write-Output "Retrieving mobile applications..."
     
     try {
         $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,isFeatured,isAssigned,createdDateTime,lastModifiedDateTime"
         $Apps = Get-MgGraphAllPage -Uri $AppsUri
-        Write-Information "Found $($Apps.Count) applications" -InformationAction Continue
+        Write-Output "Found $($Apps.Count) applications"
         
         foreach ($App in $Apps) {
             try {
@@ -855,9 +856,9 @@ try {
             }
         }
         
-        Write-Information "✓ Processed $($AllApps.Count) applications successfully" -InformationAction Continue
-        Write-Information "  • Applications with failures: $($FailedApps.Count)" -InformationAction Continue
-        Write-Information "  • Required apps with failures: $($RequiredFailedApps.Count)" -InformationAction Continue
+        Write-Output "✓ Processed $($AllApps.Count) applications successfully"
+        Write-Output "  • Applications with failures: $($FailedApps.Count)"
+        Write-Output "  • Required apps with failures: $($RequiredFailedApps.Count)"
     }
     catch {
         Write-Error "Failed to retrieve mobile applications: $($_.Exception.Message)"
@@ -873,10 +874,10 @@ try {
     }
     else { 0 }
     
-    Write-Information "  • Total deployments: $($AppStats.TotalDeployments)" -InformationAction Continue
-    Write-Information "  • Successful installs: $($AppStats.TotalSuccesses)" -InformationAction Continue
-    Write-Information "  • Failed installs: $($AppStats.TotalFailures)" -InformationAction Continue
-    Write-Information "  • Overall failure rate: $OverallFailureRate%" -InformationAction Continue
+    Write-Output "  • Total deployments: $($AppStats.TotalDeployments)"
+    Write-Output "  • Successful installs: $($AppStats.TotalSuccesses)"
+    Write-Output "  • Failed installs: $($AppStats.TotalFailures)"
+    Write-Output "  • Overall failure rate: $OverallFailureRate%"
     
     # ========================================================================
     # SEND NOTIFICATIONS IF DEPLOYMENT FAILURES DETECTED
@@ -887,7 +888,7 @@ try {
                            ($FailedApps.Count -gt 0)
     
     if ($RequiresNotification) {
-        Write-Information "Preparing email notification for app deployment failures..." -InformationAction Continue
+        Write-Output "Preparing email notification for app deployment failures..."
         
         $Subject = if ($RequiredFailedApps.Count -gt 0) {
             "[Intune Alert] CRITICAL: $($RequiredFailedApps.Count) Required App(s) Failing to Deploy"
@@ -904,7 +905,7 @@ try {
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
-            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+            Write-Output "✓ Email notification sent to $($EmailRecipientList.Count) recipients"
         }
         else {
             Write-Warning "Email notification could not be delivered to all recipients"
@@ -912,45 +913,45 @@ try {
         }
     }
     else {
-        Write-Information "✓ No significant app deployment failures detected. All applications are deploying successfully." -InformationAction Continue
+        Write-Output "✓ No significant app deployment failures detected. All applications are deploying successfully."
     }
     
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
     
-    Write-Information "`n📱 APP DEPLOYMENT FAILURE MONITORING SUMMARY" -InformationAction Continue
-    Write-Information "=============================================" -InformationAction Continue
-    Write-Information "Total Applications: $($AllApps.Count)" -InformationAction Continue
-    Write-Information "Failure Threshold: $FailureThresholdPercent%" -InformationAction Continue
-    Write-Information "Overall Failure Rate: $OverallFailureRate%" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
-    
-    Write-Information "Deployment Statistics:" -InformationAction Continue
-    Write-Information "  • Total Deployments: $($AppStats.TotalDeployments)" -InformationAction Continue
-    Write-Information "  • Successful: $($AppStats.TotalSuccesses)" -InformationAction Continue
-    Write-Information "  • Failed: $($AppStats.TotalFailures)" -InformationAction Continue
-    Write-Information "  • Pending: $($AppStats.TotalPending)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
-    
-    Write-Information "Applications with Issues:" -InformationAction Continue
-    Write-Information "  • Apps with failures: $($FailedApps.Count)" -InformationAction Continue
-    Write-Information "  • Required apps failing: $($RequiredFailedApps.Count)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "`n📱 APP DEPLOYMENT FAILURE MONITORING SUMMARY"
+    Write-Output "============================================="
+    Write-Output "Total Applications: $($AllApps.Count)"
+    Write-Output "Failure Threshold: $FailureThresholdPercent%"
+    Write-Output "Overall Failure Rate: $OverallFailureRate%"
+    Write-Output ""
+
+    Write-Output "Deployment Statistics:"
+    Write-Output "  • Total Deployments: $($AppStats.TotalDeployments)"
+    Write-Output "  • Successful: $($AppStats.TotalSuccesses)"
+    Write-Output "  • Failed: $($AppStats.TotalFailures)"
+    Write-Output "  • Pending: $($AppStats.TotalPending)"
+    Write-Output ""
+
+    Write-Output "Applications with Issues:"
+    Write-Output "  • Apps with failures: $($FailedApps.Count)"
+    Write-Output "  • Required apps failing: $($RequiredFailedApps.Count)"
+    Write-Output ""
     
     if ($RequiredFailedApps.Count -gt 0) {
-        Write-Information "Top Required Apps with Failures:" -InformationAction Continue
+        Write-Output "Top Required Apps with Failures:"
         $TopRequiredFailed = $RequiredFailedApps | Sort-Object FailureRate -Descending | Select-Object -First 5
         foreach ($App in $TopRequiredFailed) {
-            Write-Information "  🔸 $($App.AppName) ($($App.AppType)) - $($App.FailureRate)% failure rate" -InformationAction Continue
+            Write-Output "  🔸 $($App.AppName) ($($App.AppType)) - $($App.FailureRate)% failure rate"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     $StatusIcon = if ($OverallFailureRate -le $FailureThresholdPercent -and $RequiredFailedApps.Count -eq 0) { "✅" } else { "⚠️" }
-    Write-Information "$StatusIcon Deployment Status: $(if ($OverallFailureRate -le $FailureThresholdPercent -and $RequiredFailedApps.Count -eq 0) { 'HEALTHY' } else { 'ISSUES DETECTED' })" -InformationAction Continue
+    Write-Output "$StatusIcon Deployment Status: $(if ($OverallFailureRate -le $FailureThresholdPercent -and $RequiredFailedApps.Count -eq 0) { 'HEALTHY' } else { 'ISSUES DETECTED' })"
     
-    Write-Information "`n✓ App deployment failure monitoring completed successfully" -InformationAction Continue
+    Write-Output "`n✓ App deployment failure monitoring completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -959,7 +960,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Silently ignore disconnect errors as they're not critical
@@ -971,7 +972,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -986,7 +987,7 @@ Required Apps Failing: $($RequiredFailedApps.Count)
 Email Recipients: $($EmailRecipientList.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue
+"
 
 # Fail the run if notification delivery failed
 if ($NotificationFailed) {

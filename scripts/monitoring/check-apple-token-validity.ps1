@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Output directory is now created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\check-apple-token-validity.ps1
@@ -163,7 +164,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -199,13 +200,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementServiceConfig.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -314,7 +315,7 @@ function Format-TimeSpan {
 # ============================================================================
 
 try {
-    Write-Information "Starting Apple token validity check..." -InformationAction Continue
+    Write-Output "Starting Apple token validity check..."
     
     # Initialize results arrays
     $AllTokens = @()
@@ -324,12 +325,12 @@ try {
     # GET DEP TOKENS (ENROLLMENT PROGRAM TOKENS)
     # ========================================================================
     
-    Write-Information "Retrieving Apple DEP tokens..." -InformationAction Continue
+    Write-Output "Retrieving Apple DEP tokens..."
     
     try {
         $DepTokensUri = "https://graph.microsoft.com/beta/deviceManagement/depOnboardingSettings"
         $DepTokens = Get-MgGraphPaginatedData -Uri $DepTokensUri
-        Write-Information "Retrieving $($DepTokens.Count) DEP token entries..." -InformationAction Continue
+        Write-Output "Retrieving $($DepTokens.Count) DEP token entries..."
         
         $ValidDepTokenCount = 0
         foreach ($Token in $DepTokens) {
@@ -381,7 +382,7 @@ try {
             }
         }
         
-        Write-Information "✓ Found $ValidDepTokenCount valid DEP tokens" -InformationAction Continue
+        Write-Output "✓ Found $ValidDepTokenCount valid DEP tokens"
     }
     catch {
         Write-Warning "Failed to retrieve DEP tokens: $($_.Exception.Message)"
@@ -391,14 +392,14 @@ try {
     # GET APPLE PUSH NOTIFICATION CERTIFICATE
     # ========================================================================
     
-    Write-Information "Retrieving Apple Push Notification Certificate..." -InformationAction Continue
+    Write-Output "Retrieving Apple Push Notification Certificate..."
     
     try {
         $ApnsCertUri = "https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate"
         $ApnsCert = Invoke-MgGraphRequest -Uri $ApnsCertUri -Method GET
         
         if ($ApnsCert) {
-            Write-Information "✓ Found Apple Push Notification Certificate" -InformationAction Continue
+            Write-Output "✓ Found Apple Push Notification Certificate"
             
             $ExpirationDate = [datetime]$ApnsCert.expirationDateTime
             $LastModifiedDate = if ($ApnsCert.lastModifiedDateTime) { [datetime]$ApnsCert.lastModifiedDateTime } else { $null }
@@ -456,7 +457,7 @@ try {
             }
         }
         else {
-            Write-Information "ℹ️ No Apple Push Notification Certificate found" -InformationAction Continue
+            Write-Output "ℹ️ No Apple Push Notification Certificate found"
         }
     }
     catch {
@@ -481,7 +482,7 @@ try {
     # Create output directory if it does not exist
     if (-not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        Write-Output "Created output directory: $OutputPath"
     }
 
     # Generate timestamp for file names
@@ -491,7 +492,7 @@ try {
     # Export to CSV
     try {
         $ReportTokens | Export-Csv -Path $CsvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $CsvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $CsvPath"
     }
     catch {
         Write-Error "Failed to generate CSV report: $($_.Exception.Message)"
@@ -502,7 +503,7 @@ try {
     # ========================================================================
     
     if ($SendEmailAlert -and $CriticalIssues.Count -gt 0 -and $AlertEmailAddress) {
-        Write-Information "Sending email alert for critical issues..." -InformationAction Continue
+        Write-Output "Sending email alert for critical issues..."
         # Note: Email functionality would require additional modules and configuration
         # This is a placeholder for future implementation
         Write-Warning "Email alert functionality requires additional configuration (SMTP settings, etc.)"
@@ -512,12 +513,12 @@ try {
     # DISPLAY DETAILED CONSOLE OUTPUT
     # ========================================================================
     
-    Write-Information "`n🍎 APPLE TOKEN & CERTIFICATE VALIDITY SUMMARY" -InformationAction Continue
-    Write-Information "==============================================" -InformationAction Continue
-    Write-Information "Total Items: $($AllTokens.Count)" -InformationAction Continue
-    Write-Information "  • DEP Tokens: $(($AllTokens | Where-Object { $_.TokenType -eq 'DEP' }).Count)" -InformationAction Continue
-    Write-Information "  • APNS Certificates: $(($AllTokens | Where-Object { $_.TokenType -eq 'APNS' }).Count)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "`n🍎 APPLE TOKEN & CERTIFICATE VALIDITY SUMMARY"
+    Write-Output "=============================================="
+    Write-Output "Total Items: $($AllTokens.Count)"
+    Write-Output "  • DEP Tokens: $(($AllTokens | Where-Object { $_.TokenType -eq 'DEP' }).Count)"
+    Write-Output "  • APNS Certificates: $(($AllTokens | Where-Object { $_.TokenType -eq 'APNS' }).Count)"
+    Write-Output ""
     
     # Health Status Summary
     $HealthyCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Healthy" }).Count
@@ -525,16 +526,16 @@ try {
     $CriticalCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Critical" }).Count
     $UnknownCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Unknown" }).Count
     
-    Write-Information "Health Status:" -InformationAction Continue
-    Write-Information "  • Healthy: $HealthyCount" -InformationAction Continue
-    Write-Information "  • Warning: $WarningCount" -InformationAction Continue
-    Write-Information "  • Critical: $CriticalCount" -InformationAction Continue
-    Write-Information "  • Unknown: $UnknownCount" -InformationAction Continue
+    Write-Output "Health Status:"
+    Write-Output "  • Healthy: $HealthyCount"
+    Write-Output "  • Warning: $WarningCount"
+    Write-Output "  • Critical: $CriticalCount"
+    Write-Output "  • Unknown: $UnknownCount"
     
     # Display detailed token information
     if ($ReportTokens.Count -gt 0) {
-        Write-Information "`n📋 TOKEN DETAILS:" -InformationAction Continue
-        Write-Information "=================" -InformationAction Continue
+        Write-Output "`n📋 TOKEN DETAILS:"
+        Write-Output "================="
         
         foreach ($Token in ($ReportTokens | Sort-Object HealthStatus, DaysUntilExpiration)) {
             $StatusIcon = switch ($Token.HealthStatus) {
@@ -545,20 +546,20 @@ try {
             }
             
             $ItemType = if ($Token.TokenType -eq "APNS") { "Certificate" } else { "Token" }
-            Write-Information "`n$StatusIcon $($Token.TokenType) $ItemType : $($Token.TokenName)" -InformationAction Continue
-            Write-Information "   Apple ID: $($Token.AppleId)" -InformationAction Continue
-            Write-Information "   Status: $($Token.State)" -InformationAction Continue
-            Write-Information "   Health: $($Token.HealthStatus)" -InformationAction Continue
-            Write-Information "   Expires: $($Token.ExpirationDateTime.ToString('yyyy-MM-dd')) ($($Token.ExpirationStatus))" -InformationAction Continue
-            Write-Information "   Last Modified: $(if ($Token.LastSyncDateTime) { $Token.LastSyncDateTime.ToString('yyyy-MM-dd HH:mm') } else { 'Never' })" -InformationAction Continue
-            Write-Information "   Status: $($Token.LastSyncStatus)" -InformationAction Continue
+            Write-Output "`n$StatusIcon $($Token.TokenType) $ItemType : $($Token.TokenName)"
+            Write-Output "   Apple ID: $($Token.AppleId)"
+            Write-Output "   Status: $($Token.State)"
+            Write-Output "   Health: $($Token.HealthStatus)"
+            Write-Output "   Expires: $($Token.ExpirationDateTime.ToString('yyyy-MM-dd')) ($($Token.ExpirationStatus))"
+            Write-Output "   Last Modified: $(if ($Token.LastSyncDateTime) { $Token.LastSyncDateTime.ToString('yyyy-MM-dd HH:mm') } else { 'Never' })"
+            Write-Output "   Status: $($Token.LastSyncStatus)"
             
             if ($Token.TokenType -eq "APNS") {
-                Write-Information "   Topic Identifier: $($Token.TopicIdentifier)" -InformationAction Continue
-                Write-Information "   Upload Status: $($Token.CertificateUploadStatus)" -InformationAction Continue
-                Write-Information "   Serial Number: $($Token.CertificateSerialNumber)" -InformationAction Continue
+                Write-Output "   Topic Identifier: $($Token.TopicIdentifier)"
+                Write-Output "   Upload Status: $($Token.CertificateUploadStatus)"
+                Write-Output "   Serial Number: $($Token.CertificateSerialNumber)"
                 if ($Token.CertificateUploadFailureReason) {
-                    Write-Information "   Upload Failure Reason: $($Token.CertificateUploadFailureReason)" -InformationAction Continue
+                    Write-Output "   Upload Failure Reason: $($Token.CertificateUploadFailureReason)"
                 }
             }
         }
@@ -566,56 +567,56 @@ try {
     
     # Critical Issues Alert
     if ($CriticalIssues.Count -gt 0) {
-        Write-Information "`n⚠️  CRITICAL ISSUES DETECTED:" -InformationAction Continue
-        Write-Information "=============================" -InformationAction Continue
+        Write-Output "`n⚠️  CRITICAL ISSUES DETECTED:"
+        Write-Output "============================="
         foreach ($Issue in $CriticalIssues) {
-            Write-Information "❌ $($Issue.TokenName) ($($Issue.TokenType))" -InformationAction Continue
-            Write-Information "   Issue: $($Issue.State)" -InformationAction Continue
-            Write-Information "   Expires: $($Issue.ExpirationStatus)" -InformationAction Continue
-            Write-Information "   Action Required: $(if ($Issue.State -eq 'expired') { 'Replace token immediately' } elseif ($Issue.State -eq 'invalid') { 'Check Apple Business Manager configuration' } else { 'Investigate sync issues' })" -InformationAction Continue
-            Write-Information "" -InformationAction Continue
+            Write-Output "❌ $($Issue.TokenName) ($($Issue.TokenType))"
+            Write-Output "   Issue: $($Issue.State)"
+            Write-Output "   Expires: $($Issue.ExpirationStatus)"
+            Write-Output "   Action Required: $(if ($Issue.State -eq 'expired') { 'Replace token immediately' } elseif ($Issue.State -eq 'invalid') { 'Check Apple Business Manager configuration' } else { 'Investigate sync issues' })"
+            Write-Output ""
         }
     }
     
     # Recommendations
-    Write-Information "`n📋 RECOMMENDATIONS:" -InformationAction Continue
-    Write-Information "===================" -InformationAction Continue
+    Write-Output "`n📋 RECOMMENDATIONS:"
+    Write-Output "==================="
     
     $ExpiringTokens = $AllTokens | Where-Object { $_.DaysUntilExpiration -le $ExpirationWarningDays -and $_.DaysUntilExpiration -gt 0 }
     if ($ExpiringTokens.Count -gt 0) {
-        Write-Information "🔄 Renew $($ExpiringTokens.Count) token(s) expiring within $ExpirationWarningDays days:" -InformationAction Continue
+        Write-Output "🔄 Renew $($ExpiringTokens.Count) token(s) expiring within $ExpirationWarningDays days:"
         foreach ($Token in $ExpiringTokens) {
-            Write-Information "   • $($Token.TokenName) ($($Token.TokenType)) - expires in $($Token.DaysUntilExpiration) days" -InformationAction Continue
+            Write-Output "   • $($Token.TokenName) ($($Token.TokenType)) - expires in $($Token.DaysUntilExpiration) days"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     $FailedSyncTokens = $AllTokens | Where-Object { $_.LastSyncStatus -eq "failed" }
     if ($FailedSyncTokens.Count -gt 0) {
-        Write-Information "🔍 Investigate $($FailedSyncTokens.Count) token(s) with failed sync status:" -InformationAction Continue
+        Write-Output "🔍 Investigate $($FailedSyncTokens.Count) token(s) with failed sync status:"
         foreach ($Token in $FailedSyncTokens) {
-            Write-Information "   • $($Token.TokenName) ($($Token.TokenType))" -InformationAction Continue
+            Write-Output "   • $($Token.TokenName) ($($Token.TokenType))"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     $ExpiredTokens = $AllTokens | Where-Object { $_.DaysUntilExpiration -le 0 }
     if ($ExpiredTokens.Count -gt 0) {
-        Write-Information "🚨 Replace $($ExpiredTokens.Count) expired token(s) immediately:" -InformationAction Continue
+        Write-Output "🚨 Replace $($ExpiredTokens.Count) expired token(s) immediately:"
         foreach ($Token in $ExpiredTokens) {
-            Write-Information "   • $($Token.TokenName) ($($Token.TokenType)) - expired $([math]::Abs($Token.DaysUntilExpiration)) days ago" -InformationAction Continue
+            Write-Output "   • $($Token.TokenName) ($($Token.TokenType)) - expired $([math]::Abs($Token.DaysUntilExpiration)) days ago"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     if ($HealthyCount -eq $AllTokens.Count) {
-        Write-Information "✅ All tokens are healthy! No action required." -InformationAction Continue
+        Write-Output "✅ All tokens are healthy! No action required."
     }
     
-    Write-Information "`nReport saved to:" -InformationAction Continue
-    Write-Information "📄 CSV: $CsvPath" -InformationAction Continue
+    Write-Output "`nReport saved to:"
+    Write-Output "📄 CSV: $CsvPath"
     
-    Write-Information "`n✓ Apple token validity check completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Apple token validity check completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -625,7 +626,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Disconnect operation completed with warnings (this is expected behavior)"
@@ -636,7 +637,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -647,4 +648,4 @@ Total Items Checked: $($AllTokens.Count)
 Critical Issues: $($CriticalIssues.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue
+"

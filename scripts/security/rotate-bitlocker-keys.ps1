@@ -23,15 +23,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added a confirmation prompt before tenant-wide rotation (skippable with -Force; Azure Automation runbooks now require -Force); rotation calls retry once after 60 seconds on throttling
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\rotate-bitlocker-keys.ps1
@@ -151,7 +152,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -187,12 +188,12 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.ReadWrite.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -291,10 +292,10 @@ function Invoke-BitLockerKeyRotation {
 # ============================================================================
 
 try {
-    Write-Information "Starting BitLocker key rotation process..." -InformationAction Continue
+    Write-Output "Starting BitLocker key rotation process..."
     
     # Get all managed Windows devices from Intune
-    Write-Information "Retrieving all Windows devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving all Windows devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem&`$filter=operatingSystem eq 'Windows'"
     $managedDevices = Get-MgGraphAllPage -Uri $devicesUri
     
@@ -303,7 +304,7 @@ try {
         exit 0
     }
     
-    Write-Information "✓ Found $($managedDevices.Count) Windows devices" -InformationAction Continue
+    Write-Output "✓ Found $($managedDevices.Count) Windows devices"
 
     # Confirmation gate: local runs prompt unless -Force; Azure Automation
     # cannot prompt, so -Force is required there
@@ -312,10 +313,10 @@ try {
             Write-Error "Azure Automation runs cannot prompt for confirmation. Re-run with -Force to rotate BitLocker keys for $($managedDevices.Count) device(s)."
             exit 1
         }
-        Write-Information "`nYou are about to rotate BitLocker keys for $($managedDevices.Count) device(s)." -InformationAction Continue
+        Write-Output "`nYou are about to rotate BitLocker keys for $($managedDevices.Count) device(s)."
         $confirmation = Read-Host "Do you want to continue? (Y/N)"
         if ($confirmation -notmatch '^[Yy]') {
-            Write-Information "Operation cancelled by user" -InformationAction Continue
+            Write-Output "Operation cancelled by user"
             exit 0
         }
     }
@@ -332,7 +333,7 @@ try {
         $deviceId = $device.id
         $deviceName = $device.deviceName
         
-        Write-Information "[$currentDevice/$totalDevices] Processing device: $deviceName" -InformationAction Continue
+        Write-Output "[$currentDevice/$totalDevices] Processing device: $deviceName"
         
         # Rotate BitLocker keys
         $success = Invoke-BitLockerKeyRotation -DeviceId $deviceId -DeviceName $deviceName
@@ -351,17 +352,17 @@ try {
     }
     
     # Display summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information "============================================" -InformationAction Continue
-    Write-Information "BitLocker Key Rotation Summary" -InformationAction Continue
-    Write-Information "============================================" -InformationAction Continue
-    Write-Information "Total devices processed: $totalDevices" -InformationAction Continue
-    Write-Information "Successful rotations: $successCount" -InformationAction Continue
-    Write-Information "Failed rotations: $failureCount" -InformationAction Continue
-    Write-Information "Success rate: $([math]::Round(($successCount / $totalDevices) * 100, 2))%" -InformationAction Continue
-    Write-Information "============================================" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output "============================================"
+    Write-Output "BitLocker Key Rotation Summary"
+    Write-Output "============================================"
+    Write-Output "Total devices processed: $totalDevices"
+    Write-Output "Successful rotations: $successCount"
+    Write-Output "Failed rotations: $failureCount"
+    Write-Output "Success rate: $([math]::Round(($successCount / $totalDevices) * 100, 2))%"
+    Write-Output "============================================"
     
-    Write-Information "✓ BitLocker key rotation process completed" -InformationAction Continue
+    Write-Output "✓ BitLocker key rotation process completed"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -371,7 +372,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

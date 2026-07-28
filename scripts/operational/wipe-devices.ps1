@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added -WhatIf dry run support; Azure Automation now requires -Force instead of hanging on a prompt; exit code 1 when any wipe fails; 429 retry with 60s wait on wipe calls; PIN now applies only to macOS devices with a warning otherwise; group lookup failures abort with a distinct error; list-based result accumulation; added $select to managed device queries
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\wipe-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002" -WipeType Selective
@@ -179,7 +180,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -221,13 +222,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $scopes = @("DeviceManagementManagedDevices.PrivilegedOperations.All", "DeviceManagementManagedDevices.ReadWrite.All", "DeviceManagementManagedDevices.Read.All")
         if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
             $scopes += @("Group.Read.All", "GroupMember.Read.All")
         }
         Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -427,7 +428,7 @@ try {
 
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
-            Write-Information "Retrieving devices by names..." -InformationAction Continue
+            Write-Output "Retrieving devices by names..."
             $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
             
@@ -435,7 +436,7 @@ try {
                 $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
                 if ($matchingDevices) {
                     $targetDevices += $matchingDevices
-                    Write-Information "✓ Found device: $deviceName" -InformationAction Continue
+                    Write-Output "✓ Found device: $deviceName"
                 }
                 else {
                     Write-Warning "Device not found: $deviceName"
@@ -444,13 +445,13 @@ try {
         }
         
         'DeviceIds' {
-            Write-Information "Retrieving devices by IDs..." -InformationAction Continue
+            Write-Output "Retrieving devices by IDs..."
             foreach ($deviceId in $DeviceIds) {
                 try {
                     $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
-                    Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
+                    Write-Output "✓ Found device: $($device.deviceName)"
                 }
                 catch {
                     Write-Warning "Device not found with ID: $deviceId"
@@ -470,17 +471,17 @@ try {
     }
 
     # Display target information
-    Write-Information "`n🚨 DEVICE WIPE OPERATION" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
-    Write-Information "Wipe Type: $WipeType" -InformationAction Continue
-    Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
-    Write-Information "Keep Enrollment Data: $KeepEnrollmentData" -InformationAction Continue
+    Write-Output "`n🚨 DEVICE WIPE OPERATION"
+    Write-Output "========================="
+    Write-Output "Wipe Type: $WipeType"
+    Write-Output "Total devices to process: $($targetDevices.Count)"
+    Write-Output "Keep Enrollment Data: $KeepEnrollmentData"
 
     if ($WipeType -eq 'Full') {
-        Write-Information "⚠️  WARNING: Full wipe will completely erase all data on these devices!" -InformationAction Continue
+        Write-Output "⚠️  WARNING: Full wipe will completely erase all data on these devices!"
     }
     else {
-        Write-Information "ℹ️  Selective wipe will remove only company data and apps" -InformationAction Continue
+        Write-Output "ℹ️  Selective wipe will remove only company data and apps"
     }
 
     # Show device details
@@ -489,17 +490,17 @@ try {
     # Confirmation prompt for local runs unless Force or WhatIf is specified
     # (Azure Automation without -Force already exited during environment detection)
     if (-not $Force -and -not $WhatIfPreference) {
-        Write-Information "`n🛑 CONFIRMATION REQUIRED" -InformationAction Continue
-        Write-Information "This operation will perform a $($WipeType.ToLower()) wipe on $($targetDevices.Count) device(s)." -InformationAction Continue
+        Write-Output "`n🛑 CONFIRMATION REQUIRED"
+        Write-Output "This operation will perform a $($WipeType.ToLower()) wipe on $($targetDevices.Count) device(s)."
         
         if ($WipeType -eq 'Full') {
-            Write-Information "⚠️  THIS WILL PERMANENTLY DELETE ALL DATA ON THE DEVICES!" -InformationAction Continue
+            Write-Output "⚠️  THIS WILL PERMANENTLY DELETE ALL DATA ON THE DEVICES!"
         }
         
         $confirmation = Read-Host "`nType 'CONFIRM' to proceed with the wipe operation"
         
         if ($confirmation -ne 'CONFIRM') {
-            Write-Information "Operation cancelled by user." -InformationAction Continue
+            Write-Output "Operation cancelled by user."
             Disconnect-MgGraph | Out-Null
             exit 0
         }
@@ -510,7 +511,7 @@ try {
     $failedWipes = 0
     $processedDevices = 0
 
-    Write-Information "`n🔄 Processing device wipe operations..." -InformationAction Continue
+    Write-Output "`n🔄 Processing device wipe operations..."
 
     foreach ($device in $targetDevices) {
         $processedDevices++
@@ -536,25 +537,25 @@ try {
     Write-Progress -Activity "Wiping Devices" -Completed
 
     # Display final summary
-    Write-Information "`n🔄 WIPE OPERATION SUMMARY" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
-    Write-Information "Wipe Type: $WipeType" -InformationAction Continue
-    Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
-    Write-Information "Successful Wipes: $successfulWipes" -InformationAction Continue
-    Write-Information "Failed Wipes: $failedWipes" -InformationAction Continue
+    Write-Output "`n🔄 WIPE OPERATION SUMMARY"
+    Write-Output "========================="
+    Write-Output "Wipe Type: $WipeType"
+    Write-Output "Total Devices Processed: $($targetDevices.Count)"
+    Write-Output "Successful Wipes: $successfulWipes"
+    Write-Output "Failed Wipes: $failedWipes"
 
     # Show failed devices if any
     if ($failedWipes -gt 0) {
-        Write-Information "`n❌ Failed wipe operations require manual review." -InformationAction Continue
+        Write-Output "`n❌ Failed wipe operations require manual review."
         exit 1
     }
 
     if ($successfulWipes -gt 0) {
-        Write-Information "`n✅ $successfulWipes device(s) have been scheduled for $($WipeType.ToLower()) wipe." -InformationAction Continue
-        Write-Information "📋 Note: Wipe operations may take several minutes to complete on the devices." -InformationAction Continue
+        Write-Output "`n✅ $successfulWipes device(s) have been scheduled for $($WipeType.ToLower()) wipe."
+        Write-Output "📋 Note: Wipe operations may take several minutes to complete on the devices."
     }
 
-    Write-Information "`n🎉 Device wipe operation completed!" -InformationAction Continue
+    Write-Output "`n🎉 Device wipe operation completed!"
 
 }
 catch {
@@ -565,7 +566,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

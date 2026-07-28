@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Exit code 1 when any sync fails; 429 retry with 60s wait on sync calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
     1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
@@ -39,7 +40,7 @@
         - improved consistency in logging and error handling
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\sync-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
@@ -175,7 +176,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information 'Running locally in IDE or terminal' -InformationAction Continue
+    Write-Output 'Running locally in IDE or terminal'
     $IsAzureAutomation = $false
 }
 
@@ -211,7 +212,7 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information 'Connecting to Microsoft Graph with interactive authentication...' -InformationAction Continue
+        Write-Output 'Connecting to Microsoft Graph with interactive authentication...'
 
         $scopes = @('DeviceManagementManagedDevices.ReadWrite.All', 'DeviceManagementManagedDevices.Read.All', 'DeviceManagementManagedDevices.PrivilegedOperations.All')
 
@@ -219,7 +220,7 @@ try {
             $scopes += @('Group.Read.All', 'GroupMember.Read.All')
         }
         Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
-        Write-Information '✓ Successfully connected to Microsoft Graph' -InformationAction Continue
+        Write-Output '✓ Successfully connected to Microsoft Graph'
     }
 }
 catch {
@@ -374,7 +375,7 @@ try {
 
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
-            Write-Information 'Retrieving devices by names...' -InformationAction Continue
+            Write-Output 'Retrieving devices by names...'
             $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
             
@@ -382,7 +383,7 @@ try {
                 $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
                 if ($matchingDevices) {
                     $targetDevices += $matchingDevices
-                    Write-Information "✓ Found device: $deviceName" -InformationAction Continue
+                    Write-Output "✓ Found device: $deviceName"
                 }
                 else {
                     Write-Warning "Device not found: $deviceName"
@@ -391,13 +392,13 @@ try {
         }
         
         'DeviceIds' {
-            Write-Information 'Retrieving devices by IDs...' -InformationAction Continue
+            Write-Output 'Retrieving devices by IDs...'
             foreach ($deviceId in $DeviceIds) {
                 try {
                     $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
-                    Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
+                    Write-Output "✓ Found device: $($device.deviceName)"
                 }
                 catch {
                     Write-Warning "Device not found with ID: $deviceId"
@@ -417,9 +418,9 @@ try {
     }
 
     # Display target information
-    Write-Information "`n📱 TARGET DEVICES SUMMARY" -InformationAction Continue
-    Write-Information '=========================' -InformationAction Continue
-    Write-Information "Total devices to process: $($targetDevices.Count)" -InformationAction Continue
+    Write-Output "`n📱 TARGET DEVICES SUMMARY"
+    Write-Output '========================='
+    Write-Output "Total devices to process: $($targetDevices.Count)"
 
     # Process sync operations
     $successfulSyncs = 0
@@ -427,7 +428,7 @@ try {
     $skippedSyncs = 0
     $processedDevices = 0
 
-    Write-Information "`nProcessing device synchronization..." -InformationAction Continue
+    Write-Output "`nProcessing device synchronization..."
 
     foreach ($device in $targetDevices) {
         $processedDevices++
@@ -460,7 +461,7 @@ try {
             }
         }
         else {
-            Write-Information "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago" -InformationAction Continue
+            Write-Output "⏭️  Skipping $($device.deviceName) - synced $hoursSinceSync hours ago"
             $skippedSyncs++
         }
     }
@@ -468,20 +469,20 @@ try {
     Write-Progress -Activity 'Synchronizing Devices' -Completed
 
     # Display final summary
-    Write-Information "`n🔄 SYNC OPERATION SUMMARY" -InformationAction Continue
-    Write-Information '=========================' -InformationAction Continue
-    Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
-    Write-Information "Successful Syncs: $successfulSyncs" -InformationAction Continue
-    Write-Information "Failed Syncs: $failedSyncs" -InformationAction Continue
-    Write-Information "Skipped Devices: $skippedSyncs" -InformationAction Continue
+    Write-Output "`n🔄 SYNC OPERATION SUMMARY"
+    Write-Output '========================='
+    Write-Output "Total Devices Processed: $($targetDevices.Count)"
+    Write-Output "Successful Syncs: $successfulSyncs"
+    Write-Output "Failed Syncs: $failedSyncs"
+    Write-Output "Skipped Devices: $skippedSyncs"
 
     # Show failed devices if any
     if ($failedSyncs -gt 0) {
-        Write-Information "`n❌ Failed sync operations require manual review." -InformationAction Continue
+        Write-Output "`n❌ Failed sync operations require manual review."
         exit 1
     }
 
-    Write-Information "`n🎉 Device synchronization completed successfully!" -InformationAction Continue
+    Write-Output "`n🎉 Device synchronization completed successfully!"
 
 }
 catch {
@@ -492,7 +493,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         $null = Disconnect-MgGraph
-        Write-Information '✓ Disconnected from Microsoft Graph' -InformationAction Continue
+        Write-Output '✓ Disconnected from Microsoft Graph'
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

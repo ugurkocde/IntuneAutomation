@@ -28,13 +28,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\restore-intune-configuration.ps1 -BackupPath ".\IntuneConfigBackup_2026-07-20_10-00-00" -WhatIf
@@ -156,13 +157,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.ReadWrite.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -274,7 +275,7 @@ try {
         throw "Backup path '$BackupPath' does not exist"
     }
 
-    Write-Information "Starting Intune configuration restore from: $BackupPath" -InformationAction Continue
+    Write-Output "Starting Intune configuration restore from: $BackupPath"
 
     $restored = 0
     $failed = 0
@@ -292,7 +293,7 @@ try {
             if ($PSCmdlet.ShouldProcess($displayName, "Create device configuration profile")) {
                 try {
                     $created = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations" -Method POST -Body ($payload | ConvertTo-Json -Depth 25) -ContentType "application/json"
-                    Write-Information "✓ Created profile: $displayName" -InformationAction Continue
+                    Write-Output "✓ Created profile: $displayName"
                     $restored++
 
                     if ($RestoreAssignments) {
@@ -335,7 +336,7 @@ try {
             if ($PSCmdlet.ShouldProcess($displayName, "Create settings catalog policy")) {
                 try {
                     $created = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies" -Method POST -Body ($payload | ConvertTo-Json -Depth 30) -ContentType "application/json"
-                    Write-Information "✓ Created settings catalog policy: $displayName" -InformationAction Continue
+                    Write-Output "✓ Created settings catalog policy: $displayName"
                     $restored++
 
                     if ($RestoreAssignments) {
@@ -387,7 +388,7 @@ try {
             if ($PSCmdlet.ShouldProcess($displayName, "Create compliance policy")) {
                 try {
                     $created = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies" -Method POST -Body ($payload | ConvertTo-Json -Depth 25) -ContentType "application/json"
-                    Write-Information "✓ Created compliance policy: $displayName" -InformationAction Continue
+                    Write-Output "✓ Created compliance policy: $displayName"
                     $restored++
 
                     if ($RestoreAssignments) {
@@ -417,7 +418,7 @@ try {
             if ($PSCmdlet.ShouldProcess($displayName, "Create administrative template policy")) {
                 try {
                     $created = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations" -Method POST -Body ($payload | ConvertTo-Json) -ContentType "application/json"
-                    Write-Information "✓ Created administrative template policy: $displayName" -InformationAction Continue
+                    Write-Output "✓ Created administrative template policy: $displayName"
                     $restored++
 
                     # Definition values are created one by one against the new policy
@@ -489,7 +490,7 @@ try {
             if ($PSCmdlet.ShouldProcess($displayName, "Create platform script ($surface)")) {
                 try {
                     $created = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/$surface" -Method POST -Body ($payload | ConvertTo-Json -Depth 10) -ContentType "application/json"
-                    Write-Information "✓ Created platform script: $displayName" -InformationAction Continue
+                    Write-Output "✓ Created platform script: $displayName"
                     $restored++
 
                     if ($RestoreAssignments) {
@@ -506,12 +507,12 @@ try {
     }
 
     # ----- Summary -----
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Restore Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Objects created: $restored" -InformationAction Continue
-    Write-Information "Objects failed:  $failed" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Restore Summary"
+    Write-Output "========================================"
+    Write-Output "Objects created: $restored"
+    Write-Output "Objects failed:  $failed"
+    Write-Output "========================================"
 
     if ($failed -gt 0) {
         Write-Warning "Some objects failed to restore - review the warnings above"
@@ -524,7 +525,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

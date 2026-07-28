@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Malformed audit entries are now skipped with a warning instead of aborting the report; date filter is built from UTC; output directory is created automatically before exports; removed unused Get-CategoryFromActivity function; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-intune-audit-logs.ps1
@@ -179,7 +180,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
             "DeviceManagementConfiguration.Read.All",
@@ -187,7 +188,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -397,7 +398,7 @@ function Export-AuditToHtml {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving Intune audit logs..." -InformationAction Continue
+    Write-Output "Retrieving Intune audit logs..."
     
     # Calculate date filter in UTC so it matches Graph timestamps
     $startDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack).ToString("yyyy-MM-dd")
@@ -424,7 +425,7 @@ try {
     # Get audit events
     $auditEvents = Get-MgGraphAllPage -Uri $uri -Top $NumberOfEntries
     
-    Write-Information "✓ Retrieved $($auditEvents.Count) audit entries" -InformationAction Continue
+    Write-Output "✓ Retrieved $($auditEvents.Count) audit entries"
     
     # Apply additional filters
     if ($FilterByUser) {
@@ -455,29 +456,29 @@ try {
     
     # Display results
     if ($formattedEntries.Count -eq 0) {
-        Write-Information "No audit entries found matching the specified criteria." -InformationAction Continue
+        Write-Output "No audit entries found matching the specified criteria."
     }
     else {
-        Write-Information "`n📋 INTUNE AUDIT LOG ENTRIES" -InformationAction Continue
-        Write-Information ("=" * 80) -InformationAction Continue
+        Write-Output "`n📋 INTUNE AUDIT LOG ENTRIES"
+        Write-Output ("=" * 80)
         
         foreach ($entry in $formattedEntries) {
-            Write-Information "`n[$($entry.Timestamp)] $($entry.ResultSymbol) $($entry.Activity)" -InformationAction Continue
+            Write-Output "`n[$($entry.Timestamp)] $($entry.ResultSymbol) $($entry.Activity)"
             
-            Write-Information "   Actor: $($entry.Actor)" -InformationAction Continue
+            Write-Output "   Actor: $($entry.Actor)"
             
-            Write-Information "   Category: $($entry.Category)" -InformationAction Continue
+            Write-Output "   Category: $($entry.Category)"
             
-            Write-Information "   Resources: $($entry.Resources)" -InformationAction Continue
+            Write-Output "   Resources: $($entry.Resources)"
             
             if ($DetailedView -and $entry.OperationType) {
-                Write-Information "   Operation: $($entry.OperationType)" -InformationAction Continue
+                Write-Output "   Operation: $($entry.OperationType)"
             }
         }
         
-        Write-Information "`n" -InformationAction Continue
-        Write-Information ("=" * 80) -InformationAction Continue
-        Write-Information "Total entries displayed: $($formattedEntries.Count)" -InformationAction Continue
+        Write-Output "`n"
+        Write-Output ("=" * 80)
+        Write-Output "Total entries displayed: $($formattedEntries.Count)"
     }
     
     # Export if requested
@@ -486,20 +487,20 @@ try {
     # Create output directory if it does not exist
     if (($ExportToCsv -or $ExportToHtml) -and -not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        Write-Output "Created output directory: $OutputPath"
     }
 
     if ($ExportToCsv) {
         $csvPath = Join-Path $OutputPath "Intune_Audit_Log_$timestamp.csv"
         $formattedEntries | Select-Object Timestamp, Actor, Activity, Category, Resources, Result | 
         Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
     
     if ($ExportToHtml) {
         $htmlPath = Join-Path $OutputPath "Intune_Audit_Log_$timestamp.html"
         Export-AuditToHtml -AuditEntries $formattedEntries -FilePath $htmlPath
-        Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML report saved: $htmlPath"
         
         if ($OpenReport) {
             try {
@@ -518,7 +519,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

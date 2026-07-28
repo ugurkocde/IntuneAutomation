@@ -31,15 +31,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Cache group memberships once per group instead of refetching per CSV row and suppress progress bars in runbooks
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate
@@ -117,11 +118,11 @@ param(
 
 if ($GenerateTemplate) {
     try {
-        Write-Information "Generating CSV template file..." -InformationAction Continue
+        Write-Output "Generating CSV template file..."
 
         # Use system's default list separator
         $csvDelimiter = (Get-Culture).TextInfo.ListSeparator
-        Write-Information "Using system delimiter: '$csvDelimiter' (comma for US, semicolon for Europe)" -InformationAction Continue
+        Write-Output "Using system delimiter: '$csvDelimiter' (comma for US, semicolon for Europe)"
 
         # Create template data with examples
         $templateData = @(
@@ -154,19 +155,19 @@ if ($GenerateTemplate) {
         # Export to CSV with system delimiter
         $templateData | Export-Csv -Path $TemplatePath -NoTypeInformation -Encoding UTF8 -Delimiter $csvDelimiter
 
-        Write-Information "Successfully created template file: $TemplatePath" -InformationAction Continue
-        Write-Information "" -InformationAction Continue
-        Write-Information "Template includes examples showing:" -InformationAction Continue
-        Write-Information "  - Using DeviceName and SerialNumber together" -InformationAction Continue
-        Write-Information "  - Using only SerialNumber" -InformationAction Continue
-        Write-Information "  - Using only DeviceId (Azure AD Device ID)" -InformationAction Continue
-        Write-Information "  - Using only DeviceName" -InformationAction Continue
-        Write-Information "  - Multiple devices assigned to the same group" -InformationAction Continue
-        Write-Information "" -InformationAction Continue
-        Write-Information "Notes:" -InformationAction Continue
-        Write-Information "  - At least one device identifier must be provided per row" -InformationAction Continue
-        Write-Information "  - GroupName is required for all rows" -InformationAction Continue
-        Write-Information "  - Device matching priority: DeviceId > SerialNumber > DeviceName" -InformationAction Continue
+        Write-Output "Successfully created template file: $TemplatePath"
+        Write-Output ""
+        Write-Output "Template includes examples showing:"
+        Write-Output "  - Using DeviceName and SerialNumber together"
+        Write-Output "  - Using only SerialNumber"
+        Write-Output "  - Using only DeviceId (Azure AD Device ID)"
+        Write-Output "  - Using only DeviceName"
+        Write-Output "  - Multiple devices assigned to the same group"
+        Write-Output ""
+        Write-Output "Notes:"
+        Write-Output "  - At least one device identifier must be provided per row"
+        Write-Output "  - GroupName is required for all rows"
+        Write-Output "  - Device matching priority: DeviceId > SerialNumber > DeviceName"
 
         exit 0
     }
@@ -259,7 +260,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "Group.ReadWrite.All",
             "DeviceManagementManagedDevices.Read.All",
@@ -267,7 +268,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -561,19 +562,19 @@ function Add-DeviceToGroup {
 # ============================================================================
 
 try {
-    Write-Information "Starting device-to-group assignment from CSV..." -InformationAction Continue
+    Write-Output "Starting device-to-group assignment from CSV..."
 
     if ($DryRun) {
-        Write-Information "[DRY RUN MODE] No changes will be made" -InformationAction Continue
+        Write-Output "[DRY RUN MODE] No changes will be made"
     }
 
     # Import CSV data
     $csvData = Import-DeviceCsv -Path $CsvPath
 
     # Get all Intune managed devices
-    Write-Information "Retrieving all Intune managed devices..." -InformationAction Continue
+    Write-Output "Retrieving all Intune managed devices..."
     $allDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-    Write-Information "Found $($allDevices.Count) managed devices" -InformationAction Continue
+    Write-Output "Found $($allDevices.Count) managed devices"
 
     # Track statistics
     $stats = @{
@@ -591,7 +592,7 @@ try {
     $groupedData = $csvData | Group-Object -Property GroupName
 
     # Check which groups exist
-    Write-Information "Checking group existence..." -InformationAction Continue
+    Write-Output "Checking group existence..."
     $groupCache = @{}
     $script:groupMemberCache = @{}
     $missingGroups = @()
@@ -617,13 +618,13 @@ try {
 
     # Handle missing groups
     if ($missingGroups.Count -gt 0) {
-        Write-Information "`nThe following groups do not exist:" -InformationAction Continue
+        Write-Output "`nThe following groups do not exist:"
         foreach ($groupName in $missingGroups) {
-            Write-Information "  - $groupName" -InformationAction Continue
+            Write-Output "  - $groupName"
         }
 
         if ($DryRun) {
-            Write-Information "`n[DRY RUN] Would need to create $($missingGroups.Count) groups" -InformationAction Continue
+            Write-Output "`n[DRY RUN] Would need to create $($missingGroups.Count) groups"
         }
         else {
             $shouldCreate = $CreateMissingGroups
@@ -634,7 +635,7 @@ try {
             }
 
             if ($shouldCreate) {
-                Write-Information "Creating missing groups..." -InformationAction Continue
+                Write-Output "Creating missing groups..."
                 foreach ($groupName in $missingGroups) {
                     $newGroup = New-EntraIdGroup -GroupName $groupName
                     if ($newGroup) {
@@ -653,7 +654,7 @@ try {
     }
 
     # Process each row in the CSV
-    Write-Information "`nProcessing device assignments..." -InformationAction Continue
+    Write-Output "`nProcessing device assignments..."
     $processedCount = 0
 
     foreach ($row in $csvData) {
@@ -715,14 +716,14 @@ try {
 
         # Add device to group
         if ($DryRun) {
-            Write-Information "[DRY RUN] Would add device '$($device.deviceName)' to group '$groupName'" -InformationAction Continue
+            Write-Output "[DRY RUN] Would add device '$($device.deviceName)' to group '$groupName'"
             $stats.DevicesAdded++
         }
         else {
             $success = Add-DeviceToGroup -GroupId $group.id -DeviceId $entraDevice.id -DeviceName $device.deviceName -GroupName $groupName
 
             if ($success) {
-                Write-Information "Added device '$($device.deviceName)' to group '$groupName'" -InformationAction Continue
+                Write-Output "Added device '$($device.deviceName)' to group '$groupName'"
                 if ($script:groupMemberCache.ContainsKey($group.id)) {
                     [void]$script:groupMemberCache[$group.id].Add($entraDevice.id)
                 }
@@ -742,23 +743,23 @@ try {
     }
 
     # Display summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "DEVICE-TO-GROUP ASSIGNMENT SUMMARY" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "CSV rows processed: $($stats.TotalRows)" -InformationAction Continue
-    Write-Information "Devices found in Intune: $($stats.DevicesFound)" -InformationAction Continue
-    Write-Information "Devices not found: $($stats.DevicesNotFound)" -InformationAction Continue
-    Write-Information "Groups created: $($stats.GroupsCreated)" -InformationAction Continue
-    Write-Information "Devices added to groups: $($stats.DevicesAdded)" -InformationAction Continue
-    Write-Information "Devices skipped (already in group): $($stats.DevicesSkipped)" -InformationAction Continue
-    Write-Information "Errors: $($stats.Errors)" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "DEVICE-TO-GROUP ASSIGNMENT SUMMARY"
+    Write-Output "========================================"
+    Write-Output "CSV rows processed: $($stats.TotalRows)"
+    Write-Output "Devices found in Intune: $($stats.DevicesFound)"
+    Write-Output "Devices not found: $($stats.DevicesNotFound)"
+    Write-Output "Groups created: $($stats.GroupsCreated)"
+    Write-Output "Devices added to groups: $($stats.DevicesAdded)"
+    Write-Output "Devices skipped (already in group): $($stats.DevicesSkipped)"
+    Write-Output "Errors: $($stats.Errors)"
+    Write-Output "========================================"
 
     if ($DryRun) {
-        Write-Information "`n[DRY RUN] No changes were made" -InformationAction Continue
+        Write-Output "`n[DRY RUN] No changes were made"
     }
 
-    Write-Information "`nScript completed successfully" -InformationAction Continue
+    Write-Output "`nScript completed successfully"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -767,7 +768,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

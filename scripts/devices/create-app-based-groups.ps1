@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Apply -MinimumVersion to report-based rows, suppress progress bars in runbooks, flag apps with incomplete report data, use hashtable device lookup, and limit list calls with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\create-app-based-groups.ps1 -ApplicationName "TeamViewer"
@@ -176,7 +177,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementApps.Read.All", 
@@ -185,7 +186,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -389,10 +390,10 @@ function Get-SanitizedGroupName {
 # ============================================================================
 
 try {
-    Write-Information "Starting app-based group creation process..." -InformationAction Continue
+    Write-Output "Starting app-based group creation process..."
     
     # Get all managed devices
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,userPrincipalName,azureADDeviceId"
     if ($MaxDevices -gt 0) {
         $devicesUri += "&`$top=$MaxDevices"
@@ -407,7 +408,7 @@ try {
         }
     }
     
-    Write-Information "`n✓ Found $($devices.Count) managed devices" -InformationAction Continue
+    Write-Output "`n✓ Found $($devices.Count) managed devices"
 
     # Hashtable for fast device lookup by Intune device id
     $deviceById = @{}
@@ -423,7 +424,7 @@ try {
     $script:incompleteReportApps = @{}
     
     # Process devices to get detected apps
-    Write-Information "Processing device applications..." -InformationAction Continue
+    Write-Output "Processing device applications..."
     
     foreach ($device in $devices) {
         $processedDevices++
@@ -481,7 +482,7 @@ try {
         }
         catch {
             if ($_.Exception.Message -like "*429*") {
-                Write-Information "`nRate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Write-Output "`nRate limit hit, waiting 60 seconds..."
                 Start-Sleep -Seconds 60
                 $processedDevices--
                 continue
@@ -496,7 +497,7 @@ try {
     
     # Get deployed apps if we need additional coverage
     if ($FilterByType -ne "All" -or $OnlySuccessfulInstalls) {
-        Write-Information "Retrieving deployed application data..." -InformationAction Continue
+        Write-Output "Retrieving deployed application data..."
         $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName"
         $deployedApps = Get-MgGraphAllPage -Uri $appsUri
         
@@ -561,7 +562,7 @@ try {
     }
     
     # Create or update groups
-    Write-Information "`nProcessing groups for $($appDeviceMap.Count) applications..." -InformationAction Continue
+    Write-Output "`nProcessing groups for $($appDeviceMap.Count) applications..."
     $groupsCreated = 0
     $groupsUpdated = 0
     $totalDevicesProcessed = 0
@@ -576,20 +577,20 @@ try {
         }
         
         $groupName = Get-SanitizedGroupName -AppName $appName
-        Write-Information "`nProcessing: $appName ($deviceCount devices in Intune)" -InformationAction Continue
+        Write-Output "`nProcessing: $appName ($deviceCount devices in Intune)"
         
         if ($DryRun) {
-            Write-Information "  [DRY RUN] Would create/update group: $groupName" -InformationAction Continue
-            Write-Information "  Total devices with app: $deviceCount" -InformationAction Continue
+            Write-Output "  [DRY RUN] Would create/update group: $groupName"
+            Write-Output "  Total devices with app: $deviceCount"
             
             # Show device names
-            Write-Information "  Devices to be added:" -InformationAction Continue
+            Write-Output "  Devices to be added:"
             foreach ($device in $appInfo.Devices) {
-                Write-Information "    • $($device.DeviceName) ($($device.Platform))" -InformationAction Continue
+                Write-Output "    • $($device.DeviceName) ($($device.Platform))"
             }
             
             if ($appInfo.Versions.Count -gt 0) {
-                Write-Information "  Versions found: $($appInfo.Versions.Keys -join ', ')" -InformationAction Continue
+                Write-Output "  Versions found: $($appInfo.Versions.Keys -join ', ')"
             }
             $totalDevicesProcessed += $deviceCount
             continue
@@ -692,15 +693,15 @@ try {
                         Invoke-MgGraphRequest -Uri $removeUri -Method DELETE
                     }
                     
-                    Write-Information "  ✓ Updated group: $groupName (Added: $($deviceIdsToAdd.Count), Removed: $($deviceIdsToRemove.Count))" -InformationAction Continue
+                    Write-Output "  ✓ Updated group: $groupName (Added: $($deviceIdsToAdd.Count), Removed: $($deviceIdsToRemove.Count))"
                     
                     # Display added devices
                     if ($deviceIdsToAdd.Count -gt 0) {
-                        Write-Information "  Added devices:" -InformationAction Continue
+                        Write-Output "  Added devices:"
                         foreach ($deviceId in $deviceIdsToAdd) {
                             $deviceInfo = $entraDevices | Where-Object { $_.EntraDeviceId -eq $deviceId } | Select-Object -First 1
                             if ($deviceInfo) {
-                                Write-Information "    • $($deviceInfo.DeviceName)" -InformationAction Continue
+                                Write-Output "    • $($deviceInfo.DeviceName)"
                             }
                         }
                     }
@@ -726,8 +727,8 @@ try {
                     } | ConvertTo-Json -Depth 10
                     
                     $newGroup = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/groups" -Method POST -Body $groupBody -ContentType "application/json"
-                    Write-Information "  ✓ Created group: $groupName" -InformationAction Continue
-                    Write-Information "  Group ID: $($newGroup.id)" -InformationAction Continue
+                    Write-Output "  ✓ Created group: $groupName"
+                    Write-Output "  Group ID: $($newGroup.id)"
                     
                     # Add members to the group if any
                     if ($memberIds.Count -gt 0) {
@@ -743,12 +744,12 @@ try {
                                 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/groups/$($newGroup.id)" -Method PATCH -Body $addMembersBody -ContentType "application/json"
                                 Write-Verbose "Added batch of $($batch.Count) members"
                             }
-                            Write-Information "  ✓ Added $($memberIds.Count) devices to group" -InformationAction Continue
+                            Write-Output "  ✓ Added $($memberIds.Count) devices to group"
                             
                             # Display added devices
-                            Write-Information "  Added devices:" -InformationAction Continue
+                            Write-Output "  Added devices:"
                             foreach ($device in $entraDevices) {
-                                Write-Information "    • $($device.DeviceName)" -InformationAction Continue
+                                Write-Output "    • $($device.DeviceName)"
                             }
                         }
                         catch {
@@ -769,34 +770,34 @@ try {
     }
     
     # Display summary
-    Write-Information "`n📊 APP-BASED GROUP CREATION SUMMARY" -InformationAction Continue
-    Write-Information "===================================" -InformationAction Continue
-    Write-Information "Applications matched: $($appDeviceMap.Count)" -InformationAction Continue
-    Write-Information "Total devices processed: $totalDevicesProcessed" -InformationAction Continue
-    Write-Information "Groups created: $groupsCreated" -InformationAction Continue
-    Write-Information "Groups updated: $groupsUpdated" -InformationAction Continue
+    Write-Output "`n📊 APP-BASED GROUP CREATION SUMMARY"
+    Write-Output "==================================="
+    Write-Output "Applications matched: $($appDeviceMap.Count)"
+    Write-Output "Total devices processed: $totalDevicesProcessed"
+    Write-Output "Groups created: $groupsCreated"
+    Write-Output "Groups updated: $groupsUpdated"
 
     if ($script:incompleteReportApps.Count -gt 0) {
         Write-Warning "$($script:incompleteReportApps.Count) apps had incomplete report data - their device lists may be missing rows"
     }
     
     if ($DryRun) {
-        Write-Information "`n[DRY RUN] No changes were made" -InformationAction Continue
+        Write-Output "`n[DRY RUN] No changes were made"
     }
     
     # Display top apps by device count
     if ($appDeviceMap.Count -gt 0) {
-        Write-Information "`nTop Applications by Device Count:" -InformationAction Continue
+        Write-Output "`nTop Applications by Device Count:"
         $appDeviceMap.GetEnumerator() | 
         Sort-Object { $_.Value.Devices.Count } -Descending | 
         Select-Object -First 10 |
         ForEach-Object {
             $deviceCount = ($_.Value.Devices | Select-Object -Property DeviceId -Unique).Count
-            Write-Information "  • $($_.Key): $deviceCount devices" -InformationAction Continue
+            Write-Output "  • $($_.Key): $deviceCount devices"
         }
     }
     
-    Write-Information "`n🎉 App-based group creation completed successfully!" -InformationAction Continue
+    Write-Output "`n🎉 App-based group creation completed successfully!"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -805,7 +806,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

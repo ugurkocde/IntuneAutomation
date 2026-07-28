@@ -27,15 +27,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added a small delay between per-policy assignment checks to respect rate limits; policy list queries now select only needed fields; output directory is created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\check-unassigned-policies.ps1
@@ -159,7 +160,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -195,12 +196,12 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -355,20 +356,20 @@ function Format-PolicyDetail {
 # ============================================================================
 
 try {
-    Write-Information "Starting unassigned policies analysis..." -InformationAction Continue
+    Write-Output "Starting unassigned policies analysis..."
     
     # Calculate filter date if specified
     $FilterDate = $null
     if ($CreatedWithinDays -gt 0) {
         $FilterDate = (Get-Date).AddDays(-$CreatedWithinDays)
-        Write-Information "Filtering policies created after: $($FilterDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
+        Write-Output "Filtering policies created after: $($FilterDate.ToString('yyyy-MM-dd'))"
     }
     
     # ========================================================================
     # GET ALL DEVICE CONFIGURATION POLICIES
     # ========================================================================
     
-    Write-Information "Retrieving device configuration policies..." -InformationAction Continue
+    Write-Output "Retrieving device configuration policies..."
     
     $AllUnassignedPolicies = @()
     
@@ -376,17 +377,17 @@ try {
         # Get traditional device configuration policies
         $DeviceConfigUri = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?`$select=id,displayName,description,createdDateTime,lastModifiedDateTime"
         $DeviceConfigurations = Get-MgGraphAllPage -Uri $DeviceConfigUri
-        Write-Information "Retrieved $($DeviceConfigurations.Count) device configuration policies" -InformationAction Continue
+        Write-Output "Retrieved $($DeviceConfigurations.Count) device configuration policies"
 
         # Get Settings Catalog policies (settings catalog uses name instead of displayName)
         $ConfigPoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$select=id,name,description,createdDateTime,lastModifiedDateTime,templateReference,platforms,technologies,settingCount"
         $ConfigurationPolicies = Get-MgGraphAllPage -Uri $ConfigPoliciesUri
-        Write-Information "Retrieved $($ConfigurationPolicies.Count) settings catalog policies" -InformationAction Continue
+        Write-Output "Retrieved $($ConfigurationPolicies.Count) settings catalog policies"
 
         # Get Administrative Templates (Group Policy Configurations)
         $GroupPolicyUri = "https://graph.microsoft.com/beta/deviceManagement/groupPolicyConfigurations?`$select=id,displayName,description,createdDateTime,lastModifiedDateTime"
         $GroupPolicyConfigurations = Get-MgGraphAllPage -Uri $GroupPolicyUri
-        Write-Information "Retrieved $($GroupPolicyConfigurations.Count) administrative template policies" -InformationAction Continue
+        Write-Output "Retrieved $($GroupPolicyConfigurations.Count) administrative template policies"
     }
     catch {
         Write-Error "Failed to retrieve policies: $($_.Exception.Message)"
@@ -397,10 +398,10 @@ try {
     # CHECK ASSIGNMENTS FOR EACH POLICY TYPE
     # ========================================================================
     
-    Write-Information "Checking policy assignments..." -InformationAction Continue
+    Write-Output "Checking policy assignments..."
     
     # Check Device Configuration Policies
-    Write-Information "Analyzing device configuration policies..." -InformationAction Continue
+    Write-Output "Analyzing device configuration policies..."
     foreach ($Policy in $DeviceConfigurations) {
         try {
             # Apply date filter if specified
@@ -440,7 +441,7 @@ try {
     }
     
     # Check Settings Catalog Policies
-    Write-Information "Analyzing settings catalog policies..." -InformationAction Continue
+    Write-Output "Analyzing settings catalog policies..."
     foreach ($Policy in $ConfigurationPolicies) {
         try {
             # Apply date filter if specified
@@ -480,7 +481,7 @@ try {
     }
     
     # Check Administrative Template Policies
-    Write-Information "Analyzing administrative template policies..." -InformationAction Continue
+    Write-Output "Analyzing administrative template policies..."
     foreach ($Policy in $GroupPolicyConfigurations) {
         try {
             # Apply date filter if specified
@@ -523,31 +524,31 @@ try {
     # DISPLAY RESULTS
     # ========================================================================
     
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "UNASSIGNED POLICIES ANALYSIS RESULTS" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "UNASSIGNED POLICIES ANALYSIS RESULTS"
+    Write-Output "========================================"
     
     if ($AllUnassignedPolicies.Count -eq 0) {
-        Write-Information "✓ No unassigned policies found!" -InformationAction Continue
+        Write-Output "✓ No unassigned policies found!"
         if ($FilterDate) {
-            Write-Information "  (Checked policies created after $($FilterDate.ToString('yyyy-MM-dd')))" -InformationAction Continue
+            Write-Output "  (Checked policies created after $($FilterDate.ToString('yyyy-MM-dd')))"
         }
     }
     else {
-        Write-Information "Found $($AllUnassignedPolicies.Count) unassigned policies:" -InformationAction Continue
+        Write-Output "Found $($AllUnassignedPolicies.Count) unassigned policies:"
         
         # Group by risk level
         $HighRisk = $AllUnassignedPolicies | Where-Object { $_.RiskLevel -eq "High" }
         $MediumRisk = $AllUnassignedPolicies | Where-Object { $_.RiskLevel -eq "Medium" }
         $LowRisk = $AllUnassignedPolicies | Where-Object { $_.RiskLevel -eq "Low" }
         
-        Write-Information "`nRisk Level Summary:" -InformationAction Continue
-        Write-Information "  High Risk: $($HighRisk.Count) policies" -InformationAction Continue
-        Write-Information "  Medium Risk: $($MediumRisk.Count) policies" -InformationAction Continue
-        Write-Information "  Low Risk: $($LowRisk.Count) policies" -InformationAction Continue
+        Write-Output "`nRisk Level Summary:"
+        Write-Output "  High Risk: $($HighRisk.Count) policies"
+        Write-Output "  Medium Risk: $($MediumRisk.Count) policies"
+        Write-Output "  Low Risk: $($LowRisk.Count) policies"
         
         # Display top 10 unassigned policies
-        Write-Information "`nTop 10 Unassigned Policies (by risk level):" -InformationAction Continue
+        Write-Output "`nTop 10 Unassigned Policies (by risk level):"
         $TopPolicies = $AllUnassignedPolicies | Sort-Object @{Expression = {
                 switch ($_.RiskLevel) {
                     "High" { 1 }
@@ -559,15 +560,15 @@ try {
         
         $PolicyNumber = 1
         foreach ($Policy in $TopPolicies) {
-            Write-Information "`n[$PolicyNumber] $($Policy.PolicyName)" -InformationAction Continue
-            Write-Information "  Type: $($Policy.PolicyType) ($($Policy.PolicySubType))" -InformationAction Continue
-            Write-Information "  Created: $($Policy.CreatedDateTime)" -InformationAction Continue
-            Write-Information "  Risk Level: $($Policy.RiskLevel)" -InformationAction Continue
+            Write-Output "`n[$PolicyNumber] $($Policy.PolicyName)"
+            Write-Output "  Type: $($Policy.PolicyType) ($($Policy.PolicySubType))"
+            Write-Output "  Created: $($Policy.CreatedDateTime)"
+            Write-Output "  Risk Level: $($Policy.RiskLevel)"
             if ($Policy.Description) {
-                Write-Information "  Description: $($Policy.Description)" -InformationAction Continue
+                Write-Output "  Description: $($Policy.Description)"
             }
             if ($IncludeDetails -and $Policy.Details) {
-                Write-Information "  Details: $($Policy.Details)" -InformationAction Continue
+                Write-Output "  Details: $($Policy.Details)"
             }
             $PolicyNumber++
         }
@@ -581,20 +582,20 @@ try {
         # Create output directory if it does not exist
         if (-not (Test-Path $OutputPath)) {
             New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-            Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+            Write-Output "Created output directory: $OutputPath"
         }
 
         $OutputFile = Join-Path -Path $OutputPath -ChildPath "UnassignedPolicies_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
         try {
             $AllUnassignedPolicies | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8
-            Write-Information "✓ Report exported to: $OutputFile" -InformationAction Continue
+            Write-Output "✓ Report exported to: $OutputFile"
         }
         catch {
             Write-Warning "Failed to export CSV report: $($_.Exception.Message)"
         }
     }
     
-    Write-Information "`n✓ Unassigned policies analysis completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Unassigned policies analysis completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -604,7 +605,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Warning "Failed to disconnect from Microsoft Graph: $($_.Exception.Message)"
@@ -615,7 +616,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -624,4 +625,4 @@ Total Policies Checked: $($DeviceConfigurations.Count + $ConfigurationPolicies.C
 Unassigned Policies Found: $($AllUnassignedPolicies.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

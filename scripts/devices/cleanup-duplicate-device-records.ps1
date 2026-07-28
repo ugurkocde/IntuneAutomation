@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\cleanup-duplicate-device-records.ps1
@@ -148,13 +149,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.ReadWrite.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -223,9 +224,9 @@ function Get-EffectiveTimestamp {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,serialNumber,operatingSystem,model,manufacturer,lastSyncDateTime,enrolledDateTime,userPrincipalName,managementAgent"
-    Write-Information "✓ Found $(@($devices).Count) managed devices" -InformationAction Continue
+    Write-Output "✓ Found $(@($devices).Count) managed devices"
 
     # Placeholder serials would create false duplicate groups
     $invalidSerials = @("", "defaultstring", "tobefilledbyoem", "systemserialnumber", "0", "none", "unknown")
@@ -236,36 +237,36 @@ try {
     $duplicateGroups = @($devicesWithSerial | Group-Object -Property { $_.serialNumber.Trim() } | Where-Object { $_.Count -gt 1 })
 
     if ($duplicateGroups.Count -eq 0) {
-        Write-Information "`nNo duplicate device records found." -InformationAction Continue
+        Write-Output "`nNo duplicate device records found."
         return
     }
 
-    Write-Information "✓ Found $($duplicateGroups.Count) serial number(s) with duplicate records" -InformationAction Continue
+    Write-Output "✓ Found $($duplicateGroups.Count) serial number(s) with duplicate records"
 
     [System.Collections.Generic.List[Object]]$report = @()
     $deleted = 0
     $deleteFailed = 0
 
-    Write-Information "`nDUPLICATE DEVICE RECORDS" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nDUPLICATE DEVICE RECORDS"
+    Write-Output ("=" * 50)
 
     foreach ($group in $duplicateGroups) {
         $sorted = @($group.Group | Sort-Object -Property @{ Expression = { Get-EffectiveTimestamp -Device $_ } } -Descending)
         $keeper = $sorted[0]
         $stale = @($sorted | Select-Object -Skip 1)
 
-        Write-Information "`nSerial: $($group.Name)" -InformationAction Continue
-        Write-Information "  KEEP:   $($keeper.deviceName) | last sync $($keeper.lastSyncDateTime) | $($keeper.userPrincipalName)" -InformationAction Continue
+        Write-Output "`nSerial: $($group.Name)"
+        Write-Output "  KEEP:   $($keeper.deviceName) | last sync $($keeper.lastSyncDateTime) | $($keeper.userPrincipalName)"
 
         foreach ($staleDevice in $stale) {
-            Write-Information "  REMOVE: $($staleDevice.deviceName) | last sync $($staleDevice.lastSyncDateTime) | $($staleDevice.userPrincipalName)" -InformationAction Continue
+            Write-Output "  REMOVE: $($staleDevice.deviceName) | last sync $($staleDevice.lastSyncDateTime) | $($staleDevice.userPrincipalName)"
 
             $action = "Reported"
             if ($Remove) {
                 if ($PSCmdlet.ShouldProcess("$($staleDevice.deviceName) ($($staleDevice.id))", "Delete Intune device record")) {
                     try {
                         Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($staleDevice.id)" -Method DELETE
-                        Write-Information "    ✓ Deleted" -InformationAction Continue
+                        Write-Output "    ✓ Deleted"
                         $action = "Deleted"
                         $deleted++
                     }
@@ -295,23 +296,23 @@ try {
 
     # Summary
     $totalStale = $report.Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($duplicateGroups.Count) duplicate serials, $totalStale stale records" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($duplicateGroups.Count) duplicate serials, $totalStale stale records"
     if ($Remove) {
-        Write-Information "Deleted: $deleted | Failed: $deleteFailed" -InformationAction Continue
+        Write-Output "Deleted: $deleted | Failed: $deleteFailed"
     }
     else {
-        Write-Information "Run again with -Remove to delete the stale records (add -WhatIf for a dry run)" -InformationAction Continue
+        Write-Output "Run again with -Remove to delete the stale records (add -WhatIf for a dry run)"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Duplicate_Device_Records_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -321,7 +322,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

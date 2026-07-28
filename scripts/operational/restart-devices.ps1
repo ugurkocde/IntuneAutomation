@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added -WhatIf dry run support; exit code 1 when any restart fails; 429 retry with 60s wait on restart calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\restart-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
@@ -169,7 +170,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information 'Running locally in IDE or terminal' -InformationAction Continue
+    Write-Output 'Running locally in IDE or terminal'
     $IsAzureAutomation = $false
 }
 
@@ -205,7 +206,7 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information 'Connecting to Microsoft Graph with interactive authentication...' -InformationAction Continue
+        Write-Output 'Connecting to Microsoft Graph with interactive authentication...'
 
         $scopes = @('DeviceManagementManagedDevices.PrivilegedOperations.All', 'DeviceManagementManagedDevices.Read.All')
 
@@ -213,7 +214,7 @@ try {
             $scopes += @('Group.Read.All', 'GroupMember.Read.All')
         }
         Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
-        Write-Information '✓ Successfully connected to Microsoft Graph' -InformationAction Continue
+        Write-Output '✓ Successfully connected to Microsoft Graph'
     }
 }
 catch {
@@ -393,7 +394,7 @@ try {
 
     switch ($PSCmdlet.ParameterSetName) {
         'DeviceNames' {
-            Write-Information 'Retrieving devices by names...' -InformationAction Continue
+            Write-Output 'Retrieving devices by names...'
             $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
 
@@ -401,7 +402,7 @@ try {
                 $matchingDevices = $allDevices | Where-Object { $_.deviceName -eq $deviceName }
                 if ($matchingDevices) {
                     $targetDevices += $matchingDevices
-                    Write-Information "✓ Found device: $deviceName" -InformationAction Continue
+                    Write-Output "✓ Found device: $deviceName"
                 }
                 else {
                     Write-Warning "Device not found: $deviceName"
@@ -410,13 +411,13 @@ try {
         }
 
         'DeviceIds' {
-            Write-Information 'Retrieving devices by IDs...' -InformationAction Continue
+            Write-Output 'Retrieving devices by IDs...'
             foreach ($deviceId in $DeviceIds) {
                 try {
                     $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
-                    Write-Information "✓ Found device: $($device.deviceName)" -InformationAction Continue
+                    Write-Output "✓ Found device: $($device.deviceName)"
                 }
                 catch {
                     Write-Warning "Device not found with ID: $deviceId"
@@ -436,24 +437,24 @@ try {
     }
 
     # Display target information
-    Write-Information "`nDEVICE RESTART OPERATION" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
-    Write-Information "Total devices to restart: $($targetDevices.Count)" -InformationAction Continue
-    Write-Information "Operation: Remote Restart" -InformationAction Continue
+    Write-Output "`nDEVICE RESTART OPERATION"
+    Write-Output "========================="
+    Write-Output "Total devices to restart: $($targetDevices.Count)"
+    Write-Output "Operation: Remote Restart"
 
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
 
     # Confirmation prompt unless Force or WhatIf is specified
     if (-not $Force -and -not $IsAzureAutomation -and -not $WhatIfPreference) {
-        Write-Information "`nCONFIRMATION REQUIRED" -InformationAction Continue
-        Write-Information "This operation will restart $($targetDevices.Count) device(s)." -InformationAction Continue
-        Write-Information "This will interrupt user work and should be coordinated with affected users." -InformationAction Continue
+        Write-Output "`nCONFIRMATION REQUIRED"
+        Write-Output "This operation will restart $($targetDevices.Count) device(s)."
+        Write-Output "This will interrupt user work and should be coordinated with affected users."
 
         $confirmation = Read-Host "`nType 'CONFIRM' to proceed with the restart operation"
 
         if ($confirmation -ne 'CONFIRM') {
-            Write-Information "Operation cancelled by user." -InformationAction Continue
+            Write-Output "Operation cancelled by user."
             $null = Disconnect-MgGraph
             exit 0
         }
@@ -464,7 +465,7 @@ try {
     $failedRestarts = 0
     $processedDevices = 0
 
-    Write-Information "`nProcessing device restart operations..." -InformationAction Continue
+    Write-Output "`nProcessing device restart operations..."
 
     foreach ($device in $targetDevices) {
         $processedDevices++
@@ -490,24 +491,24 @@ try {
     Write-Progress -Activity 'Restarting Devices' -Completed
 
     # Display final summary
-    Write-Information "`nRESTART OPERATION SUMMARY" -InformationAction Continue
-    Write-Information "=========================" -InformationAction Continue
-    Write-Information "Total Devices Processed: $($targetDevices.Count)" -InformationAction Continue
-    Write-Information "Successful Restarts: $successfulRestarts" -InformationAction Continue
-    Write-Information "Failed Restarts: $failedRestarts" -InformationAction Continue
+    Write-Output "`nRESTART OPERATION SUMMARY"
+    Write-Output "========================="
+    Write-Output "Total Devices Processed: $($targetDevices.Count)"
+    Write-Output "Successful Restarts: $successfulRestarts"
+    Write-Output "Failed Restarts: $failedRestarts"
 
     # Show failed devices if any
     if ($failedRestarts -gt 0) {
-        Write-Information "`nFailed restart operations require manual review." -InformationAction Continue
+        Write-Output "`nFailed restart operations require manual review."
         exit 1
     }
 
     if ($successfulRestarts -gt 0) {
-        Write-Information "`n$successfulRestarts device(s) have been scheduled for restart." -InformationAction Continue
-        Write-Information "Note: Devices will restart within 5-30 minutes depending on sync status." -InformationAction Continue
+        Write-Output "`n$successfulRestarts device(s) have been scheduled for restart."
+        Write-Output "Note: Devices will restart within 5-30 minutes depending on sync status."
     }
 
-    Write-Information "`nDevice restart operation completed successfully!" -InformationAction Continue
+    Write-Output "`nDevice restart operation completed successfully!"
 
 }
 catch {
@@ -518,7 +519,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         $null = Disconnect-MgGraph
-        Write-Information '✓ Disconnected from Microsoft Graph' -InformationAction Continue
+        Write-Output '✓ Disconnected from Microsoft Graph'
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

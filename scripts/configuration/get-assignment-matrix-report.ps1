@@ -28,13 +28,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-assignment-matrix-report.ps1
@@ -152,7 +153,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All",
@@ -160,7 +161,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -288,7 +289,7 @@ function ConvertTo-AssignmentRow {
 # ============================================================================
 
 try {
-    Write-Information "Building assignment matrix..." -InformationAction Continue
+    Write-Output "Building assignment matrix..."
 
     # Filter names are needed for every row, so fetch them once up front
     $filterLookup = @{}
@@ -297,7 +298,7 @@ try {
         foreach ($filter in $filters) {
             $filterLookup[$filter.id] = $filter.displayName
         }
-        Write-Information "✓ Loaded $(@($filters).Count) assignment filters" -InformationAction Continue
+        Write-Output "✓ Loaded $(@($filters).Count) assignment filters"
     }
     catch {
         Write-Warning "Could not load assignment filters, filter names will show as IDs: $($_.Exception.Message)"
@@ -323,7 +324,7 @@ try {
             continue
         }
 
-        Write-Information "Collecting: $($surface.Label)..." -InformationAction Continue
+        Write-Output "Collecting: $($surface.Label)..."
         $objects = Get-MgGraphAllPage -Uri $surface.Uri
 
         foreach ($object in $objects) {
@@ -353,42 +354,42 @@ try {
             }
         }
 
-        Write-Information "✓ $($surface.Label): $(@($objects).Count) objects" -InformationAction Continue
+        Write-Output "✓ $($surface.Label): $(@($objects).Count) objects"
     }
 
     # Display results grouped by surface
-    Write-Information "`nASSIGNMENT MATRIX" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nASSIGNMENT MATRIX"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     foreach ($surfaceGroup in ($matrix | Group-Object -Property Surface | Sort-Object Name)) {
-        Write-Information "`n$($surfaceGroup.Name) ($($surfaceGroup.Count) assignments)" -InformationAction Continue
+        Write-Output "`n$($surfaceGroup.Name) ($($surfaceGroup.Count) assignments)"
 
         foreach ($row in ($surfaceGroup.Group | Sort-Object Name)) {
             $targetInfo = $row.TargetType
             if ($row.GroupName) { $targetInfo += ": $($row.GroupName)" }
             if ($row.Intent) { $targetInfo += " [$($row.Intent)]" }
             if ($row.FilterName) { $targetInfo += " (filter: $($row.FilterName)/$($row.FilterMode))" }
-            Write-Information "  $($row.Name) -> $targetInfo" -InformationAction Continue
+            Write-Output "  $($row.Name) -> $targetInfo"
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($matrix.Count) assignment rows, $($script:GroupNameCache.Count) unique groups, $unassignedCount unassigned objects" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($matrix.Count) assignment rows, $($script:GroupNameCache.Count) unique groups, $unassignedCount unassigned objects"
     if (-not $IncludeUnassigned -and $unassignedCount -gt 0) {
-        Write-Information "Tip: run with -IncludeUnassigned to list the $unassignedCount unassigned objects" -InformationAction Continue
+        Write-Output "Tip: run with -IncludeUnassigned to list the $unassignedCount unassigned objects"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Intune_Assignment_Matrix_$timestamp.csv"
         $matrix | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -398,7 +399,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

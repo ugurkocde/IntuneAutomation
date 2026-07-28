@@ -24,15 +24,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Assignments now resolve their parent role via per-assignment $expand=roleDefinition (RoleName/RoleType were hardcoded to Unknown before); roles-with-assignments count and -ShowEmptyRoles listing are now accurate; added $select to role definition and principal lookups; principal lookups retry once after 60 seconds on throttling
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-intune-role-assignments.ps1
@@ -146,7 +147,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementRBAC.Read.All",
             "User.Read.All",
@@ -154,7 +155,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -268,13 +269,13 @@ function Get-PrincipalName {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving Intune role definitions..." -InformationAction Continue
+    Write-Output "Retrieving Intune role definitions..."
     
     # Get all role definitions first
     $roleDefinitionsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleDefinitions?`$select=id,displayName,description,isBuiltIn"
     $roleDefinitions = Get-MgGraphAllPage -Uri $roleDefinitionsUri
     
-    Write-Information "✓ Found $($roleDefinitions.Count) role definitions" -InformationAction Continue
+    Write-Output "✓ Found $($roleDefinitions.Count) role definitions"
     
     # Create role lookup table
     $roleLookup = @{}
@@ -283,11 +284,11 @@ try {
     }
     
     # Get all role assignments directly
-    Write-Information "Retrieving role assignments..." -InformationAction Continue
+    Write-Output "Retrieving role assignments..."
     $roleAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceManagement/roleAssignments"
     $roleAssignments = Get-MgGraphAllPage -Uri $roleAssignmentsUri
     
-    Write-Information "✓ Found $($roleAssignments.Count) role assignments" -InformationAction Continue
+    Write-Output "✓ Found $($roleAssignments.Count) role assignments"
     
     # Process assignments
     [System.Collections.Generic.List[Object]]$allAssignments = @()
@@ -295,7 +296,7 @@ try {
     $rolesWithAssignments = 0
     $processedRoles = @{}
     
-    Write-Information "Processing assignments..." -InformationAction Continue
+    Write-Output "Processing assignments..."
     
     foreach ($assignment in $roleAssignments) {
         Write-Verbose "Processing assignment: $($assignment.displayName)"
@@ -377,10 +378,10 @@ try {
     $rolesWithAssignments = $processedRoles.Count
     
     # Display results
-    Write-Information "`n🔐 INTUNE ROLE ASSIGNMENTS REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n🔐 INTUNE ROLE ASSIGNMENTS REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
     
     # Group by role for display
     $groupedAssignments = $allAssignments | Group-Object -Property RoleName
@@ -389,15 +390,15 @@ try {
         $firstAssignment = $roleGroup.Group[0]
         
         $roleColor = if ($firstAssignment.RoleType -eq "Built-in") { "Cyan" } else { "Yellow" }
-        Write-Information "`n[$($firstAssignment.RoleType)] $($roleGroup.Name)" -InformationAction Continue
+        Write-Output "`n[$($firstAssignment.RoleType)] $($roleGroup.Name)"
         
         if ($firstAssignment.Description) {
-            Write-Information "  Description: $($firstAssignment.Description)" -InformationAction Continue
+            Write-Output "  Description: $($firstAssignment.Description)"
         }
         
         foreach ($assignment in $roleGroup.Group) {
             if ($assignment.AssignmentName -ne "No assignments") {
-                Write-Information "  Assignment: $($assignment.AssignmentName)" -InformationAction Continue
+                Write-Output "  Assignment: $($assignment.AssignmentName)"
                 
                 if ($assignment.Members.Count -gt 0) {
                     foreach ($member in $assignment.Members) {
@@ -406,28 +407,28 @@ try {
                             $memberInfo += "($($member.Email)) "
                         }
                         $memberInfo += "- $($member.Type)"
-                        Write-Information $memberInfo -InformationAction Continue
+                        Write-Output $memberInfo
                     }
                 }
                 else {
-                    Write-Information "    • Direct assignment (check portal for members)" -InformationAction Continue
+                    Write-Output "    • Direct assignment (check portal for members)"
                 }
                 
                 if ($assignment.Scope) {
-                    Write-Information "    Scope: $($assignment.Scope)" -InformationAction Continue
+                    Write-Output "    Scope: $($assignment.Scope)"
                 }
             }
             else {
-                Write-Information "  • No current assignments" -InformationAction Continue
+                Write-Output "  • No current assignments"
             }
         }
     }
     
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($roleDefinitions.Count) roles, $rolesWithAssignments roles with assignments, $totalAssignments total assignments" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($roleDefinitions.Count) roles, $rolesWithAssignments roles with assignments, $totalAssignments total assignments"
+    Write-Output ("=" * 50)
     
     # Export to CSV if requested
     if ($ExportToCsv) {
@@ -464,7 +465,7 @@ try {
         }
         
         $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -474,7 +475,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

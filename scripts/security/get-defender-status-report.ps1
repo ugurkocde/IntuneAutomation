@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-defender-status-report.ps1
@@ -146,13 +147,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -226,7 +227,7 @@ function Get-DefenderIssue {
 
 try {
     # Tenant-wide overview first - cheap and gives immediate context
-    Write-Information "Retrieving tenant protection overview..." -InformationAction Continue
+    Write-Output "Retrieving tenant protection overview..."
     $overview = $null
     try {
         $overview = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceProtectionOverview" -Method GET
@@ -235,9 +236,9 @@ try {
         Write-Warning "Could not read the device protection overview: $($_.Exception.Message)"
     }
 
-    Write-Information "Retrieving Windows devices..." -InformationAction Continue
+    Write-Output "Retrieving Windows devices..."
     $windowsDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,userPrincipalName,lastSyncDateTime"
-    Write-Information "✓ Found $(@($windowsDevices).Count) Windows devices - fetching protection state per device..." -InformationAction Continue
+    Write-Output "✓ Found $(@($windowsDevices).Count) Windows devices - fetching protection state per device..."
 
     [System.Collections.Generic.List[Object]]$report = @()
     $noStateCount = 0
@@ -246,7 +247,7 @@ try {
     foreach ($device in $windowsDevices) {
         $processedCount++
         if ($processedCount % 50 -eq 0) {
-            Write-Information "  Processed $processedCount of $(@($windowsDevices).Count)..." -InformationAction Continue
+            Write-Output "  Processed $processedCount of $(@($windowsDevices).Count)..."
         }
 
         $protectionState = $null
@@ -256,7 +257,7 @@ try {
         }
         catch {
             if ($_.Exception.Message -like "*429*") {
-                Write-Information "Rate limit hit, waiting 60 seconds..." -InformationAction Continue
+                Write-Output "Rate limit hit, waiting 60 seconds..."
                 Start-Sleep -Seconds 60
                 try {
                     $protectionState = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($device.id)/windowsProtectionState" -Method GET
@@ -305,51 +306,51 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nDEFENDER STATUS REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nDEFENDER STATUS REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($overview) {
-        Write-Information "`nTenant overview:" -InformationAction Continue
-        Write-Information "  Reporting devices:        $($overview.totalReportedDeviceCount)" -InformationAction Continue
-        Write-Information "  Clean:                    $($overview.cleanDeviceCount)" -InformationAction Continue
-        Write-Information "  Critical failures:        $($overview.criticalFailuresDeviceCount)" -InformationAction Continue
-        Write-Information "  Pending signature update: $($overview.pendingSignatureUpdateDeviceCount)" -InformationAction Continue
-        Write-Information "  Pending restart:          $($overview.pendingRestartDeviceCount)" -InformationAction Continue
-        Write-Information "  Inactive agent:           $($overview.inactiveThreatAgentDeviceCount)" -InformationAction Continue
+        Write-Output "`nTenant overview:"
+        Write-Output "  Reporting devices:        $($overview.totalReportedDeviceCount)"
+        Write-Output "  Clean:                    $($overview.cleanDeviceCount)"
+        Write-Output "  Critical failures:        $($overview.criticalFailuresDeviceCount)"
+        Write-Output "  Pending signature update: $($overview.pendingSignatureUpdateDeviceCount)"
+        Write-Output "  Pending restart:          $($overview.pendingRestartDeviceCount)"
+        Write-Output "  Inactive agent:           $($overview.inactiveThreatAgentDeviceCount)"
     }
 
     $devicesWithIssues = @($report | Where-Object { $_.IssueCount -gt 0 })
     $healthyDevices = @($report | Where-Object { $_.IssueCount -eq 0 })
 
     if ($devicesWithIssues.Count -gt 0) {
-        Write-Information "`nDevices with issues ($($devicesWithIssues.Count)):" -InformationAction Continue
+        Write-Output "`nDevices with issues ($($devicesWithIssues.Count)):"
         foreach ($row in ($devicesWithIssues | Sort-Object IssueCount -Descending)) {
-            Write-Information "  $($row.DeviceName) | $($row.User)" -InformationAction Continue
-            Write-Information "    $($row.Issues)" -InformationAction Continue
+            Write-Output "  $($row.DeviceName) | $($row.User)"
+            Write-Output "    $($row.Issues)"
         }
     }
 
     if (-not $OnlyIssues -and $healthyDevices.Count -gt 0) {
-        Write-Information "`nHealthy devices ($($healthyDevices.Count)):" -InformationAction Continue
+        Write-Output "`nHealthy devices ($($healthyDevices.Count)):"
         foreach ($row in ($healthyDevices | Sort-Object DeviceName)) {
-            Write-Information "  $($row.DeviceName) | signatures $($row.SignatureVersion) | reported $($row.LastReported)" -InformationAction Continue
+            Write-Output "  $($row.DeviceName) | signatures $($row.SignatureVersion) | reported $($row.LastReported)"
         }
     }
 
     # Summary
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) Windows devices | $($healthyDevices.Count) healthy | $($devicesWithIssues.Count) with issues | $noStateCount never reported" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) Windows devices | $($healthyDevices.Count) healthy | $($devicesWithIssues.Count) with issues | $noStateCount never reported"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Defender_Status_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -359,7 +360,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

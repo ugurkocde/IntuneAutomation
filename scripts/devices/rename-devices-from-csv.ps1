@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\rename-devices-from-csv.ps1 -CsvPath ".\renames.csv" -WhatIf
@@ -145,14 +146,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.PrivilegedOperations.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -233,7 +234,7 @@ try {
         throw "CSV must contain the columns 'DeviceName' and 'NewName' (found: $($csvColumns -join ', '))"
     }
 
-    Write-Information "✓ Loaded $($renameEntries.Count) rename entries from CSV" -InformationAction Continue
+    Write-Output "✓ Loaded $($renameEntries.Count) rename entries from CSV"
 
     [System.Collections.Generic.List[Object]]$report = @()
     $renamed = 0
@@ -274,7 +275,7 @@ try {
             try {
                 $body = @{ deviceName = $newName } | ConvertTo-Json
                 Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($device.id)/setDeviceName" -Method POST -Body $body -ContentType "application/json"
-                Write-Information "✓ Rename queued: $currentName -> $newName" -InformationAction Continue
+                Write-Output "✓ Rename queued: $currentName -> $newName"
                 $report.Add([PSCustomObject]@{ DeviceName = $currentName; NewName = $newName; Result = "Queued" })
                 $renamed++
             }
@@ -290,22 +291,22 @@ try {
     }
 
     # Summary
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "Rename Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "CSV entries:     $($renameEntries.Count)" -InformationAction Continue
-    Write-Information "Renames queued:  $renamed" -InformationAction Continue
-    Write-Information "Failed:          $failed" -InformationAction Continue
-    Write-Information "Skipped:         $skipped" -InformationAction Continue
-    Write-Information "Note: renames apply at next device check-in; Windows devices need a restart to complete" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "Rename Summary"
+    Write-Output "========================================"
+    Write-Output "CSV entries:     $($renameEntries.Count)"
+    Write-Output "Renames queued:  $renamed"
+    Write-Output "Failed:          $failed"
+    Write-Output "Skipped:         $skipped"
+    Write-Output "Note: renames apply at next device check-in; Windows devices need a restart to complete"
+    Write-Output "========================================"
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvOutPath = Join-Path $OutputPath "Device_Rename_Results_$timestamp.csv"
         $report | Export-Csv -Path $csvOutPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvOutPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvOutPath"
     }
 }
 catch {
@@ -315,7 +316,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

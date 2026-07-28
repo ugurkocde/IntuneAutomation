@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; device listing uses select and device fields are HTML-encoded in the email; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXECUTION
     RunbookOnly
@@ -159,7 +160,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -193,14 +194,14 @@ try {
         Write-Output "✓ Successfully connected to Microsoft Graph using Managed Identity"
     }
     else {
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "Mail.Send"
         )
         
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -554,7 +555,7 @@ function New-EmailBody {
 # ============================================================================
 
 try {
-    Write-Information "Starting stale device cleanup monitoring..." -InformationAction Continue
+    Write-Output "Starting stale device cleanup monitoring..."
     
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
@@ -563,8 +564,8 @@ try {
         throw "No valid email recipients provided"
     }
     
-    Write-Information "Email recipients: $($EmailRecipientList -join ', ')" -InformationAction Continue
-    Write-Information "Stale device threshold: $StaleAfterDays days" -InformationAction Continue
+    Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
+    Write-Output "Stale device threshold: $StaleAfterDays days"
     
     # Initialize results arrays
     $AllDevices = @()
@@ -576,19 +577,19 @@ try {
     $StaleThresholdDate = (Get-Date).AddDays(-$StaleAfterDays)
     $WarningThresholdDate = (Get-Date).AddDays( - ($StaleAfterDays * 0.8))
     
-    Write-Information "Stale threshold date: $($StaleThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
-    Write-Information "Warning threshold date: $($WarningThresholdDate.ToString('yyyy-MM-dd'))" -InformationAction Continue
+    Write-Output "Stale threshold date: $($StaleThresholdDate.ToString('yyyy-MM-dd'))"
+    Write-Output "Warning threshold date: $($WarningThresholdDate.ToString('yyyy-MM-dd'))"
     
     # ========================================================================
     # GET ALL MANAGED DEVICES
     # ========================================================================
     
-    Write-Information "Retrieving all managed devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving all managed devices from Intune..."
     
     try {
         $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
-        Write-Information "Found $($Devices.Count) managed devices" -InformationAction Continue
+        Write-Output "Found $($Devices.Count) managed devices"
         
         foreach ($Device in $Devices) {
             try {
@@ -640,10 +641,10 @@ try {
             }
         }
         
-        Write-Information "✓ Processed $($AllDevices.Count) devices successfully" -InformationAction Continue
-        Write-Information "  • Active devices: $(($AllDevices | Where-Object { $_.DeviceStatus -eq 'Active' }).Count)" -InformationAction Continue
-        Write-Information "  • Warning devices: $($WarningDevices.Count)" -InformationAction Continue
-        Write-Information "  • Stale devices: $($StaleDevices.Count)" -InformationAction Continue
+        Write-Output "✓ Processed $($AllDevices.Count) devices successfully"
+        Write-Output "  • Active devices: $(($AllDevices | Where-Object { $_.DeviceStatus -eq 'Active' }).Count)"
+        Write-Output "  • Warning devices: $($WarningDevices.Count)"
+        Write-Output "  • Stale devices: $($StaleDevices.Count)"
     }
     catch {
         Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
@@ -655,7 +656,7 @@ try {
     # ========================================================================
     
     if ($StaleDevices.Count -gt 0 -or $WarningDevices.Count -gt 0) {
-        Write-Information "Preparing email notification for device cleanup..." -InformationAction Continue
+        Write-Output "Preparing email notification for device cleanup..."
         
         $Subject = if ($StaleDevices.Count -gt 0) {
             "[Intune Alert] CLEANUP REQUIRED: $($StaleDevices.Count) Stale Device(s) Found"
@@ -669,7 +670,7 @@ try {
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
-            Write-Information "✓ Email notification sent to $($EmailRecipientList.Count) recipients" -InformationAction Continue
+            Write-Output "✓ Email notification sent to $($EmailRecipientList.Count) recipients"
         }
         else {
             Write-Warning "Email notification could not be delivered to all recipients"
@@ -677,44 +678,44 @@ try {
         }
     }
     else {
-        Write-Information "✓ No stale or warning devices found. All devices are actively checking in." -InformationAction Continue
+        Write-Output "✓ No stale or warning devices found. All devices are actively checking in."
     }
     
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
     
-    Write-Information "`n🧹 STALE DEVICE CLEANUP MONITORING SUMMARY" -InformationAction Continue
-    Write-Information "===========================================" -InformationAction Continue
-    Write-Information "Total Managed Devices: $($AllDevices.Count)" -InformationAction Continue
-    Write-Information "Stale Threshold: $StaleAfterDays days" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "`n🧹 STALE DEVICE CLEANUP MONITORING SUMMARY"
+    Write-Output "==========================================="
+    Write-Output "Total Managed Devices: $($AllDevices.Count)"
+    Write-Output "Stale Threshold: $StaleAfterDays days"
+    Write-Output ""
     
     $ActiveCount = ($AllDevices | Where-Object { $_.DeviceStatus -eq "Active" }).Count
-    Write-Information "Device Status Breakdown:" -InformationAction Continue
-    Write-Information "  • Active: $ActiveCount" -InformationAction Continue
-    Write-Information "  • Warning: $($WarningDevices.Count)" -InformationAction Continue
-    Write-Information "  • Stale: $($StaleDevices.Count)" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "Device Status Breakdown:"
+    Write-Output "  • Active: $ActiveCount"
+    Write-Output "  • Warning: $($WarningDevices.Count)"
+    Write-Output "  • Stale: $($StaleDevices.Count)"
+    Write-Output ""
     
     if ($StaleDevices.Count -gt 0) {
-        Write-Information "Platform Breakdown (Stale Devices):" -InformationAction Continue
+        Write-Output "Platform Breakdown (Stale Devices):"
         $PlatformGroups = $StaleDevices | Group-Object Platform | Sort-Object Name
         foreach ($Group in $PlatformGroups) {
-            Write-Information "  • $($Group.Name): $($Group.Count) devices" -InformationAction Continue
+            Write-Output "  • $($Group.Name): $($Group.Count) devices"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
     }
     
     if ($StaleDevices.Count -gt 0) {
-        Write-Information "Top 5 Oldest Stale Devices:" -InformationAction Continue
+        Write-Output "Top 5 Oldest Stale Devices:"
         $TopStaleDevices = $StaleDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 5
         foreach ($Device in $TopStaleDevices) {
-            Write-Information "  🔸 $($Device.DeviceName) ($($Device.Platform)) - $($Device.DaysSinceLastSync) days" -InformationAction Continue
+            Write-Output "  🔸 $($Device.DeviceName) ($($Device.Platform)) - $($Device.DaysSinceLastSync) days"
         }
     }
     
-    Write-Information "`n✓ Stale device cleanup monitoring completed successfully" -InformationAction Continue
+    Write-Output "`n✓ Stale device cleanup monitoring completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -723,7 +724,7 @@ catch {
 finally {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Silently ignore disconnect errors as they're not critical
@@ -735,7 +736,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -747,7 +748,7 @@ Email Recipients: $($EmailRecipientList.Count)
 Staleness Threshold: $StaleAfterDays days
 Status: Completed
 ========================================
-" -InformationAction Continue
+"
 
 # Fail the run if notification delivery failed
 if ($NotificationFailed) {

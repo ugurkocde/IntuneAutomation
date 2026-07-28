@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\check-filevault-keys.ps1
@@ -161,7 +162,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -197,14 +198,14 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.PrivilegedOperations.All",
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -403,16 +404,16 @@ function Format-LastSyncDate {
 # ============================================================================
 
 try {
-    Write-Information "Starting FileVault key storage check..." -InformationAction Continue
+    Write-Output "Starting FileVault key storage check..."
 
     # Validate output path
     if (-not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
-        Write-Information "Created output directory: $OutputPath" -InformationAction Continue
+        Write-Output "Created output directory: $OutputPath"
     }
 
     # Get all macOS devices from Intune
-    Write-Information "Retrieving macOS devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving macOS devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'macOS'&`$select=id,deviceName,serialNumber,model,manufacturer,osVersion,complianceState,isEncrypted,managementState,ownerType,lastSyncDateTime"
     $devices = Get-MgGraphPaginatedData -Uri $devicesUri
 
@@ -421,7 +422,7 @@ try {
         return
     }
 
-    Write-Information "Found $($devices.Count) macOS devices. Checking FileVault key status..." -InformationAction Continue
+    Write-Output "Found $($devices.Count) macOS devices. Checking FileVault key status..."
 
     $results = @()
     $processedCount = 0
@@ -490,7 +491,7 @@ try {
     }
 
     # Display results
-    Write-Information "`nFileVault Key Storage Results:" -InformationAction Continue
+    Write-Output "`nFileVault Key Storage Results:"
     $results | Format-Table -AutoSize
 
     # Calculate and display summary statistics
@@ -507,26 +508,26 @@ try {
         $compliancePercentage = 0
     }
 
-    Write-Information "`n========================================" -InformationAction Continue
-    Write-Information "FileVault Key Storage Summary" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total macOS devices in Intune: $totalDevices" -InformationAction Continue
-    Write-Information "Devices with FileVault keys in Intune: $devicesWithKeys" -InformationAction Continue
-    Write-Information "Devices without FileVault keys: $devicesWithoutKeys" -InformationAction Continue
+    Write-Output "`n========================================"
+    Write-Output "FileVault Key Storage Summary"
+    Write-Output "========================================"
+    Write-Output "Total macOS devices in Intune: $totalDevices"
+    Write-Output "Devices with FileVault keys in Intune: $devicesWithKeys"
+    Write-Output "Devices without FileVault keys: $devicesWithoutKeys"
     if ($personalDevices -gt 0) {
-        Write-Information "Personal devices (keys not accessible): $personalDevices" -InformationAction Continue
+        Write-Output "Personal devices (keys not accessible): $personalDevices"
     }
     if ($errorDevices -gt 0) {
-        Write-Information "Devices with errors: $errorDevices" -InformationAction Continue
+        Write-Output "Devices with errors: $errorDevices"
     }
-    Write-Information "Compliance percentage: $compliancePercentage%" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
+    Write-Output "Compliance percentage: $compliancePercentage%"
+    Write-Output "========================================"
 
     # Export results to CSV
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $csvPath = Join-Path $OutputPath "FileVault-Key-Storage-Report-$timestamp.csv"
     $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
-    Write-Information "✓ Results exported to: $csvPath" -InformationAction Continue
+    Write-Output "✓ Results exported to: $csvPath"
 
     # Export to JSON if requested
     if ($ExportJson) {
@@ -544,17 +545,17 @@ try {
             Devices       = $results
         }
         $jsonData | ConvertTo-Json -Depth 3 | Set-Content -Path $jsonPath
-        Write-Information "✓ Results exported to JSON: $jsonPath" -InformationAction Continue
+        Write-Output "✓ Results exported to JSON: $jsonPath"
     }
 
     # Show devices without keys if any exist and not in OnlyShowMissing mode
     if ($devicesWithoutKeys -gt 0 -and -not $OnlyShowMissing) {
-        Write-Information "`nDevices without FileVault keys in Intune:" -InformationAction Continue
+        Write-Output "`nDevices without FileVault keys in Intune:"
         $devicesWithoutKeysList = $results | Where-Object { $_."FileVault Key in Intune" -eq "No" } | Select-Object DeviceName, SerialNumber, Status, OwnerType
         $devicesWithoutKeysList | Format-Table -AutoSize
     }
 
-    Write-Information "✓ FileVault key storage check completed successfully" -InformationAction Continue
+    Write-Output "✓ FileVault key storage check completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -564,7 +565,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Unable to disconnect from Microsoft Graph: $($_.Exception.Message)"
@@ -575,7 +576,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -586,4 +587,4 @@ Compliance Rate: $compliancePercentage%
 Report Location: $OutputPath
 Status: Completed
 ========================================
-" -InformationAction Continue
+"

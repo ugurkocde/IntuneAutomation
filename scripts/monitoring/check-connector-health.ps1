@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\check-connector-health.ps1
@@ -144,7 +145,7 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementServiceConfig.Read.All",
             "DeviceManagementConfiguration.Read.All",
@@ -152,7 +153,7 @@ try {
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -251,7 +252,7 @@ try {
     $staleSyncThreshold = (Get-Date).AddDays(-7)
 
     # ----- Apple push notification certificate -----
-    Write-Information "Checking Apple MDM push certificate..." -InformationAction Continue
+    Write-Output "Checking Apple MDM push certificate..."
     try {
         $apns = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/applePushNotificationCertificate" -Method GET
         if ($apns -and $apns.appleIdentifier) {
@@ -267,7 +268,7 @@ try {
     }
 
     # ----- Apple DEP tokens -----
-    Write-Information "Checking Apple DEP tokens..." -InformationAction Continue
+    Write-Output "Checking Apple DEP tokens..."
     try {
         $depTokens = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/depOnboardingSettings"
         if (@($depTokens).Count -eq 0) {
@@ -297,7 +298,7 @@ try {
     }
 
     # ----- Apple VPP tokens -----
-    Write-Information "Checking Apple VPP tokens..." -InformationAction Continue
+    Write-Output "Checking Apple VPP tokens..."
     try {
         $vppTokens = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/vppTokens"
         if (@($vppTokens).Count -eq 0) {
@@ -315,7 +316,7 @@ try {
     }
 
     # ----- Managed Google Play -----
-    Write-Information "Checking Managed Google Play binding..." -InformationAction Continue
+    Write-Output "Checking Managed Google Play binding..."
     try {
         $googlePlay = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/deviceManagement/androidManagedStoreAccountEnterpriseSettings" -Method GET
         if ($googlePlay.bindStatus -eq "notBound") {
@@ -342,7 +343,7 @@ try {
     }
 
     # ----- NDES connectors -----
-    Write-Information "Checking NDES connectors..." -InformationAction Continue
+    Write-Output "Checking NDES connectors..."
     try {
         $ndesConnectors = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/ndesConnectors"
         if (@($ndesConnectors).Count -eq 0) {
@@ -364,7 +365,7 @@ try {
     }
 
     # ----- Certificate connectors -----
-    Write-Information "Checking certificate connectors..." -InformationAction Continue
+    Write-Output "Checking certificate connectors..."
     try {
         # This surface returns errors in tenants that never installed a connector
         $certificateConnectors = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/certificateConnectorDetails"
@@ -387,7 +388,7 @@ try {
     }
 
     # ----- Mobile Threat Defense connectors -----
-    Write-Information "Checking Mobile Threat Defense connectors..." -InformationAction Continue
+    Write-Output "Checking Mobile Threat Defense connectors..."
     try {
         $mtdConnectors = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/mobileThreatDefenseConnectors"
         if (@($mtdConnectors).Count -eq 0) {
@@ -413,37 +414,37 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nCONNECTOR HEALTH REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Warning window: $ExpiryWarningDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nCONNECTOR HEALTH REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Warning window: $ExpiryWarningDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     $statusOrder = @("Critical", "Warning", "Error", "Healthy", "NotConfigured")
     foreach ($statusName in $statusOrder) {
         $rows = @($script:ConnectorReport | Where-Object { $_.Status -eq $statusName })
         if ($rows.Count -eq 0) { continue }
 
-        Write-Information "`n[$statusName]" -InformationAction Continue
+        Write-Output "`n[$statusName]"
         foreach ($row in $rows) {
-            Write-Information "  $($row.Connector) | $($row.Instance)" -InformationAction Continue
-            Write-Information "    $($row.Detail)" -InformationAction Continue
+            Write-Output "  $($row.Connector) | $($row.Instance)"
+            Write-Output "    $($row.Detail)"
         }
     }
 
     # Summary
     $criticalCount = @($script:ConnectorReport | Where-Object { $_.Status -eq "Critical" }).Count
     $warningCount = @($script:ConnectorReport | Where-Object { $_.Status -eq "Warning" }).Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($script:ConnectorReport.Count) connector checks | $criticalCount critical | $warningCount warnings" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($script:ConnectorReport.Count) connector checks | $criticalCount critical | $warningCount warnings"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Connector_Health_$timestamp.csv"
         $script:ConnectorReport | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -453,7 +454,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

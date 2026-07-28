@@ -25,15 +25,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-duplicate-applications.ps1
@@ -152,7 +153,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -188,12 +189,12 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementApps.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -273,14 +274,14 @@ function Get-NormalizedAppName {
 # ============================================================================
 
 try {
-    Write-Information "Starting duplicate applications detection..." -InformationAction Continue
+    Write-Output "Starting duplicate applications detection..."
     
     # Get all Intune applications
-    Write-Information "Retrieving Intune applications..." -InformationAction Continue
+    Write-Output "Retrieving Intune applications..."
     # $select trims the payload to the fields the report reads; @odata.type is always returned on typed collections
     $appsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,description,createdDateTime,lastModifiedDateTime"
     $intuneApps = Get-MgGraphAllPage -Uri $appsUri
-    Write-Information "`n✓ Found $($intuneApps.Count) Intune applications" -InformationAction Continue
+    Write-Output "`n✓ Found $($intuneApps.Count) Intune applications"
     
     # Create application inventory array
     $applicationInventory = @()
@@ -310,7 +311,7 @@ try {
     # DUPLICATE DETECTION LOGIC
     # ============================================================================
     
-    Write-Information "Analyzing applications for duplicates..." -InformationAction Continue
+    Write-Output "Analyzing applications for duplicates..."
     
     # Group applications by normalized name to find potential duplicates
     $appGroups = $applicationInventory | Group-Object NormalizedName
@@ -365,12 +366,12 @@ try {
     # Sort duplicates by app count (descending)
     $duplicateGroups = $duplicateGroups | Sort-Object AppCount -Descending
     
-    Write-Information "✓ Found $($duplicateGroups.Count) duplicate application groups:" -InformationAction Continue
+    Write-Output "✓ Found $($duplicateGroups.Count) duplicate application groups:"
     
     # Display duplicate app names in console
     if ($duplicateGroups.Count -gt 0) {
         foreach ($duplicate in $duplicateGroups) {
-            Write-Information "  • $($duplicate.OriginalNames) ($($duplicate.DuplicateType))" -InformationAction Continue
+            Write-Output "  • $($duplicate.OriginalNames) ($($duplicate.DuplicateType))"
         }
     }
     
@@ -405,7 +406,7 @@ try {
     # Export to CSV
     try {
         $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
@@ -515,13 +516,13 @@ try {
 "@
 
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
-        Write-Information "✓ HTML report saved: $htmlPath" -InformationAction Continue
+        Write-Output "✓ HTML report saved: $htmlPath"
     }
     catch {
         Write-Error "Failed to generate HTML report: $($_.Exception.Message)"
     }
     
-    Write-Information "✓ Duplicate applications analysis completed successfully" -InformationAction Continue
+    Write-Output "✓ Duplicate applications analysis completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -531,7 +532,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnect completed (connection may have already been closed)"
@@ -542,7 +543,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Duplicate Applications Report Summary
 ========================================
@@ -552,4 +553,4 @@ Duplicate Groups Found: $($duplicateGroups.Count)
 Reports Generated: CSV and HTML
 Output Directory: $OutputPath
 ========================================
-" -InformationAction Continue 
+"

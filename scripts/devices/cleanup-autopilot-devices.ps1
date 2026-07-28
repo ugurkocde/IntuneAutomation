@@ -28,15 +28,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Treat 0001-01-01 last contact as Never, require -Force for removals in Azure Automation, suppress progress bars in runbooks, and limit Graph list calls with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\cleanup-autopilot-devices.ps1 -PreviewOnly
@@ -173,7 +174,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -209,13 +210,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementServiceConfig.ReadWrite.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -424,7 +425,7 @@ try {
     # Validate parameters
     if (-not $PreviewOnly -and -not $RemoveOrphaned) {
         Write-Warning "No action specified. Use -PreviewOnly to preview orphaned devices or -RemoveOrphaned to remove them."
-        Write-Information "Use 'Get-Help .\cleanup-autopilot-devices.ps1 -Examples' for usage examples." -InformationAction Continue
+        Write-Output "Use 'Get-Help .\cleanup-autopilot-devices.ps1 -Examples' for usage examples."
         exit 0
     }
     
@@ -433,16 +434,16 @@ try {
         exit 1
     }
     
-    Write-Information "Starting Autopilot device cleanup..." -InformationAction Continue
-    Write-Information "Configuration:" -InformationAction Continue
-    Write-Information "  - Mode: $(if ($PreviewOnly) { 'Preview Only' } else { 'Remove Orphaned Devices' })" -InformationAction Continue
-    Write-Information "  - Force removal: $($Force.IsPresent)" -InformationAction Continue
-    Write-Information "  - Include details: $($IncludeDetails.IsPresent)" -InformationAction Continue
+    Write-Output "Starting Autopilot device cleanup..."
+    Write-Output "Configuration:"
+    Write-Output "  - Mode: $(if ($PreviewOnly) { 'Preview Only' } else { 'Remove Orphaned Devices' })"
+    Write-Output "  - Force removal: $($Force.IsPresent)"
+    Write-Output "  - Include details: $($IncludeDetails.IsPresent)"
     
     # Get all Autopilot devices
     $AutopilotDevices = Get-AutopilotDevice
     if ($AutopilotDevices.Count -eq 0) {
-        Write-Information "No Autopilot devices found. Exiting." -InformationAction Continue
+        Write-Output "No Autopilot devices found. Exiting."
         exit 0
     }
     
@@ -453,15 +454,15 @@ try {
     $OrphanedDevices = Find-OrphanedAutopilotDevice -AutopilotDevices $AutopilotDevices -IntuneDevices $IntuneDevices
     
     # Display results
-    Write-Information "" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "AUTOPILOT CLEANUP REPORT" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total Autopilot devices: $($AutopilotDevices.Count)" -InformationAction Continue
-    Write-Information "Total Intune Windows devices: $($IntuneDevices.Count)" -InformationAction Continue
-    Write-Information "Orphaned Autopilot devices: $($OrphanedDevices.Count)" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output ""
+    Write-Output "========================================"
+    Write-Output "AUTOPILOT CLEANUP REPORT"
+    Write-Output "========================================"
+    Write-Output "Total Autopilot devices: $($AutopilotDevices.Count)"
+    Write-Output "Total Intune Windows devices: $($IntuneDevices.Count)"
+    Write-Output "Orphaned Autopilot devices: $($OrphanedDevices.Count)"
+    Write-Output "========================================"
+    Write-Output ""
     
     if ($OrphanedDevices.Count -gt 0) {
         # Format device information for display
@@ -471,14 +472,14 @@ try {
         }
         
         # Display orphaned devices
-        Write-Information "Orphaned Autopilot devices found:" -InformationAction Continue
+        Write-Output "Orphaned Autopilot devices found:"
         $FormattedDevices | Sort-Object SerialNumber | Format-Table -AutoSize
         
         # Export to CSV if path specified
         if ($ExportPath) {
             try {
                 $FormattedDevices | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding utf8
-                Write-Information "✓ Results exported to: $ExportPath" -InformationAction Continue
+                Write-Output "✓ Results exported to: $ExportPath"
             }
             catch {
                 Write-Warning "Failed to export to CSV: $($_.Exception.Message)"
@@ -487,7 +488,7 @@ try {
         
         # Remove orphaned devices if requested
         if ($RemoveOrphaned) {
-            Write-Information "" -InformationAction Continue
+            Write-Output ""
             
             if ($IsAzureAutomation -and -not $Force) {
                 Write-Error "Removing devices in Azure Automation requires the -Force parameter. No devices were removed."
@@ -497,12 +498,12 @@ try {
             if (-not $Force -and -not $IsAzureAutomation) {
                 $Confirmation = Read-Host "Do you want to remove $($OrphanedDevices.Count) orphaned Autopilot devices? (y/N)"
                 if ($Confirmation -notmatch '^[Yy]') {
-                    Write-Information "Operation cancelled by user." -InformationAction Continue
+                    Write-Output "Operation cancelled by user."
                     exit 0
                 }
             }
             
-            Write-Information "Removing orphaned Autopilot devices..." -InformationAction Continue
+            Write-Output "Removing orphaned Autopilot devices..."
             $RemovedCount = 0
             $FailedCount = 0
             $ProcessedCount = 0
@@ -531,17 +532,17 @@ try {
                 Write-Progress -Activity "Removing Autopilot devices" -Completed
             }
             
-            Write-Information "" -InformationAction Continue
-            Write-Information "✓ Removal completed" -InformationAction Continue
-            Write-Information "  - Successfully removed: $RemovedCount devices" -InformationAction Continue
-            Write-Information "  - Failed to remove: $FailedCount devices" -InformationAction Continue
+            Write-Output ""
+            Write-Output "✓ Removal completed"
+            Write-Output "  - Successfully removed: $RemovedCount devices"
+            Write-Output "  - Failed to remove: $FailedCount devices"
         }
     }
     else {
-        Write-Information "No orphaned Autopilot devices found. All Autopilot devices have corresponding Intune managed devices." -InformationAction Continue
+        Write-Output "No orphaned Autopilot devices found. All Autopilot devices have corresponding Intune managed devices."
     }
     
-    Write-Information "✓ Script completed successfully" -InformationAction Continue
+    Write-Output "✓ Script completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -551,7 +552,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected
@@ -566,7 +567,7 @@ finally {
 $SummaryMode = if ($PreviewOnly) { "Preview" } else { "Cleanup" }
 $SummaryDevices = if ($OrphanedDevices) { $OrphanedDevices.Count } else { 0 }
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -576,4 +577,4 @@ Autopilot Devices: $($AutopilotDevices.Count)
 Orphaned Devices Found: $SummaryDevices
 Status: Completed
 ========================================
-" -InformationAction Continue 
+"

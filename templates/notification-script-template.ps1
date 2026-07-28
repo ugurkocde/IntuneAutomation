@@ -126,7 +126,7 @@ foreach ($Module in $RequiredModules) {
 foreach ($Module in $RequiredModules) {
     try {
         Import-Module $Module -Force
-        Write-Information "✓ Imported module: $Module" -InformationAction Continue
+        Write-Output "✓ Imported module: $Module"
     }
     catch {
         Write-Error "Failed to import module $Module : $($_.Exception.Message)"
@@ -136,12 +136,12 @@ foreach ($Module in $RequiredModules) {
 
 # Connect to Microsoft Graph
 try {
-    Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+    Write-Output "Connecting to Microsoft Graph..."
     
     if ($RunningInAzureAutomation) {
         # Use Managed Identity in Azure Automation
         Connect-MgGraph -Identity -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph using Managed Identity" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph using Managed Identity"
     } else {
         # Use interactive authentication for local execution
         $Scopes = @(
@@ -151,7 +151,7 @@ try {
             "Mail.Send"
         )
         Connect-MgGraph -Scopes $Scopes -NoWelcome
-        Write-Information "✓ Connected to Microsoft Graph with interactive authentication" -InformationAction Continue
+        Write-Output "✓ Connected to Microsoft Graph with interactive authentication"
     }
 }
 catch {
@@ -559,16 +559,16 @@ function Get-AlertAnalysis {
 # ============================================================================
 
 try {
-    Write-Information "Starting [Your Alert Type] monitoring..." -InformationAction Continue
-    Write-Information "Threshold Parameter: $ThresholdParameter" -InformationAction Continue
-    Write-Information "Platform Filter: $PlatformFilter" -InformationAction Continue
-    Write-Information "Email Recipients: $EmailRecipients" -InformationAction Continue
+    Write-Output "Starting [Your Alert Type] monitoring..."
+    Write-Output "Threshold Parameter: $ThresholdParameter"
+    Write-Output "Platform Filter: $PlatformFilter"
+    Write-Output "Email Recipients: $EmailRecipients"
     
     # Step 1: Gather monitoring data
     $MonitoringData = Get-MonitoringData -Config $MonitoringConfig
     
     if ($MonitoringData.Count -eq 0) {
-        Write-Information "No monitoring data found. Exiting without sending notifications." -InformationAction Continue
+        Write-Output "No monitoring data found. Exiting without sending notifications."
         exit 0
     }
     
@@ -577,18 +577,18 @@ try {
     $AlertData = $Analysis.AlertData
     $Summary = $Analysis.Summary
     
-    Write-Information "Analysis complete: $($Summary.CriticalCount) critical, $($Summary.WarningCount) warning, $($Summary.HealthyCount) healthy" -InformationAction Continue
+    Write-Output "Analysis complete: $($Summary.CriticalCount) critical, $($Summary.WarningCount) warning, $($Summary.HealthyCount) healthy"
     
     # Step 3: Determine if notification should be sent
     $ShouldSendNotification = $Summary.CriticalCount -gt 0 -or $Summary.WarningCount -gt 0
     
     if (-not $ShouldSendNotification) {
-        Write-Information "✓ No issues detected. No notification needed." -InformationAction Continue
+        Write-Output "✓ No issues detected. No notification needed."
         exit 0
     }
     
     # Step 4: Create and send email notification
-    Write-Information "Issues detected. Preparing email notification..." -InformationAction Continue
+    Write-Output "Issues detected. Preparing email notification..."
     
     # Prepare email subject
     $AlertLevel = if ($Summary.CriticalCount -gt 0) { "CRITICAL" } else { "WARNING" }
@@ -604,13 +604,13 @@ try {
     $EmailSent = Send-EmailNotification -Body $EmailBody -Recipients $Recipients -Subject $Subject
     
     if ($EmailSent) {
-        Write-Information "✓ Notification sent successfully" -InformationAction Continue
+        Write-Output "✓ Notification sent successfully"
     } else {
         Write-Error "Failed to send email notification"
         exit 1
     }
     
-    Write-Information "✓ [Your Alert Type] monitoring completed successfully" -InformationAction Continue
+    Write-Output "✓ [Your Alert Type] monitoring completed successfully"
 }
 catch {
     Write-Error "Script execution failed: $($_.Exception.Message)"
@@ -621,7 +621,7 @@ finally {
     # Cleanup operations
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnect errors
@@ -632,7 +632,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 [Your Alert Type] Monitoring Summary
 ========================================
@@ -645,4 +645,4 @@ Healthy Items: $($Summary.HealthyCount)
 Notification Sent: $(if ($ShouldSendNotification) { 'Yes' } else { 'No' })
 Recipients: $EmailRecipients
 ========================================
-" -InformationAction Continue
+"

@@ -29,15 +29,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - HTML-encode all report values to prevent markup injection and limit the initial device fetch with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-19
+    2026-07-28
 
 .EXAMPLE
     .\get-devices-by-scopetag.ps1 -IncludeScopeTag "School_A"
@@ -181,7 +182,7 @@ if ($PSPrivateMetadata.JobId.Guid) {
     $IsAzureAutomation = $true
 }
 else {
-    Write-Information "Running locally in IDE or terminal" -InformationAction Continue
+    Write-Output "Running locally in IDE or terminal"
     $IsAzureAutomation = $false
 }
 
@@ -217,13 +218,13 @@ try {
     }
     else {
         # Local execution - WAM-free interactive sign-in via MgGraphCommunity
-        Write-Information "Connecting to Microsoft Graph with interactive authentication..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementRBAC.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
-        Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Successfully connected to Microsoft Graph"
     }
 }
 catch {
@@ -871,26 +872,26 @@ function New-HTMLReport {
 # ============================================================================
 
 try {
-    Write-Information "Starting device report generation..." -InformationAction Continue
+    Write-Output "Starting device report generation..."
     
     # Parse scope tags
     $IncludeTags = if ($IncludeScopeTag) { $IncludeScopeTag -split ',' | ForEach-Object { $_.Trim() } } else { @() }
     $ExcludeTags = if ($ExcludeScopeTag) { $ExcludeScopeTag -split ',' | ForEach-Object { $_.Trim() } } else { @() }
     
-    Write-Information "Configuration:" -InformationAction Continue
+    Write-Output "Configuration:"
     if ($IncludeTags.Count -gt 0) {
-        Write-Information "  - Include Scope Tags: $($IncludeTags -join ', ')" -InformationAction Continue
+        Write-Output "  - Include Scope Tags: $($IncludeTags -join ', ')"
     }
     if ($ExcludeTags.Count -gt 0) {
-        Write-Information "  - Exclude Scope Tags: $($ExcludeTags -join ', ')" -InformationAction Continue
+        Write-Output "  - Exclude Scope Tags: $($ExcludeTags -join ', ')"
     }
-    Write-Information "  - Platform filter: $Platform" -InformationAction Continue
-    Write-Information "  - Compliance filter: $ComplianceState" -InformationAction Continue
+    Write-Output "  - Platform filter: $Platform"
+    Write-Output "  - Compliance filter: $ComplianceState"
     
     # Fetch all scope tag details upfront
-    Write-Information "Fetching scope tag details..." -InformationAction Continue
+    Write-Output "Fetching scope tag details..."
     $ScopeTagCache = Get-AllScopeTagDetail
-    Write-Information "✓ Retrieved $($ScopeTagCache.Count) scope tags" -InformationAction Continue
+    Write-Output "✓ Retrieved $($ScopeTagCache.Count) scope tags"
     
     # Build the API URI with platform filter using beta endpoint for full device details
     $BaseUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
@@ -914,14 +915,14 @@ try {
     }
     
     # Retrieve all managed devices
-    Write-Information "Retrieving managed devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving managed devices from Intune..."
     $AllDevices = Get-MgGraphAllPage -Uri $Uri
-    Write-Information "✓ Retrieved $($AllDevices.Count) devices" -InformationAction Continue
+    Write-Output "✓ Retrieved $($AllDevices.Count) devices"
     
     # Process devices
-    Write-Information "Processing devices..." -InformationAction Continue
+    Write-Output "Processing devices..."
     if ($AllDevices.Count -gt 100) {
-        Write-Information "Note: Processing $($AllDevices.Count) devices with individual API calls for scope tags. This may take several minutes." -InformationAction Continue
+        Write-Output "Note: Processing $($AllDevices.Count) devices with individual API calls for scope tags. This may take several minutes."
     }
     $FilteredDevices = @()
     $ProcessedCount = 0
@@ -955,30 +956,30 @@ try {
     }
     
     # Display results
-    Write-Information "✓ Processing completed" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "DEVICE REPORT BY SCOPE TAG" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "Total devices retrieved: $($AllDevices.Count)" -InformationAction Continue
-    Write-Information "Devices matching criteria: $($FilteredDevices.Count)" -InformationAction Continue
-    Write-Information "========================================" -InformationAction Continue
-    Write-Information "" -InformationAction Continue
+    Write-Output "✓ Processing completed"
+    Write-Output ""
+    Write-Output "========================================"
+    Write-Output "DEVICE REPORT BY SCOPE TAG"
+    Write-Output "========================================"
+    Write-Output "Total devices retrieved: $($AllDevices.Count)"
+    Write-Output "Devices matching criteria: $($FilteredDevices.Count)"
+    Write-Output "========================================"
+    Write-Output ""
     
     if ($FilteredDevices.Count -gt 0) {
         # Group by scope tag for summary
         $ScopeTagSummary = $FilteredDevices | Group-Object ScopeTags | Sort-Object Count -Descending
-        Write-Information "Devices by Scope Tag:" -InformationAction Continue
+        Write-Output "Devices by Scope Tag:"
         foreach ($Group in $ScopeTagSummary) {
-            Write-Information "  - $($Group.Name): $($Group.Count) devices" -InformationAction Continue
+            Write-Output "  - $($Group.Name): $($Group.Count) devices"
         }
-        Write-Information "" -InformationAction Continue
+        Write-Output ""
         
         # Display the devices (limited view in console)
         $FilteredDevices | Select-Object -First 10 | Format-Table -AutoSize
         
         if ($FilteredDevices.Count -gt 10) {
-            Write-Information "... and $($FilteredDevices.Count - 10) more devices" -InformationAction Continue
+            Write-Output "... and $($FilteredDevices.Count - 10) more devices"
         }
         
         # Export reports
@@ -998,7 +999,7 @@ try {
         # Export to CSV
         try {
             $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation -Encoding utf8
-            Write-Information "✓ CSV report saved to: $CSVPath" -InformationAction Continue
+            Write-Output "✓ CSV report saved to: $CSVPath"
         }
         catch {
             Write-Warning "Failed to export CSV: $($_.Exception.Message)"
@@ -1008,10 +1009,10 @@ try {
         New-HTMLReport -Devices $FilteredDevices -ReportPath $HTMLPath -IncludeTags $IncludeTags -ExcludeTags $ExcludeTags
     }
     else {
-        Write-Information "No devices found matching the specified criteria." -InformationAction Continue
+        Write-Output "No devices found matching the specified criteria."
     }
     
-    Write-Information "✓ Script completed successfully" -InformationAction Continue
+    Write-Output "✓ Script completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -1021,7 +1022,7 @@ finally {
     # Disconnect from Microsoft Graph
     try {
         Disconnect-MgGraph | Out-Null
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         # Ignore disconnection errors
@@ -1033,7 +1034,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -1047,4 +1048,4 @@ Devices Analyzed: $($AllDevices.Count)
 Devices in Report: $($FilteredDevices.Count)
 Status: Completed
 ========================================
-" -InformationAction Continue
+"

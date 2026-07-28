@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-compliance-policy-coverage.ps1
@@ -141,14 +142,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -236,13 +237,13 @@ function Get-DevicePlatform {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving compliance policies with assignments..." -InformationAction Continue
+    Write-Output "Retrieving compliance policies with assignments..."
     $policies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies?`$expand=assignments"
-    Write-Information "✓ Found $(@($policies).Count) compliance policies" -InformationAction Continue
+    Write-Output "✓ Found $(@($policies).Count) compliance policies"
 
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,operatingSystem,complianceState"
-    Write-Information "✓ Found $(@($devices).Count) managed devices" -InformationAction Continue
+    Write-Output "✓ Found $(@($devices).Count) managed devices"
 
     # Device counts per platform
     $devicePlatforms = @{}
@@ -291,45 +292,45 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nCOMPLIANCE POLICY COVERAGE" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nCOMPLIANCE POLICY COVERAGE"
+    Write-Output ("=" * 50)
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     foreach ($row in $report) {
-        Write-Information "`n[$($row.CoverageStatus)] $($row.Platform)" -InformationAction Continue
-        Write-Information "  Devices: $($row.DeviceCount) ($($row.NoncompliantCount) noncompliant)" -InformationAction Continue
+        Write-Output "`n[$($row.CoverageStatus)] $($row.Platform)"
+        Write-Output "  Devices: $($row.DeviceCount) ($($row.NoncompliantCount) noncompliant)"
         if ($row.AssignedPolicies -gt 0) {
-            Write-Information "  Assigned policies: $($row.PolicyNames)" -InformationAction Continue
+            Write-Output "  Assigned policies: $($row.PolicyNames)"
         }
         else {
-            Write-Information "  No assigned compliance policy targets this platform" -InformationAction Continue
+            Write-Output "  No assigned compliance policy targets this platform"
         }
     }
 
     if ($unassignedPolicies.Count -gt 0) {
-        Write-Information "`nUnassigned compliance policies:" -InformationAction Continue
+        Write-Output "`nUnassigned compliance policies:"
         foreach ($row in ($unassignedPolicies | Sort-Object Platform, PolicyName)) {
-            Write-Information "  $($row.PolicyName) [$($row.Platform)]" -InformationAction Continue
+            Write-Output "  $($row.PolicyName) [$($row.Platform)]"
         }
     }
 
     # Summary
     $gapPlatforms = @($report | Where-Object { $_.CoverageStatus -eq "NOT COVERED" })
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) platforms with devices, $($gapPlatforms.Count) without compliance coverage, $($unassignedPolicies.Count) unassigned policies" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) platforms with devices, $($gapPlatforms.Count) without compliance coverage, $($unassignedPolicies.Count) unassigned policies"
     if ($gapPlatforms.Count -gt 0) {
-        Write-Information "Gap platforms: $(($gapPlatforms | ForEach-Object { $_.Platform }) -join ', ')" -InformationAction Continue
+        Write-Output "Gap platforms: $(($gapPlatforms | ForEach-Object { $_.Platform }) -join ', ')"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Compliance_Coverage_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -339,7 +340,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

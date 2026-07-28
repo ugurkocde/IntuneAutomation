@@ -8,6 +8,7 @@
 #   lint          PSScriptAnalyzer Error+Warning at the project rule set
 #   metadata      Required comment-based help fields present
 #   runbookReady  No interactive cmdlets in the script body
+#   runbookLogging Script-scope status messages use a stream captured by Azure Automation
 #   moduleDeps    Literal Import-Module names resolve to known modules
 #
 # Shell scripts:
@@ -177,6 +178,53 @@ function Test-RunbookReady {
     return @{ status = 'fail'; findings = $findings; guarded = $false }
 }
 
+function Test-RunbookLogging {
+    param([string]$Path)
+
+    $tokens = $null
+    $errors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        $Path,
+        [ref]$tokens,
+        [ref]$errors
+    )
+
+    if (@($errors).Count -gt 0) {
+        return @{ status = 'skip'; findings = @() }
+    }
+
+    $findings = @(
+        $ast.FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.CommandAst] -and
+            $node.GetCommandName() -eq 'Write-Information'
+        }, $true) | Where-Object {
+            $parent = $_.Parent
+            $insideFunction = $false
+
+            while ($parent) {
+                if ($parent -is [System.Management.Automation.Language.FunctionDefinitionAst]) {
+                    $insideFunction = $true
+                    break
+                }
+                $parent = $parent.Parent
+            }
+
+            -not $insideFunction
+        } | ForEach-Object {
+            @{
+                line = $_.Extent.StartLineNumber
+                reason = 'Write-Information at script scope is not stored in published Azure Automation job history. Use Write-Output for script progress, outcomes, and summaries.'
+            }
+        }
+    )
+
+    return @{
+        status = if ($findings.Count -eq 0) { 'pass' } else { 'fail' }
+        findings = $findings
+    }
+}
+
 function Test-ModuleDeps {
     param([string]$Path)
     $content  = Get-Content $Path -Raw
@@ -210,6 +258,28 @@ function Test-ModuleDeps {
 
 $psFiles = Get-ChildItem -Path $ScriptsRoot -Recurse -Filter '*.ps1'
 $shFiles = Get-ChildItem -Path $ScriptsRoot -Recurse -Filter '*.sh'
+$templateFiles = Get-ChildItem -Path (Join-Path $RepoRoot 'templates') -Filter '*.ps1'
+
+$templateFailures = @()
+foreach ($templateFile in $templateFiles) {
+    $templateParse = Test-Parse $templateFile.FullName
+    if ($templateParse.status -eq 'fail') {
+        $templateFailures += @{
+            path = $templateFile.FullName
+            reason = 'PowerShell parse failure'
+        }
+        continue
+    }
+
+    $templateLogging = Test-RunbookLogging $templateFile.FullName
+    foreach ($finding in $templateLogging.findings) {
+        $templateFailures += @{
+            path = $templateFile.FullName
+            line = $finding.line
+            reason = $finding.reason
+        }
+    }
+}
 
 $nowIso = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 $nowMDY = (Get-Date).ToString('MM-dd-yyyy')
@@ -224,6 +294,7 @@ foreach ($f in $psFiles) {
     $lint         = if ($parse.status -eq 'pass') { Test-Lint $f.FullName } else { @{ status = 'skip' } }
     $metadata     = Test-Metadata     $f.FullName
     $runbookReady = Test-RunbookReady $f.FullName
+    $runbookLogging = if ($parse.status -eq 'pass') { Test-RunbookLogging $f.FullName } else { @{ status = 'skip'; findings = @() } }
     $moduleDeps   = Test-ModuleDeps   $f.FullName
 
     $tiers = [ordered]@{
@@ -231,6 +302,7 @@ foreach ($f in $psFiles) {
         lint         = $lint
         metadata     = $metadata
         runbookReady = $runbookReady
+        runbookLogging = $runbookLogging
         moduleDeps   = $moduleDeps
     }
     $hasFail = ($tiers.Values | Where-Object { $_.status -eq 'fail' }).Count -gt 0
@@ -319,17 +391,17 @@ $summary = [System.Text.StringBuilder]::new()
 if ($psResults.Count -gt 0) {
     [void]$summary.AppendLine('## PowerShell')
     [void]$summary.AppendLine('')
-    [void]$summary.AppendLine('| Script | Parse | Lint | Metadata | Runbook-ready | Module deps | Overall |')
-    [void]$summary.AppendLine('|---|---|---|---|---|---|---|')
+    [void]$summary.AppendLine('| Script | Parse | Lint | Metadata | Runbook-ready | Runbook logging | Module deps | Overall |')
+    [void]$summary.AppendLine('|---|---|---|---|---|---|---|---|')
     foreach ($name in $results.Keys) {
         $r = $results[$name]
         if ($r.type -ne 'PowerShell') { continue }
-        $cells = @('parse','lint','metadata','runbookReady','moduleDeps') | ForEach-Object {
+        $cells = @('parse','lint','metadata','runbookReady','runbookLogging','moduleDeps') | ForEach-Object {
             $s = $r.tests.$_.status
             if ($s -eq 'pass') { 'pass' } elseif ($s -eq 'skip') { 'skip' } else { '**FAIL**' }
         }
         $overallCell = if ($r.overall -eq 'pass') { 'pass' } else { '**FAIL**' }
-        [void]$summary.AppendLine("| $name | $($cells[0]) | $($cells[1]) | $($cells[2]) | $($cells[3]) | $($cells[4]) | $overallCell |")
+        [void]$summary.AppendLine("| $name | $($cells[0]) | $($cells[1]) | $($cells[2]) | $($cells[3]) | $($cells[4]) | $($cells[5]) | $overallCell |")
     }
     [void]$summary.AppendLine('')
 }
@@ -357,7 +429,7 @@ if ($failingPs.Count -gt 0) {
     foreach ($name in $failingPs) {
         $r = $results[$name]
         [void]$summary.AppendLine("### $name")
-        foreach ($tier in @('parse','lint','metadata','runbookReady','moduleDeps')) {
+        foreach ($tier in @('parse','lint','metadata','runbookReady','runbookLogging','moduleDeps')) {
             $t = $r.tests.$tier
             if ($t.status -eq 'fail') {
                 [void]$summary.AppendLine("- **$tier**:")
@@ -366,6 +438,7 @@ if ($failingPs.Count -gt 0) {
                     'lint'         { foreach ($d in $t.details)  { [void]$summary.AppendLine("    - L$($d.line) [$($d.rule)]: $($d.message)") } }
                     'metadata'     { [void]$summary.AppendLine("    - Missing fields: $($t.missing -join ', ')") }
                     'runbookReady' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line) [$($f.match)]: $($f.reason)") } }
+                    'runbookLogging' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line): $($f.reason)") } }
                     'moduleDeps'   { [void]$summary.AppendLine("    - Unknown modules: $($t.unknown -join ', ')") }
                 }
             }
@@ -382,9 +455,24 @@ Write-Host ""
 Write-Host "Test summary: $passed passed, $failed failed, $skipped skipped (of $total scripts)"
 
 # Gating
+if ($templateFailures.Count -gt 0) {
+    foreach ($failure in $templateFailures) {
+        Write-Output "FAIL: $($failure.path):$($failure.line) $($failure.reason)"
+    }
+    exit 1
+}
+
 $parseFails = ($results.Values | Where-Object { $_.type -eq 'PowerShell' -and $_.tests.parse.status -eq 'fail' }).Count
 if ($parseFails -gt 0) {
     Write-Host "FAIL: $parseFails script(s) failed parse check - this blocks the workflow"
+    exit 1
+}
+
+$loggingFails = ($results.Values | Where-Object {
+    $_.type -eq 'PowerShell' -and $_.tests.runbookLogging.status -eq 'fail'
+}).Count
+if ($loggingFails -gt 0) {
+    Write-Output "FAIL: $loggingFails script(s) use Write-Information at script scope"
     exit 1
 }
 

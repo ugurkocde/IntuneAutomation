@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-device-checkin-health.ps1
@@ -152,13 +153,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -218,9 +219,9 @@ try {
         throw "-HealthyDays ($HealthyDays) must be smaller than -StaleDays ($StaleDays)"
     }
 
-    Write-Information "Retrieving managed devices..." -InformationAction Continue
+    Write-Output "Retrieving managed devices..."
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,lastSyncDateTime,enrolledDateTime,userPrincipalName,complianceState,managementAgent,ownerType"
-    Write-Information "✓ Found $(@($devices).Count) managed devices" -InformationAction Continue
+    Write-Output "✓ Found $(@($devices).Count) managed devices"
 
     $now = Get-Date
     [System.Collections.Generic.List[Object]]$report = @()
@@ -262,52 +263,52 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nDEVICE CHECK-IN HEALTH REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Thresholds: healthy <= $HealthyDays days, stale > $StaleDays days" -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nDEVICE CHECK-IN HEALTH REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Thresholds: healthy <= $HealthyDays days, stale > $StaleDays days"
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     $bucketOrder = @("Healthy", "Drifting", "Stale", "Never synced")
     foreach ($bucketName in $bucketOrder) {
         $bucketDevices = @($report | Where-Object { $_.HealthBucket -eq $bucketName })
         if ($bucketDevices.Count -eq 0) { continue }
 
-        Write-Information "`n$bucketName ($($bucketDevices.Count) devices)" -InformationAction Continue
+        Write-Output "`n$bucketName ($($bucketDevices.Count) devices)"
 
         # The drifting bucket is the actionable one; list it in full detail
         if ($bucketName -in @("Drifting", "Stale", "Never synced")) {
             foreach ($row in ($bucketDevices | Sort-Object DaysSinceSync -Descending)) {
                 $syncInfo = if ($null -ne $row.DaysSinceSync) { "$($row.DaysSinceSync) days ago" } else { "never" }
-                Write-Information "  $($row.DeviceName) | $($row.OperatingSystem) | $($row.User) | last sync: $syncInfo" -InformationAction Continue
+                Write-Output "  $($row.DeviceName) | $($row.OperatingSystem) | $($row.User) | last sync: $syncInfo"
             }
         }
         else {
             foreach ($platformGroup in ($bucketDevices | Group-Object -Property OperatingSystem | Sort-Object Count -Descending)) {
-                Write-Information "  $($platformGroup.Name): $($platformGroup.Count)" -InformationAction Continue
+                Write-Output "  $($platformGroup.Name): $($platformGroup.Count)"
             }
         }
     }
 
     # Summary with percentage distribution
     $totalCount = $report.Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
     foreach ($bucketName in $bucketOrder) {
         $bucketCount = @($report | Where-Object { $_.HealthBucket -eq $bucketName }).Count
         if ($totalCount -gt 0) {
             $percent = [math]::Round(($bucketCount / $totalCount) * 100, 1)
-            Write-Information "$($bucketName): $bucketCount ($percent%)" -InformationAction Continue
+            Write-Output "$($bucketName): $bucketCount ($percent%)"
         }
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Device_Checkin_Health_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -317,7 +318,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-windows-laps-audit.ps1
@@ -144,14 +145,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceLocalCredential.ReadBasic.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -207,13 +208,13 @@ function Get-MgGraphAllPage {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving Windows LAPS credential records..." -InformationAction Continue
+    Write-Output "Retrieving Windows LAPS credential records..."
     $lapsRecords = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/directory/deviceLocalCredentials?`$select=id,deviceName,lastBackupDateTime"
-    Write-Information "✓ Found $(@($lapsRecords).Count) escrowed LAPS records" -InformationAction Continue
+    Write-Output "✓ Found $(@($lapsRecords).Count) escrowed LAPS records"
 
-    Write-Information "Retrieving Intune Windows devices..." -InformationAction Continue
+    Write-Output "Retrieving Intune Windows devices..."
     $windowsDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,azureADDeviceId,lastSyncDateTime,userPrincipalName"
-    Write-Information "✓ Found $(@($windowsDevices).Count) Windows devices" -InformationAction Continue
+    Write-Output "✓ Found $(@($windowsDevices).Count) Windows devices"
 
     # LAPS record id is the Entra device ID; index for the cross-reference
     $lapsByDeviceId = @{}
@@ -257,45 +258,45 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nWINDOWS LAPS AUDIT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Stale threshold: $MaxPasswordAgeDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nWINDOWS LAPS AUDIT"
+    Write-Output ("=" * 50)
+    Write-Output "Stale threshold: $MaxPasswordAgeDays days | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     $statusOrder = @("NotEscrowed", "Stale", "EscrowedNoTimestamp", "Healthy")
     foreach ($statusName in $statusOrder) {
         $statusDevices = @($report | Where-Object { $_.Status -eq $statusName })
         if ($statusDevices.Count -eq 0) { continue }
 
-        Write-Information "`n[$statusName] $($statusDevices.Count) device(s)" -InformationAction Continue
+        Write-Output "`n[$statusName] $($statusDevices.Count) device(s)"
 
         if ($statusName -ne "Healthy") {
             foreach ($row in ($statusDevices | Sort-Object DeviceName)) {
                 $line = "  $($row.DeviceName) | $($row.User)"
                 if ($row.LastBackup) { $line += " | last backup: $($row.LastBackup) ($($row.PasswordAgeDays) days)" }
-                Write-Information $line -InformationAction Continue
+                Write-Output $line
             }
         }
     }
 
     if (@($report | Where-Object { $_.Status -eq "NotEscrowed" }).Count -gt 0) {
-        Write-Information "`nDevices without escrow either have no Windows LAPS policy assigned or have not rotated since policy assignment." -InformationAction Continue
+        Write-Output "`nDevices without escrow either have no Windows LAPS policy assigned or have not rotated since policy assignment."
     }
 
     # Summary
     $escrowedCount = @($report | Where-Object { $_.Status -ne "NotEscrowed" }).Count
     $staleCount = @($report | Where-Object { $_.Status -eq "Stale" }).Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $(@($windowsDevices).Count) Windows devices | $escrowedCount escrowed | $staleCount stale | $(@($windowsDevices).Count - $escrowedCount) not escrowed" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $(@($windowsDevices).Count) Windows devices | $escrowedCount escrowed | $staleCount stale | $(@($windowsDevices).Count - $escrowedCount) not escrowed"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Windows_LAPS_Audit_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -305,7 +306,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

@@ -30,16 +30,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Renamed the automation detection variable to the name the CI runbook-readiness check recognizes; no functional change (the script already refused to run as a runbook before any prompt)
     1.2 - A failure on one key no longer discards a device's other keys: successfully fetched keys are kept and the device is reported as Partial; secret names now always carry the volume type suffix so they stay stable across runs (previously the suffix was only added when multiple keys existed; unsuffixed secrets written by earlier versions remain untouched); results table now shows the Key Vault secret version
     1.1 - Reworked authentication: MgGraphCommunity acquires separate Graph and Key Vault audience tokens (WAM-free). Fixed key retrieval: keys are now read from the Entra ID recovery key store (informationProtection/bitlocker); the previous Intune-side path checked a nonexistent property and could never return keys
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://bitlockerfilevaultkeys.vault.azure.net"
@@ -167,7 +168,7 @@ $VaultUri = $VaultUri.TrimEnd('/')
 # the Graph session must be active whenever Graph is called. Set-KeyVaultSecret
 # switches to the vault session for each Key Vault call and switches back after.
 try {
-    Write-Information "Step 1/2: Sign in for Azure Key Vault access (device code)..." -InformationAction Continue
+    Write-Output "Step 1/2: Sign in for Azure Key Vault access (device code)..."
     $vaultConnect = @{
         UseDeviceCode = $true
         Scopes        = @("https://vault.azure.net/user_impersonation")
@@ -183,7 +184,7 @@ try {
         throw "Key Vault session not found after device code sign-in."
     }
 
-    Write-Information "Step 2/2: Sign in for Microsoft Graph access (browser)..." -InformationAction Continue
+    Write-Output "Step 2/2: Sign in for Microsoft Graph access (browser)..."
     $Scopes = @(
         "DeviceManagementManagedDevices.Read.All",
         "BitlockerKey.Read.All"
@@ -205,7 +206,7 @@ try {
     # Both cache keys are needed to toggle sessions per call in Set-KeyVaultSecret
     $script:VaultCacheKey = $vaultSession.CacheKey
     $script:GraphCacheKey = $graphSession.CacheKey
-    Write-Information "✓ Successfully connected to Microsoft Graph and Azure Key Vault" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph and Azure Key Vault"
 }
 catch {
     Write-Error "Failed to connect: $($_.Exception.Message)"
@@ -398,10 +399,10 @@ function Set-KeyVaultSecret {
 # ============================================================================
 
 try {
-    Write-Information "Starting BitLocker keys backup to Azure Key Vault..." -InformationAction Continue
+    Write-Output "Starting BitLocker keys backup to Azure Key Vault..."
     
     # Get all Windows devices from Intune
-    Write-Information "Retrieving Windows devices from Intune..." -InformationAction Continue
+    Write-Output "Retrieving Windows devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,serialNumber,azureADDeviceId,model,manufacturer,isEncrypted"
     $devices = Get-MgGraphAllPage -Uri $devicesUri
     
@@ -410,7 +411,7 @@ try {
         return
     }
     
-    Write-Information "Found $($devices.Count) Windows devices. Processing BitLocker keys..." -InformationAction Continue
+    Write-Output "Found $($devices.Count) Windows devices. Processing BitLocker keys..."
     
     $results = @()
     $processedCount = 0
@@ -478,7 +479,7 @@ try {
             $kvResult = Set-KeyVaultSecret -SecretName $secretName -SecretValue $recoveryKey.Key -Tags $tags -VaultUri $VaultUri
             
             if ($kvResult.Success) {
-                Write-Information "✓ Successfully backed up key for: $($device.deviceName)" -InformationAction Continue
+                Write-Output "✓ Successfully backed up key for: $($device.deviceName)"
                 $successCount++
                 $status = "Success"
             }
@@ -518,10 +519,10 @@ try {
     }
     
     # Display results
-    Write-Information "`nBitLocker Keys Backup Results:" -InformationAction Continue
+    Write-Output "`nBitLocker Keys Backup Results:"
     $results | Format-Table -AutoSize
     
-    Write-Information "✓ BitLocker keys backup completed successfully" -InformationAction Continue
+    Write-Output "✓ BitLocker keys backup completed successfully"
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
@@ -533,7 +534,7 @@ finally {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
         Disconnect-MgGraphCommunity -ErrorAction SilentlyContinue | Out-Null
-        Write-Information "Disconnected from Microsoft Graph and Azure Key Vault" -InformationAction Continue
+        Write-Output "Disconnected from Microsoft Graph and Azure Key Vault"
     }
     catch {
         # Ignore disconnect errors
@@ -544,7 +545,7 @@ finally {
 # SCRIPT SUMMARY
 # ============================================================================
 
-Write-Information "
+Write-Output "
 ========================================
 Script Execution Summary
 ========================================
@@ -556,4 +557,4 @@ Skipped (No Keys): $skippedCount
 Key Vault: $VaultUri
 Status: Completed
 ========================================
-" -InformationAction Continue
+"

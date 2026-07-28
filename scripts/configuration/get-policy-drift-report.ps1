@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-policy-drift-report.ps1 -BaselinePath ".\IntuneConfigBackup_2026-07-01_08-00-00"
@@ -145,13 +146,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -316,13 +317,13 @@ try {
     $manifestPath = Join-Path $BaselinePath "manifest.json"
     if (Test-Path $manifestPath) {
         $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
-        Write-Information "Baseline taken: $($manifest.backupDate)" -InformationAction Continue
+        Write-Output "Baseline taken: $($manifest.backupDate)"
     }
     else {
         Write-Warning "No manifest.json found - is '$BaselinePath' a backup created by backup-intune-configuration.ps1?"
     }
 
-    Write-Information "Fetching current tenant state..." -InformationAction Continue
+    Write-Output "Fetching current tenant state..."
 
     # Settings catalog policies need their setting bodies for a meaningful comparison
     $settingsCatalogPolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
@@ -330,16 +331,16 @@ try {
         $settings = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($policy.id)/settings"
         $policy | Add-Member -MemberType NoteProperty -Name "settings" -Value @($settings) -Force
     }
-    Write-Information "✓ Loaded $(@($settingsCatalogPolicies).Count) settings catalog policies" -InformationAction Continue
+    Write-Output "✓ Loaded $(@($settingsCatalogPolicies).Count) settings catalog policies"
 
     $deviceConfigurations = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations"
-    Write-Information "✓ Loaded $(@($deviceConfigurations).Count) device configuration profiles" -InformationAction Continue
+    Write-Output "✓ Loaded $(@($deviceConfigurations).Count) device configuration profiles"
 
     $compliancePolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies?`$expand=scheduledActionsForRule(`$expand=scheduledActionConfigurations)"
-    Write-Information "✓ Loaded $(@($compliancePolicies).Count) compliance policies" -InformationAction Continue
+    Write-Output "✓ Loaded $(@($compliancePolicies).Count) compliance policies"
 
     # ----- Compare against baseline -----
-    Write-Information "Comparing against baseline..." -InformationAction Continue
+    Write-Output "Comparing against baseline..."
 
     [System.Collections.Generic.List[Object]]$drift = @()
     $drift.AddRange((Compare-PolicyArea -AreaLabel "Settings Catalog" -BaselineFolder "SettingsCatalog" -CurrentPolicies @($settingsCatalogPolicies) -NameProperty "name"))
@@ -347,24 +348,24 @@ try {
     $drift.AddRange((Compare-PolicyArea -AreaLabel "Compliance Policy" -BaselineFolder "CompliancePolicies" -CurrentPolicies @($compliancePolicies) -NameProperty "displayName"))
 
     # ----- Display results -----
-    Write-Information "`nPOLICY DRIFT REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Baseline: $BaselinePath" -InformationAction Continue
-    Write-Information "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nPOLICY DRIFT REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Baseline: $BaselinePath"
+    Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     if ($drift.Count -eq 0) {
-        Write-Information "`nNo drift detected - the tenant matches the baseline." -InformationAction Continue
+        Write-Output "`nNo drift detected - the tenant matches the baseline."
     }
     else {
         foreach ($changeGroup in ($drift | Group-Object -Property ChangeType | Sort-Object Name)) {
-            Write-Information "`n$($changeGroup.Name) ($($changeGroup.Count))" -InformationAction Continue
+            Write-Output "`n$($changeGroup.Name) ($($changeGroup.Count))"
             foreach ($row in ($changeGroup.Group | Sort-Object Area, Name)) {
                 $detail = "  [$($row.Area)] $($row.Name)"
                 if ($row.LastModified -and $row.ChangeType -eq "Modified") {
                     $detail += " (modified: $($row.LastModified))"
                 }
-                Write-Information $detail -InformationAction Continue
+                Write-Output $detail
             }
         }
     }
@@ -374,17 +375,17 @@ try {
     $modifiedCount = @($drift | Where-Object { $_.ChangeType -eq "Modified" }).Count
     $deletedCount = @($drift | Where-Object { $_.ChangeType -eq "Deleted" }).Count
 
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $addedCount added, $modifiedCount modified, $deletedCount deleted" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $addedCount added, $modifiedCount modified, $deletedCount deleted"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Intune_Policy_Drift_$timestamp.csv"
         $drift | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -394,7 +395,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

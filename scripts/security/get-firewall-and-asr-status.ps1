@@ -27,13 +27,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-firewall-and-asr-status.ps1
@@ -141,14 +142,14 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -220,29 +221,29 @@ function Get-DisciplineLabel {
 # ============================================================================
 
 try {
-    Write-Information "Retrieving settings catalog policies..." -InformationAction Continue
+    Write-Output "Retrieving settings catalog policies..."
     $allPolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$expand=assignments"
 
     # Server-side templateFamily filters behave inconsistently, so filter locally
     $securityPolicies = @($allPolicies | Where-Object {
             $_.templateReference -and $_.templateReference.templateFamily -like "endpointSecurity*"
         })
-    Write-Information "✓ Found $($securityPolicies.Count) endpoint security policies (of $(@($allPolicies).Count) settings catalog policies)" -InformationAction Continue
+    Write-Output "✓ Found $($securityPolicies.Count) endpoint security policies (of $(@($allPolicies).Count) settings catalog policies)"
 
-    Write-Information "Retrieving legacy security intents..." -InformationAction Continue
+    Write-Output "Retrieving legacy security intents..."
     $intents = @()
     try {
         $intents = @(Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/intents?`$select=id,displayName,templateId,isAssigned")
-        Write-Information "✓ Found $($intents.Count) legacy intents" -InformationAction Continue
+        Write-Output "✓ Found $($intents.Count) legacy intents"
     }
     catch {
         Write-Warning "Could not read legacy intents: $($_.Exception.Message)"
     }
 
-    Write-Information "Counting Windows devices..." -InformationAction Continue
+    Write-Output "Counting Windows devices..."
     $windowsDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id"
     $windowsDeviceCount = @($windowsDevices).Count
-    Write-Information "✓ $windowsDeviceCount Windows devices enrolled" -InformationAction Continue
+    Write-Output "✓ $windowsDeviceCount Windows devices enrolled"
 
     # ----- Build per-policy rows -----
     [System.Collections.Generic.List[Object]]$report = @()
@@ -275,14 +276,14 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nFIREWALL AND ASR STATUS" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Windows devices enrolled: $windowsDeviceCount | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nFIREWALL AND ASR STATUS"
+    Write-Output ("=" * 50)
+    Write-Output "Windows devices enrolled: $windowsDeviceCount | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     # Coverage per core discipline
     $coreDisciplines = @("Firewall", "Attack Surface Reduction", "Antivirus", "Disk Encryption", "EDR", "Account Protection")
-    Write-Information "`nCoverage per discipline:" -InformationAction Continue
+    Write-Output "`nCoverage per discipline:"
     [System.Collections.Generic.List[string]]$gaps = @()
 
     foreach ($discipline in $coreDisciplines) {
@@ -290,46 +291,46 @@ try {
         $assigned = @($disciplinePolicies | Where-Object { $_.IsAssigned })
 
         if ($assigned.Count -gt 0) {
-            Write-Information "  [COVERED] $($discipline): $($assigned.Count) assigned policy/policies" -InformationAction Continue
+            Write-Output "  [COVERED] $($discipline): $($assigned.Count) assigned policy/policies"
         }
         elseif ($disciplinePolicies.Count -gt 0) {
-            Write-Information "  [GAP] $($discipline): $($disciplinePolicies.Count) policy/policies exist but none is assigned" -InformationAction Continue
+            Write-Output "  [GAP] $($discipline): $($disciplinePolicies.Count) policy/policies exist but none is assigned"
             $gaps.Add($discipline)
         }
         else {
-            Write-Information "  [GAP] $($discipline): no policy exists" -InformationAction Continue
+            Write-Output "  [GAP] $($discipline): no policy exists"
             $gaps.Add($discipline)
         }
     }
 
     # Policy details
     if ($report.Count -gt 0) {
-        Write-Information "`nAll endpoint security policies:" -InformationAction Continue
+        Write-Output "`nAll endpoint security policies:"
         foreach ($disciplineGroup in ($report | Group-Object -Property Discipline | Sort-Object Name)) {
-            Write-Information "`n  $($disciplineGroup.Name):" -InformationAction Continue
+            Write-Output "`n  $($disciplineGroup.Name):"
             foreach ($row in ($disciplineGroup.Group | Sort-Object PolicyName)) {
                 $assignedLabel = if ($row.IsAssigned) { "assigned" } else { "NOT ASSIGNED" }
-                Write-Information "    $($row.PolicyName) [$assignedLabel] ($($row.Source))" -InformationAction Continue
+                Write-Output "    $($row.PolicyName) [$assignedLabel] ($($row.Source))"
             }
         }
     }
 
     # Summary
     $unassignedCount = @($report | Where-Object { -not $_.IsAssigned }).Count
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) endpoint security policies | $unassignedCount unassigned | gaps: $(if ($gaps.Count -gt 0) { $gaps -join ', ' } else { 'none' })" -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) endpoint security policies | $unassignedCount unassigned | gaps: $(if ($gaps.Count -gt 0) { $gaps -join ', ' } else { 'none' })"
     if ($gaps -contains "Firewall" -or $gaps -contains "Attack Surface Reduction") {
         Write-Warning "Firewall or ASR has no assigned policy - $windowsDeviceCount Windows devices are running on local defaults"
     }
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "Endpoint_Security_Coverage_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -339,7 +340,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"

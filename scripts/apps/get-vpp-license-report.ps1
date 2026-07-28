@@ -26,13 +26,14 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-20
+    2026-07-28
 
 .EXAMPLE
     .\get-vpp-license-report.ps1
@@ -151,13 +152,13 @@ try {
         Connect-MgGraph -Identity -NoWelcome -ErrorAction Stop
     }
     else {
-        Write-Information "Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementApps.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
-    Write-Information "✓ Successfully connected to Microsoft Graph" -InformationAction Continue
+    Write-Output "✓ Successfully connected to Microsoft Graph"
 }
 catch {
     Write-Error "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
@@ -214,19 +215,19 @@ function Get-MgGraphAllPage {
 
 try {
     # ----- VPP tokens -----
-    Write-Information "Retrieving VPP tokens..." -InformationAction Continue
+    Write-Output "Retrieving VPP tokens..."
     $tokens = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/vppTokens"
-    Write-Information "✓ Found $(@($tokens).Count) VPP token(s)" -InformationAction Continue
+    Write-Output "✓ Found $(@($tokens).Count) VPP token(s)"
 
     # ----- VPP apps (iOS and macOS) -----
-    Write-Information "Retrieving VPP apps..." -InformationAction Continue
+    Write-Output "Retrieving VPP apps..."
     $iosVppApps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.iosVppApp')"
     $macVppApps = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=isof('microsoft.graph.macOsVppApp')"
     $vppApps = @($iosVppApps) + @($macVppApps)
-    Write-Information "✓ Found $(@($vppApps).Count) VPP app(s)" -InformationAction Continue
+    Write-Output "✓ Found $(@($vppApps).Count) VPP app(s)"
 
     if (@($tokens).Count -eq 0 -and @($vppApps).Count -eq 0) {
-        Write-Information "`nNo Apple VPP tokens or apps found - is Apple Apps and Books configured for this tenant?" -InformationAction Continue
+        Write-Output "`nNo Apple VPP tokens or apps found - is Apple Apps and Books configured for this tenant?"
         return
     }
 
@@ -256,14 +257,14 @@ try {
     }
 
     # ----- Display results -----
-    Write-Information "`nVPP LICENSE REPORT" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Warning threshold: $WarningThresholdPercent% | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`nVPP LICENSE REPORT"
+    Write-Output ("=" * 50)
+    Write-Output "Warning threshold: $WarningThresholdPercent% | Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-Output ("=" * 50)
 
     # Token health first - expired tokens break everything downstream
     if (@($tokens).Count -gt 0) {
-        Write-Information "`nVPP tokens:" -InformationAction Continue
+        Write-Output "`nVPP tokens:"
         foreach ($token in $tokens) {
             $expiry = if ($token.expirationDateTime) { [DateTime]::Parse($token.expirationDateTime.ToString()) } else { $null }
             $daysLeft = if ($expiry) { [math]::Round(($expiry - (Get-Date)).TotalDays, 0) } else { $null }
@@ -272,7 +273,7 @@ try {
             if ($null -ne $daysLeft) {
                 $tokenLine += " | expires in $daysLeft days"
             }
-            Write-Information $tokenLine -InformationAction Continue
+            Write-Output $tokenLine
 
             if ($token.state -ne "valid") {
                 Write-Warning "  Token '$($token.appleId)' state is '$($token.state)' - VPP app installs may be failing"
@@ -285,26 +286,26 @@ try {
 
     if ($report.Count -gt 0) {
         foreach ($statusGroup in ($report | Group-Object -Property Status | Sort-Object Name)) {
-            Write-Information "`n[$($statusGroup.Name)] $($statusGroup.Count) app(s)" -InformationAction Continue
+            Write-Output "`n[$($statusGroup.Name)] $($statusGroup.Count) app(s)"
             foreach ($row in ($statusGroup.Group | Sort-Object UtilizationPct -Descending)) {
-                Write-Information "  $($row.AppName) ($($row.Platform)): $($row.UsedLicenses)/$($row.TotalLicenses) licenses ($($row.UtilizationPct)%)" -InformationAction Continue
+                Write-Output "  $($row.AppName) ($($row.Platform)): $($row.UsedLicenses)/$($row.TotalLicenses) licenses ($($row.UtilizationPct)%)"
             }
         }
     }
 
     # Summary
     $flagged = @($report | Where-Object { $_.Status -in @("NearLimit", "Exhausted") })
-    Write-Information "`n" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
-    Write-Information "Summary: $($report.Count) VPP apps, $($flagged.Count) at or above $WarningThresholdPercent% utilization" -InformationAction Continue
-    Write-Information ("=" * 50) -InformationAction Continue
+    Write-Output "`n"
+    Write-Output ("=" * 50)
+    Write-Output "Summary: $($report.Count) VPP apps, $($flagged.Count) at or above $WarningThresholdPercent% utilization"
+    Write-Output ("=" * 50)
 
     # Export to CSV if requested
     if ($ExportToCsv) {
         $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
         $csvPath = Join-Path $OutputPath "VPP_License_Report_$timestamp.csv"
         $report | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-        Write-Information "✓ CSV report saved: $csvPath" -InformationAction Continue
+        Write-Output "✓ CSV report saved: $csvPath"
     }
 }
 catch {
@@ -314,7 +315,7 @@ catch {
 finally {
     try {
         $null = Disconnect-MgGraph
-        Write-Information "✓ Disconnected from Microsoft Graph" -InformationAction Continue
+        Write-Output "✓ Disconnected from Microsoft Graph"
     }
     catch {
         Write-Verbose "Graph disconnection completed"
