@@ -919,9 +919,9 @@
     },
     {
       "id": "cleanup-duplicate-device-records",
-      "title": "Cleanup Duplicate Device Records",
-      "synopsis": "Finds Intune device records that share a serial number and optionally removes the older stale duplicates.",
-      "description": "This script groups all Intune managed devices by serial number and identifies\nduplicates - typically left behind by re-enrollment, OS reinstalls, or Autopilot\nresets. For every duplicate set it keeps the record with the most recent sync and\nmarks the older records for cleanup. By default the script only reports; deletion\nrequires the -Remove switch and is preview-safe via -WhatIf. Removing a device\nrecord from Intune does not wipe the device; it only deletes the stale management\nobject.",
+      "title": "Cleanup Duplicate Intune Device Records",
+      "synopsis": "Finds Intune managed-device records that share a serial number and optionally removes the older stale duplicates.",
+      "description": "This script groups all Intune managed devices by serial number and identifies\nduplicates - typically left behind by re-enrollment, OS reinstalls, or Autopilot\nresets. For every duplicate set it keeps the record with the most recent sync and\nmarks the older records for cleanup. By default the script only reports; deletion\nrequires the -Remove switch and is preview-safe via -WhatIf. Removing a device\nrecord from Intune does not wipe the device; it only deletes the stale management\nobject.\n\nScope is limited to Intune managed-device records returned by\n/deviceManagement/managedDevices. The script does not inspect or delete Microsoft\nEntra device objects or Windows Autopilot registrations. Duplicate-looking Entra\nobjects can be expected with Hybrid Autopilot deployments and must not be treated\nas stale Intune records.",
       "category": "devices",
       "categoryLabel": "devices",
       "tags": [
@@ -934,8 +934,8 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-07-28",
+      "version": "1.2",
+      "lastUpdate": "2026-07-29",
       "schedule": "",
       "execution": "",
       "output": "",
@@ -969,11 +969,11 @@
         }
       ],
       "examples": [
-        ".\\cleanup-duplicate-device-records.ps1\nReports duplicate device records without deleting anything",
-        ".\\cleanup-duplicate-device-records.ps1 -Remove -WhatIf\nShows exactly which records would be deleted, without deleting them",
-        ".\\cleanup-duplicate-device-records.ps1 -Remove\nDeletes the older duplicate records after an interactive confirmation"
+        ".\\cleanup-duplicate-device-records.ps1\nReports duplicate Intune managed-device records without deleting anything",
+        ".\\cleanup-duplicate-device-records.ps1 -Remove -WhatIf\nShows exactly which Intune managed-device records would be deleted, without deleting them",
+        ".\\cleanup-duplicate-device-records.ps1 -Remove\nDeletes the older duplicate Intune managed-device records after an interactive confirmation"
       ],
-      "notes": "- Requires Microsoft.Graph.Authentication module\n- The newest record per serial number (by lastSyncDateTime, falling back to enrolledDateTime) is always kept\n- Devices with empty or placeholder serial numbers (e.g. \"Defaultstring\") are excluded from duplicate matching\n- Deleting an Intune device record does not wipe or retire the physical device\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
+      "notes": "- Requires Microsoft.Graph.Authentication module\n- Only Intune managed-device records are evaluated\n- Microsoft Entra device objects and Windows Autopilot registrations are never evaluated or deleted\n- Hybrid Autopilot deployments can create expected duplicate-looking Entra device objects\n- The newest record per serial number (by lastSyncDateTime, falling back to enrolledDateTime) is always kept\n- Devices with empty or placeholder serial numbers (e.g. \"Defaultstring\") are excluded from duplicate matching\n- Deleting an Intune device record does not wipe or retire the physical device\n- Uses beta Graph endpoints for consistency with the rest of the library\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/devices/cleanup-duplicate-device-records.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/cleanup-duplicate-device-records.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/devices/cleanup-duplicate-device-records.ps1"

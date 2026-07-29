@@ -1,9 +1,9 @@
 <#
 .TITLE
-    Cleanup Duplicate Device Records
+    Cleanup Duplicate Intune Device Records
 
 .SYNOPSIS
-    Finds Intune device records that share a serial number and optionally removes the older stale duplicates.
+    Finds Intune managed-device records that share a serial number and optionally removes the older stale duplicates.
 
 .DESCRIPTION
     This script groups all Intune managed devices by serial number and identifies
@@ -13,6 +13,12 @@
     requires the -Remove switch and is preview-safe via -WhatIf. Removing a device
     record from Intune does not wipe the device; it only deletes the stale management
     object.
+
+    Scope is limited to Intune managed-device records returned by
+    /deviceManagement/managedDevices. The script does not inspect or delete Microsoft
+    Entra device objects or Windows Autopilot registrations. Duplicate-looking Entra
+    objects can be expected with Hybrid Autopilot deployments and must not be treated
+    as stale Intune records.
 
 .TAGS
     Devices,Operational
@@ -27,29 +33,33 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Clarified that only Intune managed-device records are evaluated and removed
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-29
 
 .EXAMPLE
     .\cleanup-duplicate-device-records.ps1
-    Reports duplicate device records without deleting anything
+    Reports duplicate Intune managed-device records without deleting anything
 
 .EXAMPLE
     .\cleanup-duplicate-device-records.ps1 -Remove -WhatIf
-    Shows exactly which records would be deleted, without deleting them
+    Shows exactly which Intune managed-device records would be deleted, without deleting them
 
 .EXAMPLE
     .\cleanup-duplicate-device-records.ps1 -Remove
-    Deletes the older duplicate records after an interactive confirmation
+    Deletes the older duplicate Intune managed-device records after an interactive confirmation
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
+    - Only Intune managed-device records are evaluated
+    - Microsoft Entra device objects and Windows Autopilot registrations are never evaluated or deleted
+    - Hybrid Autopilot deployments can create expected duplicate-looking Entra device objects
     - The newest record per serial number (by lastSyncDateTime, falling back to enrolledDateTime) is always kept
     - Devices with empty or placeholder serial numbers (e.g. "Defaultstring") are excluded from duplicate matching
     - Deleting an Intune device record does not wipe or retire the physical device
@@ -59,7 +69,7 @@
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "High")]
 param(
-    [Parameter(Mandatory = $false, HelpMessage = "Delete the older duplicate records instead of only reporting")]
+    [Parameter(Mandatory = $false, HelpMessage = "Delete the older duplicate Intune managed-device records instead of only reporting")]
     [switch]$Remove,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
@@ -224,9 +234,11 @@ function Get-EffectiveTimestamp {
 # ============================================================================
 
 try {
-    Write-Output "Retrieving managed devices..."
+    Write-Output "Scope: Intune managed-device records only."
+    Write-Output "Microsoft Entra device objects and Windows Autopilot registrations are not evaluated or removed."
+    Write-Output "Retrieving Intune managed devices..."
     $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,serialNumber,operatingSystem,model,manufacturer,lastSyncDateTime,enrolledDateTime,userPrincipalName,managementAgent"
-    Write-Output "✓ Found $(@($devices).Count) managed devices"
+    Write-Output "✓ Found $(@($devices).Count) Intune managed devices"
 
     # Placeholder serials would create false duplicate groups
     $invalidSerials = @("", "defaultstring", "tobefilledbyoem", "systemserialnumber", "0", "none", "unknown")
@@ -237,17 +249,17 @@ try {
     $duplicateGroups = @($devicesWithSerial | Group-Object -Property { $_.serialNumber.Trim() } | Where-Object { $_.Count -gt 1 })
 
     if ($duplicateGroups.Count -eq 0) {
-        Write-Output "`nNo duplicate device records found."
+        Write-Output "`nNo duplicate Intune managed-device records found."
         return
     }
 
-    Write-Output "✓ Found $($duplicateGroups.Count) serial number(s) with duplicate records"
+    Write-Output "✓ Found $($duplicateGroups.Count) serial number(s) with duplicate Intune managed-device records"
 
     [System.Collections.Generic.List[Object]]$report = @()
     $deleted = 0
     $deleteFailed = 0
 
-    Write-Output "`nDUPLICATE DEVICE RECORDS"
+    Write-Output "`nDUPLICATE INTUNE MANAGED-DEVICE RECORDS"
     Write-Output ("=" * 50)
 
     foreach ($group in $duplicateGroups) {
@@ -298,7 +310,7 @@ try {
     $totalStale = $report.Count
     Write-Output "`n"
     Write-Output ("=" * 50)
-    Write-Output "Summary: $($duplicateGroups.Count) duplicate serials, $totalStale stale records"
+    Write-Output "Summary: $($duplicateGroups.Count) duplicate serials, $totalStale stale Intune managed-device records"
     if ($Remove) {
         Write-Output "Deleted: $deleted | Failed: $deleteFailed"
     }
