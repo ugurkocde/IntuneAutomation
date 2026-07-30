@@ -3,59 +3,59 @@
   "contentVersion": "2.0.0.0",
   "parameters": {
     "automationAccountName": {
+      "type": "string",
       "metadata": {
         "description": "Name of an existing Azure Automation account, or the name to create when createAutomationAccount is true."
-      },
-      "type": "string"
+      }
     },
     "createAutomationAccount": {
-      "defaultValue": false,
-      "type": "bool",
       "metadata": {
         "description": "Create a new Automation account. Leave false to reuse an account in the selected resource group without modifying its identity or region."
-      }
+      },
+      "defaultValue": false,
+      "type": "bool"
     },
     "newAutomationAccountLocation": {
-      "defaultValue": "[resourceGroup().location]",
-      "type": "string",
       "metadata": {
         "description": "Used only when createAutomationAccount is true. Existing accounts always use their current Azure region."
-      }
+      },
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string"
     },
     "runtimeEnvironmentName": {
-      "defaultValue": "IntuneAutomation-PS74",
-      "type": "string",
       "metadata": {
         "description": "PowerShell 7.4 Runtime Environment to create or associate with the runbook."
-      }
+      },
+      "defaultValue": "IntuneAutomation-PS74",
+      "type": "string"
     },
     "createRuntimeEnvironment": {
-      "defaultValue": true,
-      "type": "bool",
       "metadata": {
         "description": "Create or update the PowerShell 7.4 Runtime Environment and Microsoft.Graph.Authentication package. Set false only when the named environment already exists and contains that package."
-      }
+      },
+      "defaultValue": true,
+      "type": "bool"
     },
     "graphAuthenticationModuleVersion": {
-      "defaultValue": "2.38.1",
-      "type": "string",
       "metadata": {
         "description": "Microsoft.Graph.Authentication package version imported when createRuntimeEnvironment is true."
-      }
+      },
+      "defaultValue": "2.38.1",
+      "type": "string"
     },
     "runbookName": {
-      "defaultValue": "wipe-devices",
-      "type": "string",
       "metadata": {
         "description": "Name of the runbook to create or update."
-      }
+      },
+      "defaultValue": "wipe-devices",
+      "type": "string"
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
-      "type": "string",
       "metadata": {
         "description": "Description stored on the Azure Automation runbook."
-      }
+      },
+      "defaultValue": "This script connects to Microsoft Graph and triggers remote wipe operations on targeted devices.",
+      "type": "string"
     }
   },
   "variables": {
@@ -63,18 +63,18 @@
   },
   "resources": [
     {
+      "condition": "[parameters('createAutomationAccount')]",
       "name": "[parameters('automationAccountName')]",
+      "type": "Microsoft.Automation/automationAccounts",
       "identity": {
         "type": "SystemAssigned"
       },
-      "location": "[parameters('newAutomationAccountLocation')]",
-      "condition": "[parameters('createAutomationAccount')]",
-      "type": "Microsoft.Automation/automationAccounts",
       "properties": {
         "sku": {
           "name": "Basic"
         }
       },
+      "location": "[parameters('newAutomationAccountLocation')]",
       "apiVersion": "2024-10-23"
     },
     {
@@ -82,30 +82,6 @@
         "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
       ],
       "properties": {
-        "parameters": {
-          "runbookDescription": {
-            "value": "[parameters('runbookDescription')]"
-          },
-          "createRuntimeEnvironment": {
-            "value": "[parameters('createRuntimeEnvironment')]"
-          },
-          "graphAuthenticationModuleVersion": {
-            "value": "[parameters('graphAuthenticationModuleVersion')]"
-          },
-          "runtimeEnvironmentName": {
-            "value": "[parameters('runtimeEnvironmentName')]"
-          },
-          "automationAccountName": {
-            "value": "[parameters('automationAccountName')]"
-          },
-          "runbookName": {
-            "value": "[parameters('runbookName')]"
-          },
-          "accountLocation": {
-            "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]"
-          }
-        },
-        "mode": "Incremental",
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
@@ -137,26 +113,25 @@
           },
           "resources": [
             {
-              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
-              "location": "[parameters('accountLocation')]",
               "condition": "[parameters('createRuntimeEnvironment')]",
+              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
               "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
               "properties": {
-                "defaultPackages": {
-                  "Az": "12.3.0"
+                "runtime": {
+                  "language": "PowerShell",
+                  "version": "7.4"
                 },
                 "description": "IntuneAutomation PowerShell 7.4 runtime",
-                "runtime": {
-                  "version": "7.4",
-                  "language": "PowerShell"
+                "defaultPackages": {
+                  "Az": "12.3.0"
                 }
               },
+              "location": "[parameters('accountLocation')]",
               "apiVersion": "2024-10-23"
             },
             {
-              "name": "[format('{0}/{1}/Microsoft.Graph.Authentication', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
-              "location": "[parameters('accountLocation')]",
               "condition": "[parameters('createRuntimeEnvironment')]",
+              "name": "[format('{0}/{1}/Microsoft.Graph.Authentication', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
               "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
               "properties": {
                 "contentLink": {
@@ -164,35 +139,60 @@
                   "version": "[parameters('graphAuthenticationModuleVersion')]"
                 }
               },
+              "location": "[parameters('accountLocation')]",
               "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]"
               ],
               "apiVersion": "2024-10-23"
             },
             {
-              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runbookName'))]",
-              "location": "[parameters('accountLocation')]",
-              "type": "Microsoft.Automation/automationAccounts/runbooks",
-              "properties": {
-                "runbookType": "PowerShell",
-                "logProgress": false,
-                "publishContentLink": {
-                  "uri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1"
-                },
-                "runtimeEnvironment": "[parameters('runtimeEnvironmentName')]",
-                "description": "[parameters('runbookDescription')]",
-                "logVerbose": false
-              },
               "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments/packages', parameters('automationAccountName'), parameters('runtimeEnvironmentName'), 'Microsoft.Graph.Authentication')]"
               ],
+              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runbookName'))]",
+              "type": "Microsoft.Automation/automationAccounts/runbooks",
+              "properties": {
+                "runtimeEnvironment": "[parameters('runtimeEnvironmentName')]",
+                "logVerbose": false,
+                "description": "[parameters('runbookDescription')]",
+                "runbookType": "PowerShell",
+                "logProgress": false,
+                "publishContentLink": {
+                  "uri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/operational/wipe-devices.ps1"
+                }
+              },
+              "location": "[parameters('accountLocation')]",
               "apiVersion": "2024-10-23"
             }
           ]
         },
         "expressionEvaluationOptions": {
           "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "runbookDescription": {
+            "value": "[parameters('runbookDescription')]"
+          },
+          "graphAuthenticationModuleVersion": {
+            "value": "[parameters('graphAuthenticationModuleVersion')]"
+          },
+          "automationAccountName": {
+            "value": "[parameters('automationAccountName')]"
+          },
+          "accountLocation": {
+            "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]"
+          },
+          "runtimeEnvironmentName": {
+            "value": "[parameters('runtimeEnvironmentName')]"
+          },
+          "runbookName": {
+            "value": "[parameters('runbookName')]"
+          },
+          "createRuntimeEnvironment": {
+            "value": "[parameters('createRuntimeEnvironment')]"
+          }
         }
       },
       "type": "Microsoft.Resources/deployments",
