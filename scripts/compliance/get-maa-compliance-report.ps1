@@ -19,15 +19,16 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementManagedDevices.Read.All,DeviceManagementRBAC.Read.All,Directory.Read.All
+    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementManagedDevices.Read.All,DeviceManagementRBAC.Read.All,DeviceManagementScripts.Read.All,Directory.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Declare and request DeviceManagementScripts.Read.All for platform-script inventory
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Approver status is now resolved from MAA policy approver groups (transitive membership) to populate IsApprover, ApproversCount and AdminsWithoutMAA; resource coverage table computes per-category protected counts from MAA policy types instead of a hardcoded zero; role assignment group members are resolved via transitiveMembers; resource list calls request only the fields used; single-result Graph collections are wrapped in @() so counts are accurate; unused -DetailedAnalysis switch and AuditLog.Read.All permission removed
@@ -239,6 +240,7 @@ try {
             "DeviceManagementApps.Read.All",
             "DeviceManagementManagedDevices.Read.All",
             "DeviceManagementRBAC.Read.All",
+            "DeviceManagementScripts.Read.All",
             "Directory.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome

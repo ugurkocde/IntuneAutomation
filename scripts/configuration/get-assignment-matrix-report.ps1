@@ -22,15 +22,16 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,Group.Read.All
+    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementScripts.Read.All,Group.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Declare and request DeviceManagementScripts.Read.All for PowerShell, shell, and remediation script inventory
     1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
@@ -201,6 +202,7 @@ try {
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All",
+            "DeviceManagementScripts.Read.All",
             "Group.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
