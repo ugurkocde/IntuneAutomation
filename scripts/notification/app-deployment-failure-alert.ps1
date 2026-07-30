@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Download the app installation report payload before parsing its JSON content and add MaxApps for bounded runbook validation
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-app report and assignment calls are paced and the app listing uses select; pagination helper preserves single-item arrays
@@ -83,6 +84,10 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Mailbox UPN used as the notification sender (managed identity needs Mail.Send permission for it)")]
     [ValidateNotNullOrEmpty()]
     [string]$SenderUPN,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Maximum number of applications to evaluate; 0 evaluates all applications")]
+    [ValidateRange(0, 10000)]
+    [int]$MaxApps = 0,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
@@ -306,7 +311,16 @@ function Get-AppInstallStatusReportRow {
                 select = @("DeviceId", "DeviceName", "UserPrincipalName", "Platform", "AppVersion", "InstallState", "InstallStateDetail", "ErrorCode", "LastModifiedDateTime")
             } | ConvertTo-Json -Depth 5
 
-            $Response = Invoke-MgGraphRequest -Uri $ReportUri -Method POST -Body $Body -ContentType "application/json"
+            $ReportPath = Join-Path ([System.IO.Path]::GetTempPath()) "IntuneAutomation-AppDeploymentAlert-$([guid]::NewGuid().ToString('N')).json"
+            try {
+                Invoke-MgGraphRequest -Uri $ReportUri -Method POST -Body $Body -ContentType "application/json" -OutputFilePath $ReportPath | Out-Null
+                $Response = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json -AsHashtable
+            }
+            finally {
+                if (Test-Path -LiteralPath $ReportPath) {
+                    Remove-Item -LiteralPath $ReportPath -Force
+                }
+            }
 
             # The report returns columnar JSON - map Schema columns to row indexes,
             # column order is declared by Schema, not by the request
@@ -762,6 +776,9 @@ try {
     try {
         $AppsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,createdDateTime,lastModifiedDateTime"
         $Apps = Get-MgGraphAllPage -Uri $AppsUri
+        if ($MaxApps -gt 0) {
+            $Apps = @($Apps | Select-Object -First $MaxApps)
+        }
         Write-Output "Found $($Apps.Count) applications"
 
         foreach ($App in $Apps) {
