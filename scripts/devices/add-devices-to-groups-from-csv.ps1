@@ -31,23 +31,24 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Cache group memberships once per group instead of refetching per CSV row and suppress progress bars in runbooks
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
-    .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate
+    .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate "true"
     Creates a template CSV file using your system's default delimiter (automatically comma for US, semicolon for Europe)
 
 .EXAMPLE
-    .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate -TemplatePath "C:\templates\mytemplate.csv"
+    .\add-devices-to-groups-from-csv.ps1 -GenerateTemplate "true" -TemplatePath "C:\templates\mytemplate.csv"
     Creates a template CSV file at the specified path with system default delimiter
 
 .EXAMPLE
@@ -55,11 +56,15 @@
     Reads the CSV file and adds devices to specified groups
 
 .EXAMPLE
-    .\add-devices-to-groups-from-csv.ps1 -CsvPath "C:\devices.csv" -DryRun
+    .\add-devices-to-groups-from-csv.ps1 -CsvPath "C:\devices.csv" -DryRun "true"
     Preview what changes would be made without actually making them
 
 .EXAMPLE
-    .\add-devices-to-groups-from-csv.ps1 -CsvPath "C:\devices.csv" -CreateMissingGroups -Force
+    .\add-devices-to-groups-from-csv.ps1 -CsvContent $csvContent -DryRun "true"
+    Uses CSV text supplied at runtime, which is suitable for Azure Automation
+
+.EXAMPLE
+    .\add-devices-to-groups-from-csv.ps1 -CsvPath "C:\devices.csv" -CreateMissingGroups "true" -Force "true"
     Add devices to groups and automatically create missing groups without prompting
 
 .NOTES
@@ -93,24 +98,70 @@ param(
     })]
     [string]$CsvPath,
 
+    [Parameter(Mandatory = $false, HelpMessage = "CSV text with device identifiers and GroupName, suitable for Azure Automation")]
+    [string]$CsvContent = "",
+
     [Parameter(Mandatory = $false, HelpMessage = "Generate a CSV template file")]
-    [switch]$GenerateTemplate,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$GenerateTemplate,
 
     [Parameter(Mandatory = $false, HelpMessage = "Path for the generated template file")]
     [string]$TemplatePath = "device-group-template.csv",
 
     [Parameter(Mandatory = $false, HelpMessage = "Preview changes without making them")]
-    [switch]$DryRun,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
 
     [Parameter(Mandatory = $false, HelpMessage = "Automatically create missing groups without prompting")]
-    [switch]$CreateMissingGroups,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$CreateMissingGroups,
 
     [Parameter(Mandatory = $false, HelpMessage = "Skip confirmation prompts")]
-    [switch]$Force,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$Force,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('GenerateTemplate', 'DryRun', 'CreateMissingGroups', 'Force')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # TEMPLATE GENERATION
@@ -177,9 +228,19 @@ if ($GenerateTemplate) {
     }
 }
 
-# Validate that CsvPath is provided when not generating template
-if ([string]::IsNullOrWhiteSpace($CsvPath)) {
-    Write-Error "The -CsvPath parameter is required. Use -GenerateTemplate to create a template file first."
+# Validate the input mode when not generating a local template
+if (-not $GenerateTemplate) {
+    $csvInputs = @(
+        if (-not [string]::IsNullOrWhiteSpace($CsvPath)) { 'CsvPath' }
+        if (-not [string]::IsNullOrWhiteSpace($CsvContent)) { 'CsvContent' }
+    )
+    if ($csvInputs.Count -ne 1) {
+        Write-Error "Specify exactly one CSV input: CsvPath or CsvContent. Use GenerateTemplate to create a local template first."
+        exit 1
+    }
+}
+elseif (-not [string]::IsNullOrWhiteSpace($CsvContent)) {
+    Write-Error "CsvContent cannot be combined with GenerateTemplate."
     exit 1
 }
 
@@ -313,8 +374,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $nextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $nextLink : $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -323,18 +383,28 @@ function Get-MgGraphAllPage {
 
 function Import-DeviceCsv {
     param(
-        [string]$Path
+        [string]$Path,
+        [string]$Content
     )
 
     try {
-        Write-Information "Reading CSV file: $Path" -InformationAction Continue
-
-        # Try to detect the delimiter by reading the first line
-        $firstLine = Get-Content -Path $Path -First 1
+        if (-not [string]::IsNullOrWhiteSpace($Content)) {
+            Write-Information "Reading CSV content supplied at runtime" -InformationAction Continue
+            $firstLine = $Content -split '\r?\n' | Select-Object -First 1
+        }
+        else {
+            Write-Information "Reading CSV file: $Path" -InformationAction Continue
+            $firstLine = Get-Content -Path $Path -First 1
+        }
         $delimiter = if ($firstLine -match ',') { ',' } else { ';' }
 
         Write-Verbose "Using delimiter: $delimiter"
-        $csvData = Import-Csv -Path $Path -Delimiter $delimiter -ErrorAction Stop
+        $csvData = if (-not [string]::IsNullOrWhiteSpace($Content)) {
+            $Content | ConvertFrom-Csv -Delimiter $delimiter -ErrorAction Stop
+        }
+        else {
+            Import-Csv -Path $Path -Delimiter $delimiter -ErrorAction Stop
+        }
 
         if (-not $csvData) {
             throw "CSV file is empty or could not be read"
@@ -432,7 +502,7 @@ function Get-EntraIdDevice {
 
     try {
         $filter = "deviceId eq '$AzureAdDeviceId'"
-        $uri = "https://graph.microsoft.com/v1.0/devices?`$filter=$filter"
+        $uri = "https://graph.microsoft.com/beta/devices?`$filter=$filter"
         $response = Invoke-MgGraphRequest -Uri $uri -Method GET
 
         if ($response.value -and $response.value.Count -gt 0) {
@@ -454,7 +524,7 @@ function Get-EntraIdGroup {
 
     try {
         $filter = "displayName eq '$GroupName'"
-        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=$filter"
+        $uri = "https://graph.microsoft.com/beta/groups?`$filter=$filter"
         $response = Invoke-MgGraphRequest -Uri $uri -Method GET
 
         if ($response.value -and $response.value.Count -gt 0) {
@@ -477,7 +547,7 @@ function Test-DeviceInGroup {
 
     try {
         if (-not $script:groupMemberCache.ContainsKey($GroupId)) {
-            $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id"
+            $uri = "https://graph.microsoft.com/beta/groups/$GroupId/members?`$select=id"
             $members = Get-MgGraphAllPage -Uri $uri
 
             $memberIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -515,7 +585,7 @@ function New-EntraIdGroup {
                 description     = "Device group created by Intune Automation"
             } | ConvertTo-Json -Depth 10
 
-            $newGroup = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/groups" -Method POST -Body $groupBody -ContentType "application/json"
+            $newGroup = Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/groups" -Method POST -Body $groupBody -ContentType "application/json"
             Write-Information "Created group: $GroupName" -InformationAction Continue
             return $newGroup
         }
@@ -540,10 +610,10 @@ function Add-DeviceToGroup {
     if ($PSCmdlet.ShouldProcess("$DeviceName to $GroupName", "Add device to group")) {
         try {
             $addBody = @{
-                "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$DeviceId"
+                "@odata.id" = "https://graph.microsoft.com/beta/directoryObjects/$DeviceId"
             } | ConvertTo-Json
 
-            $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members/`$ref"
+            $uri = "https://graph.microsoft.com/beta/groups/$GroupId/members/`$ref"
             Invoke-MgGraphRequest -Uri $uri -Method POST -Body $addBody -ContentType "application/json"
 
             return $true
@@ -569,11 +639,11 @@ try {
     }
 
     # Import CSV data
-    $csvData = Import-DeviceCsv -Path $CsvPath
+    $csvData = Import-DeviceCsv -Path $CsvPath -Content $CsvContent
 
     # Get all Intune managed devices
     Write-Output "Retrieving all Intune managed devices..."
-    $allDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    $allDevices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
     Write-Output "Found $($allDevices.Count) managed devices"
 
     # Track statistics

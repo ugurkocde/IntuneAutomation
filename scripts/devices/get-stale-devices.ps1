@@ -10,7 +10,7 @@
     then identifies devices that are considered "stale" based on their last check-in date.
     The script supports all device platforms (Windows, iOS, Android, macOS) and provides
     comprehensive reporting with options to export results to CSV format.
-    
+
     Stale devices may indicate hardware that is no longer in use, devices that have been
     reimaged without proper cleanup, or devices experiencing connectivity issues.
 
@@ -27,15 +27,16 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.2 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-stale-devices.ps1 -DaysStale 30
@@ -46,11 +47,11 @@
     Gets Windows devices that haven't checked in for 60 days and exports to CSV
 
 .EXAMPLE
-    .\get-stale-devices.ps1 -DaysStale 90 -IncludeNeverCheckedIn -ShowProgressBar
+    .\get-stale-devices.ps1 -DaysStale 90 -IncludeNeverCheckedIn "true" -ShowProgressBar "true"
     Gets devices stale for 90+ days, includes devices that never checked in, with progress display
 
 .EXAMPLE
-    .\get-stale-devices.ps1 -DaysStale 30 -ForceModuleInstall
+    .\get-stale-devices.ps1 -DaysStale 30 -ForceModuleInstall "true"
     Gets stale devices and forces module installation without prompting
 
 .NOTES
@@ -69,26 +70,68 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Number of days since last check-in to consider a device stale")]
     [ValidateRange(1, 1000)]
     [int]$DaysStale,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by specific platform (Windows, iOS, Android, macOS)")]
     [ValidateSet("Windows", "iOS", "Android", "macOS", "All")]
     [string]$Platform = "All",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Include devices that have never checked in")]
-    [switch]$IncludeNeverCheckedIn,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeNeverCheckedIn,
+
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV file path")]
     [string]$ExportPath,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Show progress bar during processing")]
-    [switch]$ShowProgressBar,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgressBar,
+
     [Parameter(Mandatory = $false, HelpMessage = "Include additional device details in output")]
-    [switch]$IncludeDetails,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeDetails,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeNeverCheckedIn', 'ShowProgressBar', 'IncludeDetails')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -104,13 +147,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -132,19 +175,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -154,7 +197,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -233,28 +276,28 @@ function Get-MgGraphAllResult {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -263,11 +306,10 @@ function Get-MgGraphAllResult {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -281,20 +323,20 @@ function Test-DeviceStale {
         [Parameter(Mandatory = $false)]
         [switch]$IncludeNeverCheckedIn
     )
-    
+
     $LastCheckIn = $Device.lastSyncDateTime
     $IsStale = $false
-    
+
     if ([string]::IsNullOrEmpty($LastCheckIn) -or $LastCheckIn -eq "0001-01-01T00:00:00Z") {
         # Device has never checked in
-        $IsStale = $IncludeNeverCheckedIn.IsPresent
+        $IsStale = $IncludeNeverCheckedIn
     }
     else {
         $LastCheckInDate = [DateTime]::Parse($LastCheckIn)
         $DaysSinceLastCheckIn = (Get-Date) - $LastCheckInDate
         $IsStale = $DaysSinceLastCheckIn.Days -ge $DaysStale
     }
-    
+
     return $IsStale
 }
 
@@ -306,7 +348,7 @@ function Format-DeviceInfo {
         [Parameter(Mandatory = $false)]
         [switch]$IncludeDetails
     )
-    
+
     $LastCheckIn = $Device.lastSyncDateTime
     $FormattedLastCheckIn = if ([string]::IsNullOrEmpty($LastCheckIn) -or $LastCheckIn -eq "0001-01-01T00:00:00Z") {
         "Never"
@@ -314,14 +356,14 @@ function Format-DeviceInfo {
     else {
         ([DateTime]::Parse($LastCheckIn)).ToString("yyyy-MM-dd HH:mm:ss")
     }
-    
+
     $DaysSinceCheckIn = if ($FormattedLastCheckIn -eq "Never") {
         "N/A"
     }
     else {
         [math]::Floor(((Get-Date) - [DateTime]::Parse($LastCheckIn)).TotalDays)
     }
-    
+
     $DeviceInfo = [PSCustomObject]@{
         DeviceName       = $Device.deviceName
         Platform         = $Device.operatingSystem
@@ -337,11 +379,11 @@ function Format-DeviceInfo {
         ComplianceState  = $Device.complianceState
         ManagementState  = $Device.managementState
     }
-    
+
     if (-not $IncludeDetails) {
         $DeviceInfo = $DeviceInfo | Select-Object DeviceName, Platform, OSVersion, LastCheckIn, DaysSinceCheckIn, Ownership, ComplianceState
     }
-    
+
     return $DeviceInfo
 }
 
@@ -351,7 +393,7 @@ function Get-PlatformFilter {
         [Parameter(Mandatory = $true)]
         [string]$Platform
     )
-    
+
     switch ($Platform) {
         "Windows" { return "operatingSystem eq 'Windows'" }
         "iOS" { return "operatingSystem eq 'iOS'" }
@@ -371,12 +413,12 @@ try {
     Write-Output "Configuration:"
     Write-Output "  - Days considered stale: $DaysStale"
     Write-Output "  - Platform filter: $Platform"
-    Write-Output "  - Include never checked in: $($IncludeNeverCheckedIn.IsPresent)"
-    
+    Write-Output "  - Include never checked in: $($IncludeNeverCheckedIn)"
+
     # Build the API URI with optional platform filter
-    $BaseUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    $BaseUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
     $PlatformFilter = Get-PlatformFilter -Platform $Platform
-    
+
     if ($PlatformFilter) {
         $Uri = "$BaseUri?`$filter=$PlatformFilter"
         Write-Output "  - Applying platform filter: $PlatformFilter"
@@ -384,35 +426,35 @@ try {
     else {
         $Uri = $BaseUri
     }
-    
+
     # Retrieve all managed devices
     Write-Output "Retrieving managed devices from Intune..."
     $AllDevices = Get-MgGraphAllResult -Uri $Uri
     Write-Output "✓ Retrieved $($AllDevices.Count) devices"
-    
+
     # Process devices to find stale ones
     Write-Output "Analyzing devices for staleness..."
     $StaleDevices = @()
     $ProcessedCount = 0
-    
+
     foreach ($Device in $AllDevices) {
         $ProcessedCount++
-        
+
         if ($ShowProgressBar) {
             $PercentComplete = [math]::Round(($ProcessedCount / $AllDevices.Count) * 100)
             Write-Progress -Activity "Analyzing devices" -Status "Processing device $ProcessedCount of $($AllDevices.Count)" -PercentComplete $PercentComplete
         }
-        
+
         if (Test-DeviceStale -Device $Device -DaysStale $DaysStale -IncludeNeverCheckedIn:$IncludeNeverCheckedIn) {
             $FormattedDevice = Format-DeviceInfo -Device $Device -IncludeDetails:$IncludeDetails
             $StaleDevices += $FormattedDevice
         }
     }
-    
+
     if ($ShowProgressBar) {
         Write-Progress -Activity "Analyzing devices" -Completed
     }
-    
+
     # Display results
     Write-Output "✓ Analysis completed"
     Write-Output ""
@@ -425,7 +467,7 @@ try {
     Write-Output "Platform filter: $Platform"
     Write-Output "========================================"
     Write-Output ""
-    
+
     if ($StaleDevices.Count -gt 0) {
         # Group by platform for summary
         $PlatformSummary = $StaleDevices | Group-Object Platform | Sort-Object Name
@@ -434,10 +476,10 @@ try {
             Write-Output "  - $($Group.Name): $($Group.Count) devices"
         }
         Write-Output ""
-        
+
         # Display the stale devices
         $StaleDevices | Sort-Object Platform, DeviceName | Format-Table -AutoSize
-        
+
         # Export to CSV if path specified
         if ($ExportPath) {
             try {
@@ -452,7 +494,7 @@ try {
     else {
         Write-Output "No stale devices found matching the specified criteria."
     }
-    
+
     Write-Output "✓ Script completed successfully"
 }
 catch {

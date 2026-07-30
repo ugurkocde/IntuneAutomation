@@ -23,16 +23,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Managed device query now requests only the fields used by the report; output directory is created automatically when missing; per-device policy state calls are spaced with a short delay to reduce throttling; policy-state and summary counts are wrapped in @() so single-result queries report accurate totals; progress bar output is suppressed in Azure Automation
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-device-compliance-report.ps1
@@ -43,7 +44,7 @@
     Generates reports and saves them to the specified directory
 
 .EXAMPLE
-    .\get-device-compliance-report.ps1 -ForceModuleInstall
+    .\get-device-compliance-report.ps1 -ForceModuleInstall "true"
     Generates reports and forces module installation without prompting
 
 .NOTES
@@ -59,13 +60,53 @@
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Output directory for the reports")]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Open the HTML report after generation")]
-    [switch]$OpenReport,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OpenReport,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OpenReport')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -81,13 +122,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -109,19 +150,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -131,7 +172,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -211,28 +252,28 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -241,11 +282,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -259,13 +299,13 @@ try {
     # Get all managed devices (only the fields used by the report)
     Write-Output "Retrieving managed devices..."
     $deviceSelect = "id,deviceName,userPrincipalName,userDisplayName,operatingSystem,osVersion,model,manufacturer,serialNumber,lastSyncDateTime,enrolledDateTime,managementState,managedDeviceOwnerType,complianceGracePeriodExpirationDateTime"
-    $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=$deviceSelect"
+    $devices = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=$deviceSelect"
     Write-Output "✓ Found $($devices.Count) managed devices"
 
     # Get compliance policies
     try {
         Write-Output "Retrieving compliance policies..."
-        $compliancePolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
+        $compliancePolicies = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies"
         Write-Output "✓ Found $($compliancePolicies.Count) compliance policies"
     }
     catch {
@@ -290,7 +330,7 @@ try {
             Start-Sleep -Milliseconds 100
 
             # Get device compliance details
-            $complianceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates"
+            $complianceUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$($device.id)')/deviceCompliancePolicyStates"
             $deviceCompliance = Get-MgGraphAllPage -Uri $complianceUri
 
             # Calculate compliance summary
@@ -298,18 +338,18 @@ try {
             $nonCompliantPolicies = @($deviceCompliance | Where-Object { $_.state -eq "nonCompliant" }).Count
             $errorPolicies = @($deviceCompliance | Where-Object { $_.state -eq "error" }).Count
             $totalPolicies = @($deviceCompliance).Count
-            
+
             # Determine overall compliance status
-            $overallCompliance = if ($nonCompliantPolicies -gt 0 -or $errorPolicies -gt 0) { 
-                "Non-Compliant" 
+            $overallCompliance = if ($nonCompliantPolicies -gt 0 -or $errorPolicies -gt 0) {
+                "Non-Compliant"
             }
-            elseif ($compliantPolicies -gt 0) { 
-                "Compliant" 
+            elseif ($compliantPolicies -gt 0) {
+                "Compliant"
             }
-            else { 
-                "Unknown" 
+            else {
+                "Unknown"
             }
-            
+
             # Calculate days since last sync
             $daysSinceSync = if ($device.lastSyncDateTime) {
                 [math]::Round(((Get-Date) - [DateTime]$device.lastSyncDateTime).TotalDays, 1)
@@ -317,7 +357,7 @@ try {
             else {
                 "Never"
             }
-            
+
             # Create device report object
             $deviceInfo = [PSCustomObject]@{
                 DeviceName                              = $device.deviceName
@@ -341,9 +381,9 @@ try {
                 ComplianceGracePeriodExpirationDateTime = $device.complianceGracePeriodExpirationDateTime
                 DeviceId                                = $device.id
             }
-            
+
             $report += $deviceInfo
-            
+
         }
         catch {
             Write-Warning "Error processing device $($device.deviceName): $($_.Exception.Message)"
@@ -403,7 +443,7 @@ try {
         <h1>Intune Device Compliance Report</h1>
         <p>Generated on: $(Get-Date -Format "dddd, MMMM dd, yyyy 'at' HH:mm:ss")</p>
     </div>
-    
+
     <div class="summary">
         <h2>Summary</h2>
         <div class="summary-grid">
@@ -431,14 +471,14 @@ try {
         $htmlContent += "<table><thead><tr>"
         $htmlContent += "<th>Device Name</th><th>User</th><th>OS</th><th>Compliance Status</th><th>Compliant Policies</th><th>Non-Compliant Policies</th><th>Last Sync</th><th>Days Since Sync</th>"
         $htmlContent += "</tr></thead><tbody>"
-        
+
         foreach ($device in $report | Sort-Object DeviceName) {
             $complianceClass = switch ($device.OverallCompliance) {
                 "Compliant" { "compliant" }
                 "Non-Compliant" { "non-compliant" }
                 default { "unknown" }
             }
-            
+
             $htmlContent += "<tr>"
             $htmlContent += "<td>$($device.DeviceName)</td>"
             $htmlContent += "<td>$($device.UserDisplayName)</td>"
@@ -450,14 +490,14 @@ try {
             $htmlContent += "<td>$($device.DaysSinceLastSync)</td>"
             $htmlContent += "</tr>"
         }
-        
+
         $htmlContent += "</tbody></table>"
         $htmlContent += "<div class='footer'>Report generated by Intune Device Compliance Script v1.0</div>"
         $htmlContent += "</body></html>"
-        
+
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
         Write-Output "✓ HTML report saved: $htmlPath"
-        
+
         if ($OpenReport -and -not $IsAzureAutomation) {
             try {
                 Start-Process $htmlPath
@@ -466,7 +506,7 @@ try {
                 Write-Warning "Could not open the report automatically: $($_.Exception.Message)"
             }
         }
-        
+
     }
     catch {
         Write-Error "Failed to generate HTML report: $($_.Exception.Message)"
@@ -502,4 +542,4 @@ finally {
         # Ignore disconnection errors - this is expected behavior when already disconnected
         Write-Verbose "Graph disconnection completed (may have already been disconnected)"
     }
-} 
+}

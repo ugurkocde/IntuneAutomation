@@ -26,14 +26,15 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\rename-devices-from-csv.ps1 -CsvPath ".\renames.csv" -WhatIf
@@ -42,6 +43,10 @@
 .EXAMPLE
     .\rename-devices-from-csv.ps1 -CsvPath ".\renames.csv"
     Renames all devices listed in the CSV (columns: DeviceName,NewName)
+
+.EXAMPLE
+    .\rename-devices-from-csv.ps1 -CsvContent $csvContent
+    Uses CSV text supplied at runtime, which is suitable for Azure Automation
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
@@ -55,19 +60,61 @@
 
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory = $true, HelpMessage = "Path to CSV file with DeviceName,NewName columns")]
-    [ValidateNotNullOrEmpty()]
+    [Parameter(Mandatory = $false, HelpMessage = "Path to CSV file with DeviceName,NewName columns")]
     [string]$CsvPath,
 
+    [Parameter(Mandatory = $false, HelpMessage = "CSV text with DeviceName,NewName columns, suitable for Azure Automation")]
+    [string]$CsvContent = "",
+
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
-    [switch]$ExportToCsv,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToCsv,
 
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('ExportToCsv')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -196,8 +243,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -220,13 +266,27 @@ function Test-ValidComputerName {
 # ============================================================================
 
 try {
-    if (-not (Test-Path $CsvPath)) {
-        throw "CSV file '$CsvPath' does not exist"
+    $csvInputs = @(
+        if (-not [string]::IsNullOrWhiteSpace($CsvPath)) { 'CsvPath' }
+        if (-not [string]::IsNullOrWhiteSpace($CsvContent)) { 'CsvContent' }
+    )
+    if ($csvInputs.Count -ne 1) {
+        throw "Specify exactly one CSV input: CsvPath or CsvContent."
     }
 
-    $renameEntries = @(Import-Csv -Path $CsvPath)
+    if (-not [string]::IsNullOrWhiteSpace($CsvContent)) {
+        $renameEntries = @($CsvContent | ConvertFrom-Csv -ErrorAction Stop)
+        $csvSourceDescription = "runtime CSV content"
+    }
+    else {
+        if (-not (Test-Path $CsvPath)) {
+            throw "CSV file '$CsvPath' does not exist"
+        }
+        $renameEntries = @(Import-Csv -Path $CsvPath -ErrorAction Stop)
+        $csvSourceDescription = $CsvPath
+    }
     if ($renameEntries.Count -eq 0) {
-        throw "CSV file '$CsvPath' contains no rows"
+        throw "CSV input contains no rows"
     }
 
     $csvColumns = $renameEntries[0].PSObject.Properties.Name
@@ -234,7 +294,7 @@ try {
         throw "CSV must contain the columns 'DeviceName' and 'NewName' (found: $($csvColumns -join ', '))"
     }
 
-    Write-Output "✓ Loaded $($renameEntries.Count) rename entries from CSV"
+    Write-Output "✓ Loaded $($renameEntries.Count) rename entries from $csvSourceDescription"
 
     [System.Collections.Generic.List[Object]]$report = @()
     $renamed = 0
@@ -303,10 +363,16 @@ try {
 
     # Export to CSV if requested
     if ($ExportToCsv) {
-        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-        $csvOutPath = Join-Path $OutputPath "Device_Rename_Results_$timestamp.csv"
-        $report | Export-Csv -Path $csvOutPath -NoTypeInformation -Encoding UTF8
-        Write-Output "✓ CSV report saved: $csvOutPath"
+        if ($IsAzureAutomation) {
+            Write-Output "CSV report follows in the Azure Automation job output:"
+            $report | ConvertTo-Csv -NoTypeInformation | ForEach-Object { Write-Output $_ }
+        }
+        else {
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $csvOutPath = Join-Path $OutputPath "Device_Rename_Results_$timestamp.csv"
+            $report | Export-Csv -Path $csvOutPath -NoTypeInformation -Encoding UTF8
+            Write-Output "✓ CSV report saved: $csvOutPath"
+        }
     }
 }
 catch {

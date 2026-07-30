@@ -6,10 +6,10 @@
     Automated runbook to monitor stale devices in Intune and send email alerts for cleanup recommendations.
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors devices in 
-    Microsoft Intune that haven't checked in for a specified number of days. It identifies stale 
-    devices across different platforms (Windows, iOS, Android, macOS) and sends email notifications 
-    to administrators with cleanup recommendations. The script helps maintain a clean device inventory 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors devices in
+    Microsoft Intune that haven't checked in for a specified number of days. It identifies stale
+    devices across different platforms (Windows, iOS, Android, macOS) and sends email notifications
+    to administrators with cleanup recommendations. The script helps maintain a clean device inventory
     and optimize licensing costs by identifying devices that may no longer be in use.
 
 .TAGS
@@ -25,16 +25,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; device listing uses select and device fields are HTML-encoded in the email; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -49,11 +50,11 @@
     Notification
 
 .EXAMPLE
-    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
-    Identifies devices that haven't checked in for 90+ days and sends alerts to admin@company.com
+    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
+    Identifies devices that haven't checked in for 90+ days and sends alerts to <recipient-address>
 
 .EXAMPLE
-    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
+    .\stale-device-cleanup-alert.ps1 -StaleAfterDays 60 -EmailRecipients "<recipient-address>,<security-recipient-address>" -SenderUPN "<sender-upn>"
     Identifies devices that haven't checked in for 60+ days and sends alerts to multiple recipients
 
 .NOTES
@@ -73,7 +74,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Number of days since last check-in to consider a device stale")]
     [ValidateRange(7, 365)]
     [int]$StaleAfterDays,
-    
+
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
@@ -83,8 +84,24 @@ param(
     [string]$SenderUPN,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -96,12 +113,12 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -121,18 +138,18 @@ Required modules for this script:
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -142,7 +159,7 @@ Required modules for this script:
                 }
             }
         }
-        
+
         try {
             Write-Verbose "Importing module: $ModuleName"
             Import-Module -Name $ModuleName -Force -ErrorAction Stop
@@ -199,7 +216,7 @@ try {
             "DeviceManagementManagedDevices.Read.All",
             "Mail.Send"
         )
-        
+
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
     }
@@ -219,27 +236,27 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -248,8 +265,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -259,7 +275,7 @@ function Get-MgGraphAllPage {
 
 function Get-DevicePlatform {
     param([string]$OperatingSystem)
-    
+
     switch -Regex ($OperatingSystem) {
         "^Windows" { return "Windows" }
         "^iOS" { return "iOS" }
@@ -276,9 +292,9 @@ function Get-DeviceStatus {
         [datetime]$LastSyncDateTime,
         [int]$StaleThreshold
     )
-    
+
     $DaysSinceLastSync = ((Get-Date) - $LastSyncDateTime).Days
-    
+
     if ($DaysSinceLastSync -gt $StaleThreshold) {
         return "Stale"
     }
@@ -292,9 +308,9 @@ function Get-DeviceStatus {
 
 function Format-TimeSpan {
     param([datetime]$Date)
-    
+
     $TimeSpan = (Get-Date) - $Date
-    
+
     if ($TimeSpan.TotalDays -lt 1) {
         return "Today"
     }
@@ -313,7 +329,7 @@ function Send-EmailNotification {
         [string]$Subject,
         [string]$Body
     )
-    
+
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
@@ -330,13 +346,13 @@ function Send-EmailNotification {
                     }
                 )
             }
-            
+
             $RequestBody = @{
                 message = $Message
             } | ConvertTo-Json -Depth 10
-            
+
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
@@ -357,13 +373,13 @@ function New-EmailBody {
         [array]$WarningDevices,
         [int]$StaleThreshold
     )
-    
+
     $PlatformSummary = $StaleDevices | Group-Object Platform | Sort-Object Name
     $TotalDevices = $AllDevices.Count
     $StaleCount = $StaleDevices.Count
     $WarningCount = $WarningDevices.Count
     $ActiveCount = $TotalDevices - $StaleCount - $WarningCount
-    
+
     $Body = @"
 <!DOCTYPE html>
 <html>
@@ -394,7 +410,7 @@ function New-EmailBody {
         <h1>🧹 Stale Device Cleanup Alert</h1>
         <p>Devices inactive for $StaleThreshold+ days requiring attention</p>
     </div>
-    
+
     <div class="summary">
         <h2>Device Inventory Summary</h2>
         <div class="stats-grid">
@@ -422,7 +438,7 @@ function New-EmailBody {
         $Body += @"
     <div class="stale">
         <h3><span class="status-icon">🚨</span>Stale Devices - Cleanup Recommended ($StaleCount devices)</h3>
-        
+
         <h4>Platform Breakdown:</h4>
 "@
         foreach ($Platform in $PlatformSummary) {
@@ -445,7 +461,7 @@ function New-EmailBody {
                 <th>Compliance</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($StaleDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 20)) {
             $Body += @"
             <tr>
@@ -458,7 +474,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($StaleDevices.Count -gt 20) {
             $Body += @"
             <tr>
@@ -466,7 +482,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -475,7 +491,7 @@ function New-EmailBody {
     <div class="warning">
         <h3><span class="status-icon">⚠️</span>Warning Devices - Monitor Closely ($WarningCount devices)</h3>
         <p>These devices are approaching the staleness threshold and should be monitored:</p>
-        
+
         <table>
             <tr>
                 <th>Device Name</th>
@@ -485,7 +501,7 @@ function New-EmailBody {
                 <th>Days Inactive</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($WarningDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
@@ -497,7 +513,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($WarningDevices.Count -gt 10) {
             $Body += @"
             <tr>
@@ -505,7 +521,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -519,7 +535,7 @@ function New-EmailBody {
             <li><strong>Consider Seasonal Patterns:</strong> Account for vacation periods, temporary leave, or project cycles</li>
             <li><strong>Backup Important Data:</strong> Ensure any critical data is backed up before device removal</li>
         </ul>
-        
+
         <h4>Cleanup Actions:</h4>
         <ul>
             <li><strong>Retire Devices:</strong> For devices confirmed as no longer in use</li>
@@ -527,11 +543,11 @@ function New-EmailBody {
             <li><strong>Update Asset Inventory:</strong> Reflect changes in your asset management system</li>
             <li><strong>Review Policies:</strong> Update device-based policies and group memberships</li>
         </ul>
-        
+
         <h4>License Impact:</h4>
         <p><strong>Potential License Savings:</strong> Removing $StaleCount stale devices could free up Intune licenses for new device enrollments.</p>
     </div>
-    
+
     <div class="footer">
         <p><strong>Next Steps:</strong></p>
         <ol>
@@ -556,41 +572,41 @@ function New-EmailBody {
 
 try {
     Write-Output "Starting stale device cleanup monitoring..."
-    
+
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-    
+
     if ($EmailRecipientList.Count -eq 0) {
         throw "No valid email recipients provided"
     }
-    
+
     Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
     Write-Output "Stale device threshold: $StaleAfterDays days"
-    
+
     # Initialize results arrays
     $AllDevices = @()
     $StaleDevices = @()
     $WarningDevices = @()
     $NotificationFailed = $false
-    
+
     # Calculate cutoff date for stale devices
     $StaleThresholdDate = (Get-Date).AddDays(-$StaleAfterDays)
     $WarningThresholdDate = (Get-Date).AddDays( - ($StaleAfterDays * 0.8))
-    
+
     Write-Output "Stale threshold date: $($StaleThresholdDate.ToString('yyyy-MM-dd'))"
     Write-Output "Warning threshold date: $($WarningThresholdDate.ToString('yyyy-MM-dd'))"
-    
+
     # ========================================================================
     # GET ALL MANAGED DEVICES
     # ========================================================================
-    
+
     Write-Output "Retrieving all managed devices from Intune..."
-    
+
     try {
-        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer"
+        $DevicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Output "Found $($Devices.Count) managed devices"
-        
+
         foreach ($Device in $Devices) {
             try {
                 # Skip devices without essential information
@@ -598,13 +614,13 @@ try {
                     Write-Verbose "Skipping device with missing essential data (ID: $($Device.id))"
                     continue
                 }
-                
+
                 $LastSyncDateTime = [datetime]$Device.lastSyncDateTime
                 $EnrolledDateTime = if ($Device.enrolledDateTime) { [datetime]$Device.enrolledDateTime } else { $null }
                 $DaysSinceLastSync = ((Get-Date) - $LastSyncDateTime).Days
                 $Platform = Get-DevicePlatform -OperatingSystem $Device.operatingSystem
                 $DeviceStatus = Get-DeviceStatus -LastSyncDateTime $LastSyncDateTime -StaleThreshold $StaleAfterDays
-                
+
                 $DeviceInfo = [PSCustomObject]@{
                     DeviceId          = $Device.id
                     DeviceName        = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
@@ -624,9 +640,9 @@ try {
                     Model             = $Device.model
                     Manufacturer      = $Device.manufacturer
                 }
-                
+
                 $AllDevices += $DeviceInfo
-                
+
                 # Categorize devices based on status
                 if ($DeviceStatus -eq "Stale") {
                     $StaleDevices += $DeviceInfo
@@ -640,7 +656,7 @@ try {
                 continue
             }
         }
-        
+
         Write-Output "✓ Processed $($AllDevices.Count) devices successfully"
         Write-Output "  • Active devices: $(($AllDevices | Where-Object { $_.DeviceStatus -eq 'Active' }).Count)"
         Write-Output "  • Warning devices: $($WarningDevices.Count)"
@@ -650,23 +666,23 @@ try {
         Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
         exit 1
     }
-    
+
     # ========================================================================
     # SEND NOTIFICATIONS IF STALE DEVICES FOUND
     # ========================================================================
-    
+
     if ($StaleDevices.Count -gt 0 -or $WarningDevices.Count -gt 0) {
         Write-Output "Preparing email notification for device cleanup..."
-        
+
         $Subject = if ($StaleDevices.Count -gt 0) {
             "[Intune Alert] CLEANUP REQUIRED: $($StaleDevices.Count) Stale Device(s) Found"
         }
         else {
             "[Intune Alert] WARNING: $($WarningDevices.Count) Device(s) Approaching Staleness"
         }
-        
+
         $EmailBody = New-EmailBody -AllDevices $AllDevices -StaleDevices $StaleDevices -WarningDevices $WarningDevices -StaleThreshold $StaleAfterDays
-        
+
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
@@ -680,24 +696,24 @@ try {
     else {
         Write-Output "✓ No stale or warning devices found. All devices are actively checking in."
     }
-    
+
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
-    
+
     Write-Output "`n🧹 STALE DEVICE CLEANUP MONITORING SUMMARY"
     Write-Output "==========================================="
     Write-Output "Total Managed Devices: $($AllDevices.Count)"
     Write-Output "Stale Threshold: $StaleAfterDays days"
     Write-Output ""
-    
+
     $ActiveCount = ($AllDevices | Where-Object { $_.DeviceStatus -eq "Active" }).Count
     Write-Output "Device Status Breakdown:"
     Write-Output "  • Active: $ActiveCount"
     Write-Output "  • Warning: $($WarningDevices.Count)"
     Write-Output "  • Stale: $($StaleDevices.Count)"
     Write-Output ""
-    
+
     if ($StaleDevices.Count -gt 0) {
         Write-Output "Platform Breakdown (Stale Devices):"
         $PlatformGroups = $StaleDevices | Group-Object Platform | Sort-Object Name
@@ -706,7 +722,7 @@ try {
         }
         Write-Output ""
     }
-    
+
     if ($StaleDevices.Count -gt 0) {
         Write-Output "Top 5 Oldest Stale Devices:"
         $TopStaleDevices = $StaleDevices | Sort-Object DaysSinceLastSync -Descending | Select-Object -First 5
@@ -714,7 +730,7 @@ try {
             Write-Output "  🔸 $($Device.DeviceName) ($($Device.Platform)) - $($Device.DaysSinceLastSync) days"
         }
     }
-    
+
     Write-Output "`n✓ Stale device cleanup monitoring completed successfully"
 }
 catch {

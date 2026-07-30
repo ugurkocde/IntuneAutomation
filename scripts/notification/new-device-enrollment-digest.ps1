@@ -26,14 +26,15 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -48,11 +49,11 @@
     Notification
 
 .EXAMPLE
-    .\new-device-enrollment-digest.ps1 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
-    Emails the last 7 days of new enrollments to admin@company.com
+    .\new-device-enrollment-digest.ps1 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
+    Emails the last 7 days of new enrollments to <recipient-address>
 
 .EXAMPLE
-    .\new-device-enrollment-digest.ps1 -DaysBack 1 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com" -AlwaysSend
+    .\new-device-enrollment-digest.ps1 -DaysBack 1 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>" -AlwaysSend "true"
     Daily digest that is sent even on days without new enrollments
 
 .NOTES
@@ -79,11 +80,51 @@ param(
     [int]$DaysBack = 7,
 
     [Parameter(Mandatory = $false, HelpMessage = "Send the digest even when no devices enrolled in the window")]
-    [switch]$AlwaysSend,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$AlwaysSend,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('AlwaysSend')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -228,8 +269,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -267,7 +307,7 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
 
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }

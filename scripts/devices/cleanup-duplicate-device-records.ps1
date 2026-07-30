@@ -33,26 +33,27 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.2 - Clarified that only Intune managed-device records are evaluated and removed
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-29
+    2026-07-30
 
 .EXAMPLE
     .\cleanup-duplicate-device-records.ps1
     Reports duplicate Intune managed-device records without deleting anything
 
 .EXAMPLE
-    .\cleanup-duplicate-device-records.ps1 -Remove -WhatIf
+    .\cleanup-duplicate-device-records.ps1 -Remove "true" -WhatIf
     Shows exactly which Intune managed-device records would be deleted, without deleting them
 
 .EXAMPLE
-    .\cleanup-duplicate-device-records.ps1 -Remove
+    .\cleanup-duplicate-device-records.ps1 -Remove "true"
     Deletes the older duplicate Intune managed-device records after an interactive confirmation
 
 .NOTES
@@ -70,17 +71,58 @@
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "High")]
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Delete the older duplicate Intune managed-device records instead of only reporting")]
-    [switch]$Remove,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$Remove,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
-    [switch]$ExportToCsv,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToCsv,
 
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('Remove', 'ExportToCsv')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -208,8 +250,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink)
 

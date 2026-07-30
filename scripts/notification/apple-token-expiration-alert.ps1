@@ -6,9 +6,9 @@
     Automated runbook to monitor Apple DEP tokens and VPP tokens expiration and send email alerts.
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration 
-    status of Apple Device Enrollment Program (DEP) tokens and Apple Push Notification Service (APNS) 
-    certificates in Microsoft Intune. When tokens or certificates are approaching expiration or have 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors the expiration
+    status of Apple Device Enrollment Program (DEP) tokens and Apple Push Notification Service (APNS)
+    certificates in Microsoft Intune. When tokens or certificates are approaching expiration or have
     expired, the script sends email notifications to specified recipients using Microsoft Graph Mail API.
 
 .TAGS
@@ -18,22 +18,23 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementServiceConfig.Read.All,DeviceManagementConfiguration.Read.All,Mail.Send
+    DeviceManagementServiceConfig.Read.All,Mail.Send
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; APNS certificates without an expiration date are recorded as Unknown expiry instead of failing; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -48,11 +49,11 @@
     Notification
 
 .EXAMPLE
-    .\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
-    Checks for tokens expiring within 30 days and sends alerts to admin@company.com
+    .\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
+    Checks for tokens expiring within 30 days and sends alerts to <recipient-address>
 
 .EXAMPLE
-    .\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
+    .\apple-token-expiration-alert.ps1 -NotificationDays 7 -EmailRecipients "<recipient-address>,<security-recipient-address>" -SenderUPN "<sender-upn>"
     Checks for tokens expiring within 7 days and sends alerts to multiple recipients
 
 .NOTES
@@ -72,7 +73,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Number of days before expiration to trigger notifications")]
     [ValidateRange(1, 365)]
     [int]$NotificationDays,
-    
+
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
@@ -82,8 +83,24 @@ param(
     [string]$SenderUPN,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -95,12 +112,12 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -120,18 +137,18 @@ Required modules for this script:
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -141,7 +158,7 @@ Required modules for this script:
                 }
             }
         }
-        
+
         try {
             Write-Verbose "Importing module: $ModuleName"
             Import-Module -Name $ModuleName -Force -ErrorAction Stop
@@ -196,10 +213,9 @@ try {
         Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementServiceConfig.Read.All",
-            "DeviceManagementConfiguration.Read.All",
             "Mail.Send"
         )
-        
+
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
     }
@@ -219,27 +235,27 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -248,8 +264,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -264,9 +279,9 @@ function Get-TokenHealthStatus {
         [string]$LastSyncStatus,
         [int]$WarningDays
     )
-    
+
     $DaysUntilExpiration = ($ExpirationDate - (Get-Date)).Days
-    
+
     if ($State -eq "expired" -or $DaysUntilExpiration -le 0) {
         return "Critical"
     }
@@ -286,9 +301,9 @@ function Get-TokenHealthStatus {
 
 function Format-TimeSpan {
     param([datetime]$Date)
-    
+
     $TimeSpan = $Date - (Get-Date)
-    
+
     if ($TimeSpan.TotalDays -gt 0) {
         return "$([math]::Round($TimeSpan.TotalDays)) days"
     }
@@ -307,7 +322,7 @@ function Send-EmailNotification {
         [string]$Subject,
         [string]$Body
     )
-    
+
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
@@ -324,13 +339,13 @@ function Send-EmailNotification {
                     }
                 )
             }
-            
+
             $RequestBody = @{
                 message = $Message
             } | ConvertTo-Json -Depth 10
-            
+
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
@@ -349,11 +364,11 @@ function New-EmailBody {
         [array]$Tokens,
         [int]$NotificationDays
     )
-    
+
     $CriticalTokens = $Tokens | Where-Object { $_.HealthStatus -eq "Critical" }
     $WarningTokens = $Tokens | Where-Object { $_.HealthStatus -eq "Warning" }
     $HealthyTokens = $Tokens | Where-Object { $_.HealthStatus -eq "Healthy" }
-    
+
     $Body = @"
 <!DOCTYPE html>
 <html>
@@ -376,7 +391,7 @@ function New-EmailBody {
         <h1>🍎 Apple Token Expiration Alert</h1>
         <p>Notification threshold: $NotificationDays days</p>
     </div>
-    
+
     <div class="summary">
         <h2>Summary</h2>
         <p><strong>Total Tokens/Certificates:</strong> $($Tokens.Count)</p>
@@ -447,47 +462,47 @@ function New-EmailBody {
 
 try {
     Write-Output "Starting Apple token expiration monitoring..."
-    
+
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-    
+
     if ($EmailRecipientList.Count -eq 0) {
         throw "No valid email recipients provided"
     }
-    
+
     Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
     Write-Output "Notification threshold: $NotificationDays days"
-    
+
     # Initialize results arrays
     $AllTokens = @()
     $TokensRequiringAttention = @()
     $NotificationFailed = $false
-    
+
     # ========================================================================
     # GET DEP TOKENS
     # ========================================================================
-    
+
     Write-Output "Retrieving Apple DEP tokens..."
-    
+
     try {
         $DepTokensUri = "https://graph.microsoft.com/beta/deviceManagement/depOnboardingSettings"
         $DepTokens = Get-MgGraphAllPage -Uri $DepTokensUri
         Write-Output "Found $($DepTokens.Count) DEP token entries"
-        
+
         foreach ($Token in $DepTokens) {
             try {
                 if (-not $Token.tokenExpirationDateTime -or -not $Token.id) {
                     continue
                 }
-                
+
                 $ExpirationDate = [datetime]$Token.tokenExpirationDateTime
                 $LastSyncDate = if ($Token.lastSuccessfulSyncDateTime) { [datetime]$Token.lastSuccessfulSyncDateTime } else { $null }
-                
+
                 $State = if ($ExpirationDate -lt (Get-Date)) { "expired" } else { "valid" }
                 $LastSyncStatus = if ($Token.lastSyncErrorCode -eq 0 -or $null -eq $Token.lastSyncErrorCode) { "completed" } else { "failed" }
-                
+
                 $HealthStatus = Get-TokenHealthStatus -State $State -ExpirationDate $ExpirationDate -LastSyncStatus $LastSyncStatus -WarningDays $NotificationDays
-                
+
                 $TokenInfo = [PSCustomObject]@{
                     TokenType           = "DEP"
                     TokenName           = if ($Token.tokenName) { $Token.tokenName } else { "DEP Token" }
@@ -501,9 +516,9 @@ try {
                     HealthStatus        = $HealthStatus
                     TokenId             = $Token.id
                 }
-                
+
                 $AllTokens += $TokenInfo
-                
+
                 if ($HealthStatus -in @("Critical", "Warning")) {
                     $TokensRequiringAttention += $TokenInfo
                 }
@@ -517,17 +532,17 @@ try {
     catch {
         Write-Warning "Failed to retrieve DEP tokens: $($_.Exception.Message)"
     }
-    
+
     # ========================================================================
     # GET APPLE PUSH NOTIFICATION CERTIFICATE
     # ========================================================================
-    
+
     Write-Output "Retrieving Apple Push Notification Certificate..."
-    
+
     try {
-        $ApnsCertUri = "https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate"
+        $ApnsCertUri = "https://graph.microsoft.com/beta/deviceManagement/applePushNotificationCertificate"
         $ApnsCert = Invoke-MgGraphRequest -Uri $ApnsCertUri -Method GET
-        
+
         if ($ApnsCert) {
             $LastModifiedDate = if ($ApnsCert.lastModifiedDateTime) { [datetime]$ApnsCert.lastModifiedDateTime } else { $null }
             $LastSyncStatus = if ([string]::IsNullOrEmpty($ApnsCert.certificateUploadFailureReason)) { "completed" } else { "failed" }
@@ -588,17 +603,17 @@ try {
     catch {
         Write-Warning "Failed to retrieve Apple Push Notification Certificate: $($_.Exception.Message)"
     }
-    
+
     # ========================================================================
     # SEND NOTIFICATIONS IF REQUIRED
     # ========================================================================
-    
+
     if ($TokensRequiringAttention.Count -gt 0) {
         Write-Output "Preparing email notification..."
-        
+
         $CriticalCount = ($TokensRequiringAttention | Where-Object { $_.HealthStatus -eq "Critical" }).Count
         $WarningCount = ($TokensRequiringAttention | Where-Object { $_.HealthStatus -eq "Warning" }).Count
-        
+
         $Subject = if ($CriticalCount -gt 0) {
             "[Intune Alert] CRITICAL: $CriticalCount Apple Token(s) Expired/Invalid"
         }
@@ -608,9 +623,9 @@ try {
         else {
             "[Intune Alert] Apple Token Status Report"
         }
-        
+
         $EmailBody = New-EmailBody -Tokens $AllTokens -NotificationDays $NotificationDays
-        
+
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
@@ -624,28 +639,28 @@ try {
     else {
         Write-Output "✓ All tokens are healthy. No notification required."
     }
-    
+
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
-    
+
     Write-Output "`n🍎 APPLE TOKEN EXPIRATION MONITORING SUMMARY"
     Write-Output "============================================="
     Write-Output "Total Tokens/Certificates: $($AllTokens.Count)"
     Write-Output "  • DEP Tokens: $(($AllTokens | Where-Object { $_.TokenType -eq 'DEP' }).Count)"
     Write-Output "  • APNS Certificates: $(($AllTokens | Where-Object { $_.TokenType -eq 'APNS' }).Count)"
     Write-Output ""
-    
+
     $CriticalCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Critical" }).Count
     $WarningCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Warning" }).Count
     $HealthyCount = ($AllTokens | Where-Object { $_.HealthStatus -eq "Healthy" }).Count
-    
+
     Write-Output "Health Status:"
     Write-Output "  • Critical: $CriticalCount"
     Write-Output "  • Warning: $WarningCount"
     Write-Output "  • Healthy: $HealthyCount"
     Write-Output ""
-    
+
     if ($TokensRequiringAttention.Count -gt 0) {
         Write-Output "Tokens Requiring Attention:"
         foreach ($Token in ($TokensRequiringAttention | Sort-Object HealthStatus, DaysUntilExpiration)) {
@@ -653,7 +668,7 @@ try {
             Write-Output "  $StatusIcon $($Token.TokenName) ($($Token.TokenType)) - $($Token.ExpirationStatus)"
         }
     }
-    
+
     Write-Output "`n✓ Apple token expiration monitoring completed successfully"
 }
 catch {

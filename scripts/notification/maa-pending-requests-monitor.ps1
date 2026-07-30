@@ -6,10 +6,10 @@
     Automated runbook to monitor Multi-Admin Approval (MAA) pending requests in Intune and send email alerts to approvers.
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors Multi-Admin Approval 
-    requests in Microsoft Intune and identifies pending approval requests. It tracks new requests, monitors 
-    request age, identifies approvers, and sends email notifications to administrators with detailed request 
-    information and direct links to the Intune portal. The script helps maintain security compliance by ensuring 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors Multi-Admin Approval
+    requests in Microsoft Intune and identifies pending approval requests. It tracks new requests, monitors
+    request age, identifies approvers, and sends email notifications to administrators with detailed request
+    information and direct links to the Intune portal. The script helps maintain security compliance by ensuring
     timely review of administrative changes and provides visibility into the MAA approval workflow.
 
     Key Features:
@@ -36,9 +36,10 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); request expiry now derives from the real expirationDateTime property instead of an assumed 30-day lifetime; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); pending request fields now map to real operationApprovalRequest properties (requestor identitySet, requiredOperationApprovalPolicyTypes)
@@ -57,14 +58,14 @@
     Notification
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
-    .\maa-pending-requests-monitor.ps1 -EmailRecipients "security@company.com" -SenderUPN "intune-alerts@company.com" -UrgentThresholdHours 24
+    .\maa-pending-requests-monitor.ps1 -EmailRecipients "<security-recipient-address>" -SenderUPN "<sender-upn>" -UrgentThresholdHours 24
     Monitors MAA requests and alerts security team, marking requests older than 24 hours as urgent
 
 .EXAMPLE
-    .\maa-pending-requests-monitor.ps1 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com" -UrgentThresholdHours 48 -EscalationThresholdHours 72
+    .\maa-pending-requests-monitor.ps1 -EmailRecipients "<recipient-address>,<security-recipient-address>" -SenderUPN "<sender-upn>" -UrgentThresholdHours 48 -EscalationThresholdHours 72
     Monitors MAA requests with multiple recipients and escalation for requests older than 72 hours
 
 .NOTES
@@ -102,24 +103,65 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Hours before marking a request as urgent")]
     [ValidateRange(1, 168)]
     [int]$UrgentThresholdHours = 24,
-    
+
     # Threshold for escalation alerts
     [Parameter(Mandatory = $false, HelpMessage = "Hours before sending escalation alerts")]
     [ValidateRange(1, 720)]
     [int]$EscalationThresholdHours = 72,
-    
+
     # Include approved/rejected requests in summary
     [Parameter(Mandatory = $false, HelpMessage = "Include recently processed requests in notification")]
-    [switch]$IncludeProcessedRequests,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeProcessedRequests,
+
     # Force notification even if no new requests
     [Parameter(Mandatory = $false, HelpMessage = "Send notification even if no new pending requests")]
-    [switch]$ForceNotification,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceNotification,
+
     # Force module installation without prompting
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeProcessedRequests', 'ForceNotification')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -131,20 +173,20 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is already loaded
         $loadedModule = Get-Module -Name $ModuleName
         if ($loadedModule) {
             Write-Verbose "Module '$ModuleName' is already loaded (version $($loadedModule.Version))"
             continue
         }
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -157,7 +199,7 @@ Required modules: $($ModuleNames -join ', ')
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Installing..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Module '$ModuleName' is required but not installed. Install it now? (Y/N)"
                     if ($response -ne 'Y' -and $response -ne 'y') {
@@ -165,12 +207,12 @@ Required modules: $($ModuleNames -join ', ')
                         exit 1
                     }
                 }
-                
+
                 try {
                     Write-Information "Installing module: $ModuleName" -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
                     Write-Information "✓ Successfully installed module: $ModuleName" -InformationAction Continue
-                    
+
                     # Refresh available modules
                     $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
                 }
@@ -181,7 +223,7 @@ Required modules: $($ModuleNames -join ', ')
                 }
             }
         }
-        
+
         # Import module only if not already loaded
         if (-not (Get-Module -Name $ModuleName)) {
             try {
@@ -233,7 +275,7 @@ Initialize-RequiredModule -ModuleNames $RequiredModules -IsAutomationEnvironment
 # Connect to Microsoft Graph
 try {
     Write-Output "Connecting to Microsoft Graph..."
-    
+
     if ($RunningInAzureAutomation) {
         # Use Managed Identity in Azure Automation
         Connect-MgGraph -Identity -NoWelcome
@@ -283,27 +325,27 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -312,8 +354,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -325,26 +366,26 @@ function Get-MgGraphAllPage {
 function Get-MAAPendingRequest {
     try {
         Write-Information "Retrieving MAA pending requests..." -InformationAction Continue
-        
+
         $PendingRequests = @()
-        
+
         # Get all operation approval requests from the correct endpoint
         try {
             $Uri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalRequests"
             Write-Information "Querying MAA requests from: $Uri" -InformationAction Continue
-            
+
             $AllRequests = Get-MgGraphAllPage -Uri $Uri -DelayMs 200
-            
+
             foreach ($Request in $AllRequests) {
                 # Check if request is pending (status = 0 or status field indicates pending)
                 # MAA request statuses: 0 = Pending, 1 = Approved, 2 = Rejected, 3 = Cancelled, 4 = Completed
                 if ($Request.status -eq 0 -or $Request.status -eq "pending" -or $Request.status -eq "needsApproval") {
-                    
+
                     # Calculate age and expiry
-                    $RequestDateTime = if ($Request.requestDateTime) { [DateTime]$Request.requestDateTime } 
+                    $RequestDateTime = if ($Request.requestDateTime) { [DateTime]$Request.requestDateTime }
                     elseif ($Request.createdDateTime) { [DateTime]$Request.createdDateTime }
                     else { [DateTime]::Now }
-                    
+
                     $AgeInHours = [Math]::Round(((Get-Date) - $RequestDateTime).TotalHours, 1)
 
                     # Use the real expirationDateTime from the request (MAA requests expire after 3 days)
@@ -353,7 +394,7 @@ function Get-MAAPendingRequest {
                         if ($RemainingDays -lt 0) { "Expired" } else { $RemainingDays }
                     }
                     else { "Unknown" }
-                    
+
                     # Get requester information (requestor is an identitySet; no userPrincipalName is exposed)
                     $RequesterName = if ($Request.requestor.user.displayName) { $Request.requestor.user.displayName }
                     else { "Unknown" }
@@ -369,7 +410,7 @@ function Get-MAAPendingRequest {
 
                     $ResourceType = if ($PolicyTypes) { $PolicyTypes }
                     else { "Unknown" }
-                    
+
                     $PendingRequest = [PSCustomObject]@{
                         Id                    = $Request.id
                         RequestTime           = $RequestDateTime
@@ -384,30 +425,30 @@ function Get-MAAPendingRequest {
                         DaysUntilExpiry       = $DaysUntilExpiry
                         ApprovalPolicy        = if ($PolicyTypes) { $PolicyTypes } else { "N/A" }
                     }
-                    
+
                     $PendingRequests += $PendingRequest
                 }
             }
-            
+
             Write-Information "✓ Found $($PendingRequests.Count) pending MAA requests" -InformationAction Continue
         }
         catch {
             Write-Warning "Could not retrieve MAA requests: $($_.Exception.Message)"
-            
+
             # Fallback: Try to get from audit logs
             try {
                 Write-Information "Attempting fallback to audit logs..." -InformationAction Continue
                 $StartDate = (Get-Date).AddDays(-30).ToString("yyyy-MM-dd")
                 $Filter = "activityDateTime ge $StartDate"
-                
-                $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$top=100"
-                
+
+                $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/auditLogs/directoryAudits?`$filter=$Filter&`$top=100"
+
                 foreach ($Log in $AuditLogs) {
                     # Look for multi-admin approval related activities
-                    if ($Log.activityDisplayName -like "*Multi*Admin*" -or 
+                    if ($Log.activityDisplayName -like "*Multi*Admin*" -or
                         $Log.activityDisplayName -like "*Approval*Request*" -or
                         $Log.category -eq "Policy" -and $Log.result -eq "pending") {
-                        
+
                         $PendingRequest = [PSCustomObject]@{
                             Id                    = $Log.id
                             RequestTime           = [DateTime]$Log.activityDateTime
@@ -421,7 +462,7 @@ function Get-MAAPendingRequest {
                             DaysUntilExpiry       = "Unknown"
                             ApprovalPolicy        = "N/A"
                         }
-                        
+
                         $PendingRequests += $PendingRequest
                     }
                 }
@@ -430,13 +471,13 @@ function Get-MAAPendingRequest {
                 Write-Warning "Fallback to audit logs also failed: $($_.Exception.Message)"
             }
         }
-        
+
         # Get operation approval policies for additional context if needed
         try {
             $PoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/operationApprovalPolicies"
             Write-Information "Retrieving MAA policies from: $PoliciesUri" -InformationAction Continue
             $Policies = Get-MgGraphAllPage -Uri $PoliciesUri -DelayMs 200
-            
+
             # Add policy information to requests if available (match on policyType, requests expose no policy id)
             foreach ($Request in $PendingRequests) {
                 if ($Request.ApprovalPolicy -ne "N/A") {
@@ -450,7 +491,7 @@ function Get-MAAPendingRequest {
         catch {
             Write-Information "Could not retrieve MAA policies (non-critical): $($_.Exception.Message)" -InformationAction Continue
         }
-        
+
         return $PendingRequests
     }
     catch {
@@ -464,16 +505,16 @@ function Get-ProcessedRequest {
     param(
         [int]$HoursBack = 24
     )
-    
+
     try {
         Write-Information "Retrieving recently processed MAA requests..." -InformationAction Continue
-        
+
         $ProcessedRequests = @()
         $StartDate = (Get-Date).AddHours(-$HoursBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
         $Filter = "activityDateTime ge $StartDate and category eq 'Policy' and (result eq 'success' or result eq 'failure')"
-        
-        $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?`$filter=$Filter&`$orderby=activityDateTime desc"
-        
+
+        $AuditLogs = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/auditLogs/directoryAudits?`$filter=$Filter&`$orderby=activityDateTime desc"
+
         foreach ($Log in $AuditLogs) {
             if ($Log.activityDisplayName -like "*approval*") {
                 $Request = [PSCustomObject]@{
@@ -488,7 +529,7 @@ function Get-ProcessedRequest {
                 $ProcessedRequests += $Request
             }
         }
-        
+
         return $ProcessedRequests
     }
     catch {
@@ -501,7 +542,10 @@ function Get-ProcessedRequest {
 function Get-NotificationState {
     if ($RunningInAzureAutomation) {
         try {
-            $State = Get-AutomationVariable -Name "MAANotificationState"
+            $State = Get-AutomationVariable -Name "MAANotificationState" -ErrorAction SilentlyContinue
+            if ([string]::IsNullOrWhiteSpace([string]$State)) {
+                return @{ NotifiedRequests = @(); LastRun = (Get-Date).ToString() }
+            }
             return $State | ConvertFrom-Json
         }
         catch {
@@ -521,7 +565,7 @@ function Get-NotificationState {
 # Function to save notification state
 function Set-NotificationState {
     param($State)
-    
+
     if ($RunningInAzureAutomation) {
         try {
             Set-AutomationVariable -Name "MAANotificationState" -Value ($State | ConvertTo-Json -Compress)
@@ -544,11 +588,11 @@ function New-EmailBody {
         [array]$ProcessedRequests,
         [hashtable]$Summary
     )
-    
+
     $UrgentColor = "#dc3545"
     $WarningColor = "#ffc107"
     $NormalColor = "#28a745"
-    
+
     $EmailBody = @"
 <!DOCTYPE html>
 <html>
@@ -601,7 +645,7 @@ function New-EmailBody {
             <h1>🔔 Multi-Admin Approval Alert</h1>
             <div class="subtitle">Pending requests require your immediate attention</div>
         </div>
-        
+
         <div class="content">
             <div class="summary-grid">
                 <div class="summary-card">
@@ -633,16 +677,16 @@ function New-EmailBody {
             <div class="alert-section">
                 <h2>⏳ Pending Approval Requests</h2>
 "@
-        
+
         foreach ($Request in $PendingRequests | Sort-Object -Property AgeInHours -Descending) {
             $AgeClass = if ($Request.AgeInHours -gt $EscalationThresholdHours) { "urgent" }
             elseif ($Request.AgeInHours -gt $UrgentThresholdHours) { "warning" }
             else { "normal" }
-            
+
             $AgeLabel = if ($Request.AgeInHours -gt $EscalationThresholdHours) { "age-urgent" }
             elseif ($Request.AgeInHours -gt $UrgentThresholdHours) { "age-warning" }
             else { "age-normal" }
-            
+
             $EmailBody += @"
                 <div class="request-card $AgeClass">
                     <div class="request-header">
@@ -655,7 +699,7 @@ function New-EmailBody {
                         <strong>Request Time:</strong> $($Request.RequestTime.ToString("yyyy-MM-dd HH:mm:ss"))<br>
                         <strong>Days Until Expiry:</strong> $($Request.DaysUntilExpiry) days
 "@
-            
+
             if ($Request.BusinessJustification) {
                 $EmailBody += @"
                         <div class="justification-box">
@@ -664,7 +708,7 @@ function New-EmailBody {
                         </div>
 "@
             }
-            
+
             if ($Request.DaysUntilExpiry -is [double] -and $Request.DaysUntilExpiry -lt 7) {
                 $EmailBody += @"
                         <div class="expiry-warning">
@@ -672,13 +716,13 @@ function New-EmailBody {
                         </div>
 "@
             }
-            
+
             $EmailBody += @"
                     </div>
                 </div>
 "@
         }
-        
+
         $EmailBody += @"
                 <a href="$MAARequestsUrl" class="action-button">Review Pending Requests in Intune Portal</a>
             </div>
@@ -692,14 +736,14 @@ function New-EmailBody {
             </div>
 "@
     }
-    
+
     # Add processed requests section if requested
     if ($IncludeProcessedRequests -and $ProcessedRequests.Count -gt 0) {
         $EmailBody += @"
             <div class="processed-section">
                 <h3>📋 Recently Processed Requests (Last 24 Hours)</h3>
 "@
-        
+
         foreach ($Request in $ProcessedRequests | Sort-Object -Property ProcessedTime -Descending) {
             $StatusClass = if ($Request.Result -eq "Approved") { "approved" } else { "rejected" }
             $EmailBody += @"
@@ -707,7 +751,7 @@ function New-EmailBody {
                     <div>
                         <strong>$($Request.ResourceName)</strong><br>
                         <span style="font-size: 12px; color: #6c757d;">
-                            Requested by: $($Request.RequestedBy) | 
+                            Requested by: $($Request.RequestedBy) |
                             Processed: $($Request.ProcessedTime.ToString("yyyy-MM-dd HH:mm"))
                         </span>
                     </div>
@@ -715,12 +759,12 @@ function New-EmailBody {
                 </div>
 "@
         }
-        
+
         $EmailBody += @"
             </div>
 "@
     }
-    
+
     # Add recommendations
     $EmailBody += @"
             <div class="processed-section">
@@ -734,12 +778,12 @@ function New-EmailBody {
                     <li>Requests expire after 3 days and will need to be resubmitted</li>
                 </ul>
             </div>
-            
+
             <div class="timestamp">
                 Report generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
             </div>
         </div>
-        
+
         <div class="footer">
             This is an automated notification from your Intune MAA monitoring system.<br>
             For questions about specific requests, contact the requester directly.<br>
@@ -749,7 +793,7 @@ function New-EmailBody {
 </body>
 </html>
 "@
-    
+
     return $EmailBody
 }
 
@@ -763,10 +807,10 @@ function Send-EmailNotification {
         [Parameter(Mandatory = $true)]
         [string]$Subject
     )
-    
+
     try {
         Write-Information "Preparing email notification..." -InformationAction Continue
-        
+
         # Prepare recipients array
         $ToRecipients = @()
         foreach ($Recipient in $Recipients) {
@@ -776,7 +820,7 @@ function Send-EmailNotification {
                 }
             }
         }
-        
+
         # Prepare email message
         $Message = @{
             subject      = $Subject
@@ -787,16 +831,16 @@ function Send-EmailNotification {
             toRecipients = $ToRecipients
             importance   = $EmailConfig.Priority.ToLower()
         }
-        
+
         # Send email using Microsoft Graph
         $RequestBody = @{
             message         = $Message
             saveToSentItems = $false
         } | ConvertTo-Json -Depth 10
-        
-        $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+
+        $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
         Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
-        
+
         Write-Information "✓ Email notification sent successfully to: $($Recipients -join ', ')" -InformationAction Continue
         return $true
     }
@@ -815,19 +859,19 @@ try {
     Write-Output "Urgent Threshold: $UrgentThresholdHours hours"
     Write-Output "Escalation Threshold: $EscalationThresholdHours hours"
     Write-Output "Email Recipients: $EmailRecipients"
-    
+
     # Get notification state
     $NotificationState = Get-NotificationState
-    
+
     # Step 1: Get pending MAA requests
     $PendingRequests = Get-MAAPendingRequest
-    
+
     # Step 2: Get recently processed requests if requested
     $ProcessedRequests = @()
     if ($IncludeProcessedRequests) {
         $ProcessedRequests = Get-ProcessedRequest -HoursBack 24
     }
-    
+
     # Step 3: Analyze requests
     $Summary = @{
         TotalPending   = $PendingRequests.Count
@@ -836,22 +880,22 @@ try {
         ExpiringSoon   = ($PendingRequests | Where-Object { $_.DaysUntilExpiry -is [double] -and $_.DaysUntilExpiry -lt 7 }).Count
         ProcessedCount = $ProcessedRequests.Count
     }
-    
+
     Write-Output "Analysis complete: $($Summary.TotalPending) pending, $($Summary.UrgentCount) urgent, $($Summary.EscalatedCount) escalated"
-    
+
     # Step 4: Determine if notification should be sent
     $NewRequests = @()
     $NotifiedIds = $NotificationState.NotifiedRequests
-    
+
     foreach ($Request in $PendingRequests) {
         if ($Request.Id -notin $NotifiedIds) {
             $NewRequests += $Request
         }
     }
-    
+
     $ShouldSendNotification = $false
     $NotificationReason = ""
-    
+
     if ($NewRequests.Count -gt 0) {
         $ShouldSendNotification = $true
         $NotificationReason = "New requests detected"
@@ -868,38 +912,38 @@ try {
         $ShouldSendNotification = $true
         $NotificationReason = "Forced notification"
     }
-    
+
     if (-not $ShouldSendNotification) {
         Write-Output "✓ No notification needed. No new or urgent requests."
         exit 0
     }
-    
+
     # Step 5: Create and send email notification
     Write-Output "Sending notification: $NotificationReason"
-    
+
     # Prepare email subject
     $AlertLevel = if ($Summary.EscalatedCount -gt 0) { "ESCALATED" }
     elseif ($Summary.UrgentCount -gt 0) { "URGENT" }
     else { "ACTION REQUIRED" }
-    
+
     $Subject = "[$AlertLevel] MAA - $($Summary.TotalPending) Pending Approval Requests"
-    
+
     if ($Summary.EscalatedCount -gt 0) {
         $Subject += " - $($Summary.EscalatedCount) ESCALATED"
     }
-    
+
     # Generate email body
     $EmailBody = New-EmailBody -PendingRequests $PendingRequests -ProcessedRequests $ProcessedRequests -Summary $Summary
-    
+
     # Parse email recipients
     $Recipients = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() }
-    
+
     # Send email notification
     $EmailSent = Send-EmailNotification -Body $EmailBody -Recipients $Recipients -Subject $Subject
-    
+
     if ($EmailSent) {
         Write-Output "✓ Notification sent successfully"
-        
+
         # Update notification state
         $NotificationState.NotifiedRequests = $PendingRequests.Id
         $NotificationState.LastRun = (Get-Date).ToString()
@@ -910,7 +954,7 @@ try {
         Write-Error "Failed to send email notification"
         exit 1
     }
-    
+
     Write-Output "✓ MAA Pending Requests Monitor completed successfully"
 }
 catch {

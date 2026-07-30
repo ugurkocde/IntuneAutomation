@@ -21,31 +21,32 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,Group.Read.All
+    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,GroupMember.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-group-assignments.ps1 -GroupName "Sales Devices"
     Lists everything assigned to the group named Sales Devices
 
 .EXAMPLE
-    .\get-group-assignments.ps1 -GroupId "d0eea876-63b4-4e74-bff8-d11daf12b2f3" -IncludeTenantWide
+    .\get-group-assignments.ps1 -GroupId "d0eea876-63b4-4e74-bff8-d11daf12b2f3" -IncludeTenantWide "true"
     Lists group assignments plus tenant-wide All Users / All Devices assignments
 
 .EXAMPLE
-    .\get-group-assignments.ps1 -GroupName "Pilot Users" -ExportToCsv
+    .\get-group-assignments.ps1 -GroupName "Pilot Users" -ExportToCsv "true"
     Exports the group's assignment list to a timestamped CSV file
 
 .NOTES
@@ -56,28 +57,78 @@
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
-[CmdletBinding(DefaultParameterSetName = "ByName")]
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = "ByName", HelpMessage = "Display name of the Entra ID group")]
+    [Parameter(Mandatory = $false, HelpMessage = "Display name of the Entra ID group")]
     [ValidateNotNullOrEmpty()]
     [string]$GroupName,
 
-    [Parameter(Mandatory = $true, ParameterSetName = "ById", HelpMessage = "Object ID of the Entra ID group")]
+    [Parameter(Mandatory = $false, HelpMessage = "Object ID of the Entra ID group")]
     [ValidateNotNullOrEmpty()]
     [string]$GroupId,
 
     [Parameter(Mandatory = $false, HelpMessage = "Also list tenant-wide All Users / All Devices assignments")]
-    [switch]$IncludeTenantWide,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeTenantWide,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
-    [switch]$ExportToCsv,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToCsv,
 
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeTenantWide', 'ExportToCsv')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
+
+$selectedGroupIdentifiers = @(
+    if (-not [string]::IsNullOrWhiteSpace($GroupName)) { 'ByName' }
+    if (-not [string]::IsNullOrWhiteSpace($GroupId)) { 'ById' }
+)
+if ($selectedGroupIdentifiers.Count -ne 1) {
+    throw "Specify exactly one group identifier: GroupName or GroupId."
+}
+$GroupLookupMode = $selectedGroupIdentifiers[0]
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -160,7 +211,7 @@ try {
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All",
-            "Group.Read.All"
+            "GroupMember.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
     }
@@ -207,8 +258,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -221,7 +271,7 @@ function Get-MgGraphAllPage {
 
 try {
     # ----- Resolve the group -----
-    if ($PSCmdlet.ParameterSetName -eq "ByName") {
+    if ($GroupLookupMode -eq "ByName") {
         Write-Output "Resolving group '$GroupName'..."
         $escapedName = $GroupName -replace "'", "''"
         $groups = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/groups?`$filter=displayName eq '$escapedName'&`$select=id,displayName"

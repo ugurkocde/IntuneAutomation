@@ -24,16 +24,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), -MaxApps now truly caps processed apps instead of only setting page size, genuinely retry an app after a 429 with max 3 attempts (continue was skipping it), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script; app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-app-installation-status-report.ps1
@@ -48,7 +49,7 @@
     Generates report for Windows applications and saves to specified directory
 
 .EXAMPLE
-    .\get-app-installation-status-report.ps1 -FilterByAppName "Microsoft 365" -OpenReport
+    .\get-app-installation-status-report.ps1 -FilterByAppName "Microsoft 365" -OpenReport "true"
     Generates report filtered by application name and opens the HTML report
 
 .NOTES
@@ -79,14 +80,54 @@ param(
     [string]$FilterByAppName = "",
 
     [Parameter(Mandatory = $false)]
-    [switch]$OpenReport,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OpenReport,
 
     [Parameter(Mandatory = $false)]
     [int]$MaxApps = 0,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OpenReport')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -274,8 +315,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $nextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $nextLink : $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -786,8 +826,10 @@ catch {
 finally {
     # Disconnect from Microsoft Graph
     try {
-        Disconnect-MgGraph | Out-Null
-        Write-Output "✓ Disconnected from Microsoft Graph"
+        if (Get-MgContext -ErrorAction SilentlyContinue) {
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+            Write-Output "✓ Disconnected from Microsoft Graph"
+        }
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

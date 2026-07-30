@@ -25,16 +25,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Malformed audit entries are now skipped with a warning instead of aborting the report; date filter is built from UTC; output directory is created automatically before exports; removed unused Get-CategoryFromActivity function; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-intune-audit-logs.ps1
@@ -45,11 +46,11 @@
     Shows the last 50 audit entries from the past 7 days
 
 .EXAMPLE
-    .\get-intune-audit-logs.ps1 -FilterByUser "admin@company.com" -ExportToCsv
+    .\get-intune-audit-logs.ps1 -FilterByUser "<recipient-address>" -ExportToCsv "true"
     Shows all audit entries for a specific user and exports to CSV
 
 .EXAMPLE
-    .\get-intune-audit-logs.ps1 -FilterByActivity "*Policy*" -ExportToHtml -OpenReport
+    .\get-intune-audit-logs.ps1 -FilterByActivity "*Policy*" -ExportToHtml "true" -OpenReport "true"
     Shows audit entries related to policy changes and opens HTML report
 
 .NOTES
@@ -66,42 +67,86 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Number of audit entries to retrieve")]
     [ValidateRange(1, 1000)]
     [int]$NumberOfEntries = 20,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Number of days back to search")]
     [ValidateRange(1, 30)]
     [int]$DaysBack = 30,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by user (supports wildcards)")]
     [string]$FilterByUser,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by activity name (supports wildcards)")]
     [string]$FilterByActivity,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by category")]
     [ValidateSet("Application", "Device", "Role", "User", "Policy", "Compliance", "Enrollment", "All")]
     [string]$FilterByCategory = "All",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Show only failed operations")]
-    [switch]$OnlyFailures,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OnlyFailures,
+
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
-    [switch]$ExportToCsv,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToCsv,
+
     [Parameter(Mandatory = $false, HelpMessage = "Export results to HTML")]
-    [switch]$ExportToHtml,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToHtml,
+
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Open HTML report after generation")]
-    [switch]$OpenReport,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OpenReport,
+
     [Parameter(Mandatory = $false, HelpMessage = "Show detailed properties for each entry")]
-    [switch]$DetailedView,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DetailedView,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OnlyFailures', 'ExportToCsv', 'ExportToHtml', 'OpenReport', 'DetailedView')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -113,30 +158,30 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 throw "Module '$ModuleName' is not available in Azure Automation"
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Installing..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
                 }
@@ -145,7 +190,7 @@ function Initialize-RequiredModule {
                 }
             }
         }
-        
+
         Import-Module -Name $ModuleName -Force -ErrorAction Stop
     }
 }
@@ -205,26 +250,26 @@ function Get-MgGraphAllPage {
         [int]$Top = 0,
         [int]$DelayMs = 100
     )
-    
+
     $allResults = @()
     $nextLink = $Uri
     $requestCount = 0
     $retrievedCount = 0
-    
+
     do {
         try {
             if ($requestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
-            
+
             if ($response.value) {
                 if ($Top -gt 0) {
                     $remaining = $Top - $retrievedCount
                     if ($remaining -le 0) { break }
-                    
+
                     $toTake = [Math]::Min($response.value.Count, $remaining)
                     $allResults += $response.value[0..($toTake - 1)]
                     $retrievedCount += $toTake
@@ -234,9 +279,9 @@ function Get-MgGraphAllPage {
                     $retrievedCount += $response.value.Count
                 }
             }
-            
+
             $nextLink = $response.'@odata.nextLink'
-            
+
             if ($requestCount % 10 -eq 0) {
                 Write-Verbose "Retrieved $retrievedCount audit entries..."
             }
@@ -247,8 +292,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink -and ($Top -eq 0 -or $retrievedCount -lt $Top))
 
@@ -270,7 +314,7 @@ function Format-AuditEntry {
     $actor = if ($Entry.actor.userPrincipalName) { $Entry.actor.userPrincipalName } else { $Entry.actor.applicationDisplayName }
     $result = if ($Entry.activityResult -eq "Success") { "✓" } else { "✗" }
     $resultColor = if ($Entry.activityResult -eq "Success") { "Green" } else { "Red" }
-    
+
     # Extract resource information
 
     [System.Collections.Generic.List[Object]]$resources = @()
@@ -280,7 +324,7 @@ function Format-AuditEntry {
         }
     }
     $resourceText = if ($resources.Count -gt 0) { $resources -join ", " } else { "N/A" }
-    
+
     # Build output
     $output = @{
         Timestamp    = $timestamp.ToString("yyyy-MM-dd HH:mm:ss")
@@ -292,17 +336,17 @@ function Format-AuditEntry {
         ResultSymbol = $result
         ResultColor  = $resultColor
     }
-    
+
     if ($DetailedView -and $Entry.activityOperationType) {
         $output.OperationType = $Entry.activityOperationType
     }
-    
+
     return $output
 }
 
 function Export-AuditToHtml {
     param($AuditEntries, $FilePath)
-    
+
     $htmlContent = @"
 <!DOCTYPE html>
 <html>
@@ -330,7 +374,7 @@ function Export-AuditToHtml {
         <h1>Intune Audit Log Report</h1>
         <p>Generated on: $(Get-Date -Format "dddd, MMMM dd, yyyy 'at' HH:mm:ss")</p>
     </div>
-    
+
     <div class="summary">
         <h2>Summary</h2>
         <p>Total Entries: $($AuditEntries.Count)</p>
@@ -350,7 +394,7 @@ function Export-AuditToHtml {
 
     $htmlContent += @"
     </div>
-    
+
     <table>
         <thead>
             <tr>
@@ -382,7 +426,7 @@ function Export-AuditToHtml {
     $htmlContent += @"
         </tbody>
     </table>
-    
+
     <div class="footer">
         <p>Report generated by Intune Audit Log Script v1.0</p>
     </div>
@@ -399,50 +443,50 @@ function Export-AuditToHtml {
 
 try {
     Write-Output "Retrieving Intune audit logs..."
-    
+
     # Calculate date filter in UTC so it matches Graph timestamps
     $startDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack).ToString("yyyy-MM-dd")
     $dateFilter = "activityDateTime ge $startDate"
-    
+
     # Build filter query
     $filters = @($dateFilter)
-    
+
     if ($OnlyFailures) {
         $filters += "activityResult eq 'Failure'"
     }
-    
+
     # Construct URI
     $baseUri = "https://graph.microsoft.com/beta/deviceManagement/auditEvents"
     $filterQuery = $filters -join " and "
     $uri = "$baseUri`?`$filter=$filterQuery&`$orderby=activityDateTime desc"
-    
+
     if ($NumberOfEntries -lt 100) {
         $uri += "&`$top=$NumberOfEntries"
     }
-    
+
     Write-Verbose "Query URI: $uri"
-    
+
     # Get audit events
     $auditEvents = Get-MgGraphAllPage -Uri $uri -Top $NumberOfEntries
-    
+
     Write-Output "✓ Retrieved $($auditEvents.Count) audit entries"
-    
+
     # Apply additional filters
     if ($FilterByUser) {
-        $auditEvents = $auditEvents | Where-Object { 
-            $_.actor.userPrincipalName -like $FilterByUser -or 
-            $_.actor.applicationDisplayName -like $FilterByUser 
+        $auditEvents = $auditEvents | Where-Object {
+            $_.actor.userPrincipalName -like $FilterByUser -or
+            $_.actor.applicationDisplayName -like $FilterByUser
         }
     }
-    
+
     if ($FilterByActivity) {
         $auditEvents = $auditEvents | Where-Object { $_.displayName -like $FilterByActivity }
     }
-    
+
     if ($FilterByCategory -ne "All") {
         $auditEvents = $auditEvents | Where-Object { $_.category -eq $FilterByCategory }
     }
-    
+
     # Format entries; skip malformed records instead of aborting the report
     $formattedEntries = @()
     foreach ($auditEvent in $auditEvents) {
@@ -453,7 +497,7 @@ try {
             Write-Warning "Skipping malformed audit entry '$($auditEvent.id)': $($_.Exception.Message)"
         }
     }
-    
+
     # Display results
     if ($formattedEntries.Count -eq 0) {
         Write-Output "No audit entries found matching the specified criteria."
@@ -461,26 +505,26 @@ try {
     else {
         Write-Output "`n📋 INTUNE AUDIT LOG ENTRIES"
         Write-Output ("=" * 80)
-        
+
         foreach ($entry in $formattedEntries) {
             Write-Output "`n[$($entry.Timestamp)] $($entry.ResultSymbol) $($entry.Activity)"
-            
+
             Write-Output "   Actor: $($entry.Actor)"
-            
+
             Write-Output "   Category: $($entry.Category)"
-            
+
             Write-Output "   Resources: $($entry.Resources)"
-            
+
             if ($DetailedView -and $entry.OperationType) {
                 Write-Output "   Operation: $($entry.OperationType)"
             }
         }
-        
+
         Write-Output "`n"
         Write-Output ("=" * 80)
         Write-Output "Total entries displayed: $($formattedEntries.Count)"
     }
-    
+
     # Export if requested
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 
@@ -492,16 +536,16 @@ try {
 
     if ($ExportToCsv) {
         $csvPath = Join-Path $OutputPath "Intune_Audit_Log_$timestamp.csv"
-        $formattedEntries | Select-Object Timestamp, Actor, Activity, Category, Resources, Result | 
+        $formattedEntries | Select-Object Timestamp, Actor, Activity, Category, Resources, Result |
         Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
         Write-Output "✓ CSV report saved: $csvPath"
     }
-    
+
     if ($ExportToHtml) {
         $htmlPath = Join-Path $OutputPath "Intune_Audit_Log_$timestamp.html"
         Export-AuditToHtml -AuditEntries $formattedEntries -FilePath $htmlPath
         Write-Output "✓ HTML report saved: $htmlPath"
-        
+
         if ($OpenReport) {
             try {
                 Start-Process $htmlPath
