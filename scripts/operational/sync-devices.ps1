@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.6
+    1.7
 
 .CHANGELOG
+    1.7 - Ignore empty string-array values supplied by Azure Automation when validating the selected target
     1.6 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
     1.5 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
@@ -145,9 +146,12 @@ foreach ($runbookBooleanParameter in @('ForceSync', 'DryRun')) {
     }
 }
 
+$DeviceNames = @($DeviceNames | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+$DeviceIds = @($DeviceIds | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+
 $selectedTargets = @(
-    if (@($DeviceNames).Count -gt 0) { 'DeviceNames' }
-    if (@($DeviceIds).Count -gt 0) { 'DeviceIds' }
+    if ($DeviceNames.Count -gt 0) { 'DeviceNames' }
+    if ($DeviceIds.Count -gt 0) { 'DeviceIds' }
     if (-not [string]::IsNullOrWhiteSpace($EntraGroupName)) { 'EntraGroup' }
 )
 if ($selectedTargets.Count -ne 1) {
