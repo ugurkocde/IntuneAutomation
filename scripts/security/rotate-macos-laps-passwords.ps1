@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Treat test-mode and empty-target outcomes as normal runbook output instead of warning streams
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Confirmation prompt is now local-only: Azure Automation runs require -Force and exit with an error instead of hanging on Read-Host; rotation calls retry once after 60 seconds on throttling; results collection switched to a generic list
@@ -451,7 +452,7 @@ try {
     }
 
     if ($devices.Count -eq 0) {
-        Write-Warning "No macOS devices found"
+        Write-Output "No macOS devices found. No password rotation is required."
         return
     }
 
@@ -465,7 +466,7 @@ try {
 
     # Show test mode warning
     if ($TestMode) {
-        Write-Warning "RUNNING IN TEST MODE - No actual LAPS passwords will be rotated"
+        Write-Output "RUNNING IN TEST MODE - No actual LAPS passwords will be rotated"
     }
 
     # Confirmation gate: local runs prompt unless -Force; Azure Automation

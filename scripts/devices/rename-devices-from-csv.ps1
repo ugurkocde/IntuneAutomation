@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Added a portal-safe DryRun mode for Azure Automation rename previews
     1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
@@ -47,6 +48,10 @@
 .EXAMPLE
     .\rename-devices-from-csv.ps1 -CsvContent $csvContent
     Uses CSV text supplied at runtime, which is suitable for Azure Automation
+
+.EXAMPLE
+    .\rename-devices-from-csv.ps1 -CsvContent $csvContent -DryRun "true"
+    Validates devices and proposed names without sending a rename action
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
@@ -69,6 +74,10 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
     [string]$ExportToCsv,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Validate proposed renames without sending an action")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
 
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
@@ -95,7 +104,7 @@ else {
 
 # Azure Automation supplies portal parameter values as strings. Normalize the
 # public boolean parameters once so local and runbook execution use real booleans.
-foreach ($runbookBooleanParameter in @('ExportToCsv')) {
+foreach ($runbookBooleanParameter in @('ExportToCsv', 'DryRun')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
@@ -330,6 +339,12 @@ try {
         }
 
         $device = @($found)[0]
+
+        if ($DryRun) {
+            Write-Output "[DRY RUN] Would rename '$currentName' to '$newName'"
+            $report.Add([PSCustomObject]@{ DeviceName = $currentName; NewName = $newName; Result = "DryRun" })
+            continue
+        }
 
         if ($PSCmdlet.ShouldProcess("$currentName -> $newName", "Send setDeviceName action")) {
             try {

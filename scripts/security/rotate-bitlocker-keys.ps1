@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Added a DryRun mode so Azure Automation can validate targeting and permissions without rotating keys
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added a confirmation prompt before tenant-wide rotation (skippable with -Force; Azure Automation runbooks now require -Force); rotation calls retry once after 60 seconds on throttling
@@ -46,6 +47,10 @@
 .EXAMPLE
     .\rotate-bitlocker-keys.ps1 -Force "true"
     Rotates BitLocker keys without the confirmation prompt (required when running as an Azure Automation runbook)
+
+.EXAMPLE
+    .\rotate-bitlocker-keys.ps1 -DryRun "true"
+    Lists the Windows devices that would be targeted without rotating any BitLocker keys
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
@@ -69,7 +74,11 @@ param(
 
     [Parameter(Mandatory = $false, HelpMessage = "Skip confirmation prompt before rotation")]
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
-    [string]$Force
+    [string]$Force,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Preview targeted devices without rotating BitLocker keys")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun
 )
 
 # Normalize the local module-install override for Azure Automation parameter binding.
@@ -89,7 +98,7 @@ else {
 
 # Azure Automation supplies portal parameter values as strings. Normalize the
 # public boolean parameters once so local and runbook execution use real booleans.
-foreach ($runbookBooleanParameter in @('Force')) {
+foreach ($runbookBooleanParameter in @('Force', 'DryRun')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
@@ -340,11 +349,22 @@ try {
     $managedDevices = Get-MgGraphAllPage -Uri $devicesUri
 
     if ($managedDevices.Count -eq 0) {
-        Write-Warning "No Windows devices found in Intune."
+        Write-Output "No Windows devices found in Intune. No rotation is required."
         exit 0
     }
 
     Write-Output "✓ Found $($managedDevices.Count) Windows devices"
+
+    if ($DryRun) {
+        Write-Output "`nDRY-RUN PREVIEW"
+        Write-Output "==============="
+        Write-Output "Windows devices that would receive a BitLocker key rotation: $($managedDevices.Count)"
+        foreach ($device in $managedDevices) {
+            Write-Output "• $($device.deviceName) [$($device.id)]"
+        }
+        Write-Output "✓ Dry run completed. No BitLocker keys were rotated."
+        exit 0
+    }
 
     # Confirmation gate: local runs prompt unless -Force; Azure Automation
     # cannot prompt, so -Force is required there

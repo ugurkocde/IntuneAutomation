@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.5
+    1.6
 
 .CHANGELOG
+    1.6 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
     1.5 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Exit code 1 when any sync fails; 429 retry with 60s wait on sync calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
@@ -59,6 +60,10 @@
     .\sync-devices.ps1 -EntraGroupName "Sales Team" -ForceSync "true"
     Forces synchronization of all devices for users in the Sales Team group
 
+.EXAMPLE
+    .\sync-devices.ps1 -EntraGroupName "Sales Team" -DryRun "true"
+    Lists the target devices without sending a synchronization action
+
 .NOTES
     - Supports both local execution and Azure Automation Runbook environments
     - Automatically detects execution environment and uses appropriate authentication method
@@ -88,6 +93,10 @@ param(
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
     [string]$ForceSync,
 
+    [Parameter(Mandatory = $false, HelpMessage = "Preview target devices without synchronizing them")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
+
     [Parameter(Mandatory = $false)]
     [int]$SyncDelaySeconds = 2,
 
@@ -113,7 +122,7 @@ else {
 
 # Azure Automation supplies portal parameter values as strings. Normalize the
 # public boolean parameters once so local and runbook execution use real booleans.
-foreach ($runbookBooleanParameter in @('ForceSync')) {
+foreach ($runbookBooleanParameter in @('ForceSync', 'DryRun')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
@@ -462,7 +471,7 @@ try {
     }
 
     if ($targetDevices.Count -eq 0) {
-        Write-Warning 'No target devices found. Exiting.'
+        Write-Output 'No target devices found. No synchronization action is required.'
         $null = Disconnect-MgGraph
         exit 0
     }
@@ -471,6 +480,15 @@ try {
     Write-Output "`n📱 TARGET DEVICES SUMMARY"
     Write-Output '========================='
     Write-Output "Total devices to process: $($targetDevices.Count)"
+
+    if ($DryRun) {
+        foreach ($device in $targetDevices) {
+            Write-Output "• $($device.deviceName) [$($device.id)]"
+        }
+        Write-Output "✓ Dry run completed. No synchronization actions were sent."
+        $null = Disconnect-MgGraph
+        exit 0
+    }
 
     # Process sync operations
     $successfulSyncs = 0

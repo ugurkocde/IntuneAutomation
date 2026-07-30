@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added -WhatIf dry run support; Azure Automation now requires -Force instead of hanging on a prompt; exit code 1 when any wipe fails; 429 retry with 60s wait on wipe calls; PIN now applies only to macOS devices with a warning otherwise; group lookup failures abort with a distinct error; list-based result accumulation; added $select to managed device queries
@@ -51,6 +52,10 @@
 .EXAMPLE
     .\wipe-devices.ps1 -DeviceNames "LAPTOP001" -WipeType Full -KeepEnrollmentData "true" -PIN "123456"
     Performs full wipe while keeping enrollment data and using a PIN for device unlock
+
+.EXAMPLE
+    .\wipe-devices.ps1 -EntraGroupName "Compromised Devices" -WipeType Selective -DryRun "true"
+    Lists the target devices without sending a wipe action
 
 .NOTES
     - Supports both local execution and Azure Automation Runbook environments
@@ -86,6 +91,10 @@ param(
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
     [string]$Force,
 
+    [Parameter(Mandatory = $false, HelpMessage = "Preview target devices without wiping them")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
     [string]$KeepEnrollmentData,
@@ -118,7 +127,7 @@ else {
 
 # Azure Automation supplies portal parameter values as strings. Normalize the
 # public boolean parameters once so local and runbook execution use real booleans.
-foreach ($runbookBooleanParameter in @('Force', 'KeepEnrollmentData')) {
+foreach ($runbookBooleanParameter in @('Force', 'DryRun', 'KeepEnrollmentData')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
@@ -237,7 +246,7 @@ else {
 }
 
 # Azure Automation runs are unattended - require -Force so the script cannot hang on a confirmation prompt
-if ($IsAzureAutomation -and -not $Force) {
+if ($IsAzureAutomation -and -not $Force -and -not $DryRun) {
     Write-Error "-Force is required for unattended wipe in Azure Automation"
     exit 1
 }
@@ -516,7 +525,7 @@ try {
     }
 
     if ($targetDevices.Count -eq 0) {
-        Write-Warning "No target devices found. Exiting."
+        Write-Output "No target devices found. No wipe action is required."
         Disconnect-MgGraph | Out-Null
         exit 0
     }
@@ -537,6 +546,12 @@ try {
 
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
+
+    if ($DryRun) {
+        Write-Output "✓ Dry run completed. No wipe actions were sent."
+        Disconnect-MgGraph | Out-Null
+        exit 0
+    }
 
     # Confirmation prompt for local runs unless Force or WhatIf is specified
     # (Azure Automation without -Force already exited during environment detection)

@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added -WhatIf dry run support; exit code 1 when any restart fails; 429 retry with 60s wait on restart calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
@@ -51,6 +52,10 @@
 .EXAMPLE
     .\restart-devices.ps1 -DeviceNames "LAPTOP001" -Force "true"
     Restarts a specific device without confirmation prompt
+
+.EXAMPLE
+    .\restart-devices.ps1 -EntraGroupName "IT Department Devices" -DryRun "true"
+    Lists the target devices without sending a restart action
 
 .NOTES
     - Supports both local execution and Azure Automation Runbook environments
@@ -82,6 +87,10 @@ param(
     [ValidateSet("true", "false", "1", "0", '$true', '$false')]
     [string]$Force,
 
+    [Parameter(Mandatory = $false, HelpMessage = "Preview target devices without restarting them")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
+
     [Parameter(Mandatory = $false)]
     [int]$RestartDelaySeconds = 2,
 
@@ -107,7 +116,7 @@ else {
 
 # Azure Automation supplies portal parameter values as strings. Normalize the
 # public boolean parameters once so local and runbook execution use real booleans.
-foreach ($runbookBooleanParameter in @('Force')) {
+foreach ($runbookBooleanParameter in @('Force', 'DryRun')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
@@ -481,7 +490,7 @@ try {
     }
 
     if ($targetDevices.Count -eq 0) {
-        Write-Warning 'No target devices found. Exiting.'
+        Write-Output 'No target devices found. No restart action is required.'
         $null = Disconnect-MgGraph
         exit 0
     }
@@ -494,6 +503,12 @@ try {
 
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
+
+    if ($DryRun) {
+        Write-Output "✓ Dry run completed. No restart actions were sent."
+        $null = Disconnect-MgGraph
+        exit 0
+    }
 
     # Confirmation prompt unless Force or WhatIf is specified
     if (-not $Force -and -not $IsAzureAutomation -and -not $WhatIfPreference) {
