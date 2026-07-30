@@ -99,6 +99,7 @@ param(
 
 # Normalize the local module-install override for Azure Automation parameter binding.
 $forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
 if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
     $ForceModuleInstall = $false
 }
@@ -116,6 +117,7 @@ else {
 # public boolean parameters once so local and runbook execution use real booleans.
 foreach ($runbookBooleanParameter in @('IncludeStartupPerformance', 'IncludeAppReliability', 'IncludeBatteryHealth', 'IncludeWorkFromAnywhere', 'IncludeAll', 'ExportJson', 'ShowProgress')) {
     $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
 
     if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
         Set-Variable -Name $runbookBooleanParameter -Value $false

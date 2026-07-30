@@ -89,6 +89,7 @@ param(
 
 # Normalize the local module-install override for Azure Automation parameter binding.
 $forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
 if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
     $ForceModuleInstall = $false
 }
