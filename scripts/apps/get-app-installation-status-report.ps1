@@ -27,7 +27,7 @@
     1.5
 
 .CHANGELOG
-    1.5 - Handle the installation-status report as the downloadable CSV returned by Microsoft Graph
+    1.5 - Handle the installation-status report as the downloadable JSON payload returned by Microsoft Graph and preserve single-app result arrays
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), -MaxApps now truly caps processed apps instead of only setting page size, genuinely retry an app after a 429 with max 3 attempts (continue was skipping it), request only needed app fields via $select
@@ -291,7 +291,7 @@ function Get-MgGraphAllPage {
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {
@@ -301,7 +301,7 @@ function Get-MgGraphAllPage {
             # Stop paging once the requested maximum is reached ($top only sets
             # page size, so without this the pager would follow every nextLink)
             if ($MaxResults -gt 0 -and $allResults.Count -ge $MaxResults) {
-                $allResults = $allResults | Select-Object -First $MaxResults
+                $allResults = @($allResults | Select-Object -First $MaxResults)
                 break
             }
 
@@ -356,10 +356,10 @@ function Get-AppInstallStatusReportRow {
                 select = @("DeviceId", "DeviceName", "UserName", "UserPrincipalName", "Platform", "AppVersion", "InstallState", "InstallStateDetail", "ErrorCode", "LastModifiedDateTime")
             } | ConvertTo-Json -Depth 5
 
-            $reportPath = Join-Path ([System.IO.Path]::GetTempPath()) "IntuneAutomation-AppInstall-$([guid]::NewGuid().ToString('N')).csv"
+            $reportPath = Join-Path ([System.IO.Path]::GetTempPath()) "IntuneAutomation-AppInstall-$([guid]::NewGuid().ToString('N')).json"
             try {
                 Invoke-MgGraphRequest -Uri $reportUri -Method POST -Body $body -ContentType "application/json" -OutputFilePath $reportPath | Out-Null
-                $pageRows = @(Import-Csv -LiteralPath $reportPath)
+                $response = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json -AsHashtable
             }
             finally {
                 if (Test-Path -LiteralPath $reportPath) {
@@ -367,25 +367,28 @@ function Get-AppInstallStatusReportRow {
                 }
             }
 
-            foreach ($row in $pageRows) {
+            $columnIndex = @{}
+            for ($i = 0; $i -lt $response['Schema'].Count; $i++) {
+                $columnIndex[$response['Schema'][$i].Column] = $i
+            }
+
+            foreach ($row in $response['Values']) {
                 $allRows += [PSCustomObject]@{
-                    DeviceId             = $row.DeviceId
-                    DeviceName           = $row.DeviceName
-                    UserName             = $row.UserName
-                    UserPrincipalName    = $row.UserPrincipalName
-                    Platform             = $row.Platform
-                    AppVersion           = $row.AppVersion
-                    InstallState         = if ($row.InstallState) { $row.InstallState } else { $row.AppInstallState }
-                    InstallStateDetail   = if ($row.InstallStateDetail) { $row.InstallStateDetail } else { $row.AppInstallStateDetails }
-                    ErrorCode            = $row.ErrorCode
-                    LastModifiedDateTime = $row.LastModifiedDateTime
+                    DeviceId             = $row[$columnIndex['DeviceId']]
+                    DeviceName           = $row[$columnIndex['DeviceName']]
+                    UserName             = $row[$columnIndex['UserName']]
+                    UserPrincipalName    = $row[$columnIndex['UserPrincipalName']]
+                    Platform             = $row[$columnIndex['Platform']]
+                    AppVersion           = $row[$columnIndex['AppVersion']]
+                    InstallState         = $row[$columnIndex['InstallState']]
+                    InstallStateDetail   = $row[$columnIndex['InstallStateDetail']]
+                    ErrorCode            = $row[$columnIndex['ErrorCode']]
+                    LastModifiedDateTime = $row[$columnIndex['LastModifiedDateTime']]
                 }
             }
 
             $skip += $PageSize
-            if ($pageRows.Count -lt $PageSize) {
-                $totalRows = $skip
-            }
+            $totalRows = [int]$response['TotalRowCount']
         }
         catch {
             if ($_.Exception.Message -like "*429*" -or $_.Exception.Message -like "*throttled*") {
@@ -549,7 +552,7 @@ try {
     Write-Progress -Activity "Processing Application Installation Status" -Completed
 
     if ($installationStatusList.Count -eq 0) {
-        Write-Warning "No installation status records found matching the specified filters."
+        Write-Output "No installation status records found matching the specified filters."
         Write-Output "Try adjusting your filter parameters or check if applications are deployed to devices."
         Disconnect-MgGraph | Out-Null
         exit 0

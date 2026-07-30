@@ -237,7 +237,7 @@ function Get-MgGraphAllPage {
 
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {

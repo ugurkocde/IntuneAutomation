@@ -26,9 +26,10 @@
     Ugur Koc
 
 .VERSION
-    1.2
+    1.3
 
 .CHANGELOG
+    1.3 - Correctly treat an empty device-local-credentials response as an empty collection
     1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
@@ -223,7 +224,7 @@ function Get-MgGraphAllPage {
 
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {

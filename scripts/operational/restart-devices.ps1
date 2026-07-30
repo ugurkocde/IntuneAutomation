@@ -305,7 +305,7 @@ function Get-MgGraphAllPage {
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $response.value | ForEach-Object {
                     $allResults.Add($_)
                 }

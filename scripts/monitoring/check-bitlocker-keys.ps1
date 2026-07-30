@@ -284,7 +284,7 @@ function Get-MgGraphPaginatedData {
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
 
-            if ($Response.value) {
+            if ($null -ne $Response.value) {
                 $AllResult += $Response.value
             }
             else {
