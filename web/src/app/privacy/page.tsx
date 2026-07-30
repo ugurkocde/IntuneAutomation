@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Navbar from "~/components/navbar";
 import Footer from "~/components/footer";
 import { ScriptsProvider } from "~/components/scripts-provider";
+import { env } from "~/env";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;
+
   return (
     <ScriptsProvider>
       <div className="bg-background text-foreground min-h-screen">
@@ -188,7 +191,13 @@ export default function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               Privacy questions:{" "}
-              <a href="mailto:support@ugurlabs.com">support@ugurlabs.com</a>
+              {supportEmail ? (
+                <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
+              ) : (
+                <a href="https://github.com/ugurkocde/intuneautomation/issues">
+                  repository issue tracker
+                </a>
+              )}
             </p>
           </div>
         </div>

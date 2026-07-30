@@ -4,7 +4,7 @@ Every PowerShell and shell script in this repository is automatically tested on 
 
 ## What gets tested
 
-PowerShell scripts run through five quality tiers. Shell scripts run through ShellCheck.
+PowerShell scripts run through eight quality tiers. Shell scripts run through ShellCheck.
 
 | Tier | What it checks | What it catches |
 |---|---|---|
@@ -12,6 +12,9 @@ PowerShell scripts run through five quality tiers. Shell scripts run through She
 | **Lint** | PSScriptAnalyzer at Error + Warning severity, with the project's curated rule exclusions. | Common bug patterns, unused variables, unsafe constructs, missing error handling. |
 | **Metadata** | Required comment-based help fields are present: `.TITLE`, `.SYNOPSIS`, `.DESCRIPTION`, `.TAGS`, `.PERMISSIONS`, `.AUTHOR`, `.VERSION`. | Missing documentation, undeclared permissions, scripts without version history. |
 | **Runbook-ready** | No interactive cmdlets (`Read-Host`, `Out-GridView`) in code that would execute inside an Azure Automation runbook. Interactive cmdlets are allowed when the script also branches on `$IsAutomationEnvironment` / `$RunningInAzureAutomation`. | Scripts that prompt for input or open GUI windows, which silently break when deployed as a runbook. |
+| **Runbook logging** | Script-scope status uses streams preserved in Automation job history. | Progress and final status that disappear after a job completes. |
+| **Runbook contract** | Eligible scripts avoid parameter sets and switch parameters, use beta Graph endpoints, and keep local scopes aligned with `.PERMISSIONS`. | Azure import failures, portal parameter binding errors, API drift, and missing managed-identity permissions. |
+| **Email safety** | Scripts, templates, and supporting documentation contain no email address literals. | Personal or example addresses accidentally shipped as defaults or copied into production. |
 | **Module deps** | Static `Import-Module` references resolve to known module families (`Microsoft.Graph.*`, `Az.*`, `ExchangeOnlineManagement`, `MicrosoftTeams`, `AzureAD`). | Typos in module names, references to modules that don't exist in the Azure Automation runtime. |
 
 Shell scripts run through one tier:
@@ -52,6 +55,9 @@ Two JSON files are committed back to `main` after a successful run:
           "lint":         { "status": "pass", "issues": 0 },
           "metadata":     { "status": "pass" },
           "runbookReady": { "status": "pass" },
+          "runbookLogging": { "status": "pass" },
+          "runbookContract": { "status": "pass" },
+          "emailSafety": { "status": "pass" },
           "moduleDeps":   { "status": "pass" }
         },
         "overall": "pass"
@@ -64,7 +70,7 @@ Each tier status is one of `pass`, `fail`, or `skip`. The overall status is `pas
 
 ## What is not tested
 
-The CI does **not** currently run scripts inside a real Azure Automation runbook. Live runbook smoke tests against a sandbox tenant are on the roadmap; until then, the runbook-ready tier is a static approximation. A passing run means the script is syntactically valid, lint-clean, documented, declares known modules, and does not contain unconditional interactive cmdlets. It does not guarantee the script will succeed against your tenant - that depends on data, permissions, and module availability in your specific Automation Account.
+The CI does **not** run scripts against a live tenant because the repository has no tenant credentials or safe, disposable fixtures. The repository does validate the generated ARM templates, runbook import contract, parameter types, endpoint version, permission declarations, logging, and email safety. Live smoke testing remains a separate certification step for safe read-only scripts.
 
 ## Adding a new script
 

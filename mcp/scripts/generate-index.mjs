@@ -198,6 +198,16 @@ async function buildEntry(filePath) {
     }
   }
 
+  const runbookEligible =
+    category.toLowerCase() !== "remediation" &&
+    (meta.execution ?? "").toLowerCase() !== "localonly";
+  const runbookExclusionReason =
+    category.toLowerCase() === "remediation"
+      ? "Intune remediation endpoint script"
+      : (meta.execution ?? "").toLowerCase() === "localonly"
+        ? "Local-only interactive script"
+        : "";
+
   return {
     id,
     title: meta.title ?? id,
@@ -214,6 +224,11 @@ async function buildEntry(filePath) {
     lastUpdate: meta.lastupdate ?? "",
     schedule: meta.schedule ?? "",
     execution: meta.execution ?? "",
+    runbook: {
+      eligible: runbookEligible,
+      runtime: runbookEligible ? "PowerShell 7.4" : "",
+      exclusionReason: runbookExclusionReason,
+    },
     output: meta.output ?? "",
     remediationType: meta.remediationtype ?? "",
     pairScript: meta.pairscript ?? "",

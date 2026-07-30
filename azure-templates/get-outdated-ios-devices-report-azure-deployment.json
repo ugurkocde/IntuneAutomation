@@ -45,21 +45,21 @@
     },
     "runbookName": {
       "type": "string",
-      "defaultValue": "get-defender-status-report",
+      "defaultValue": "get-outdated-ios-devices-report",
       "metadata": {
         "description": "Name of the runbook to create or update."
       }
     },
     "runbookDescription": {
       "type": "string",
-      "defaultValue": "This script reads the tenant-wide device protection overview and the per-device",
+      "defaultValue": "Connects to Microsoft Graph and retrieves Intune-managed iOS devices, including",
       "metadata": {
         "description": "Description stored on the Azure Automation runbook."
       }
     }
   },
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-defender-status-report.ps1"
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-outdated-ios-devices-report.ps1"
   },
   "resources": [
     {
@@ -162,7 +162,7 @@
                 "logVerbose": false,
                 "logProgress": false,
                 "publishContentLink": {
-                  "uri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/get-defender-status-report.ps1"
+                  "uri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-outdated-ios-devices-report.ps1"
                 }
               }
             }

@@ -25,6 +25,7 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
+    NEXT_PUBLIC_SUPPORT_EMAIL: z.string().email().optional(),
   },
 
   /**
@@ -40,6 +41,7 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     GENERATOR_DAILY_TOKEN_CAP: process.env.GENERATOR_DAILY_TOKEN_CAP,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+    NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

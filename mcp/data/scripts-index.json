@@ -1,7 +1,7 @@
 {
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
-  "generated": "2026-07-30T13:37:13.692Z",
+  "generated": "2026-07-30T15:37:18+02:00",
   "count": 69,
   "categories": [
     "apps",
@@ -39,6 +39,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -129,6 +134,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Daily",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -195,6 +205,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Daily",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -246,16 +261,20 @@
       ],
       "permissions": [
         "DeviceManagementManagedDevices.Read.All",
-        "BitlockerKey.Read.All",
-        "https://vault.azure.net/user_impersonation"
+        "BitlockerKey.Read.All"
       ],
       "minRole": "Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator",
       "platform": "Windows",
       "author": "Ugur Koc",
-      "version": "1.4",
-      "lastUpdate": "2026-07-28",
+      "version": "1.5",
+      "lastUpdate": "2026-07-30",
       "schedule": "",
-      "execution": "",
+      "execution": "LocalOnly",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Local-only interactive script"
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -268,15 +287,15 @@
         },
         {
           "name": "OverwriteExisting",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "ShowProgress",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "TenantId",
@@ -287,14 +306,14 @@
         },
         {
           "name": "ForceModuleInstall",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         }
       ],
       "examples": [
         ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://bitlockerfilevaultkeys.vault.azure.net\"\nBacks up all BitLocker keys to the specified Azure Key Vault",
-        ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://myvault.vault.azure.net\" -OverwriteExisting -ShowProgress\nBacks up keys with overwrite option and progress display"
+        ".\\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri \"https://myvault.vault.azure.net\" -OverwriteExisting \"true\" -ShowProgress \"true\"\nBacks up keys with overwrite option and progress display"
       ],
       "notes": "- Requires Microsoft.Graph.Authentication and MgGraphCommunity modules (no Az modules needed; auto-installed if missing)\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows\n- Two sign-ins are required per session: a device code sign-in for Key Vault and a browser sign-in for Graph (the two APIs need tokens with different audiences)\n- Interactive only: this script cannot run as an Azure Automation runbook\n- Uses REST API directly for Key Vault operations\n- Keys are stored with naming convention: BitLocker-{DeviceName}-{SerialNumber}-{VolumeType}\n- Each secret includes tags for easy identification and management\n- Consider implementing retention policies in Key Vault\n- Regular backups ensure recovery key availability\n- Vault URI format: https://yourvault.vault.azure.net\n\nPERMISSION CONSENT:\nOn first run, you'll be prompted to consent to the following permissions:\n- Azure Key Vault access (https://vault.azure.net/user_impersonation)\n- Read Intune devices (DeviceManagementManagedDevices.Read.All)\n- Read BitLocker keys (BitlockerKey.Read.All)\n\nTo avoid the consent prompt:\n- Accept once and check \"Consent on behalf of your organization\" (admin only)\n- Pre-consent in Azure AD portal under Enterprise Applications\n- For automation, use a service principal with pre-configured permissions",
       "path": "scripts/security/backup-bitlocker-keys-to-keyvault.ps1",
@@ -317,10 +336,15 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-07-28",
+      "version": "1.2",
+      "lastUpdate": "2026-07-30",
       "schedule": "",
-      "execution": "",
+      "execution": "LocalOnly",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Local-only interactive script"
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -341,21 +365,21 @@
         },
         {
           "name": "SkipScriptContent",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "ForceModuleInstall",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         }
       ],
       "examples": [
         ".\\backup-intune-configuration.ps1\nExports all supported configuration areas to a timestamped folder in the current directory",
         ".\\backup-intune-configuration.ps1 -OutputPath \"C:\\IntuneBackups\" -Areas DeviceConfigurations,CompliancePolicies\nExports only classic configuration profiles and compliance policies to C:\\IntuneBackups",
-        ".\\backup-intune-configuration.ps1 -SkipScriptContent\nExports all areas but skips downloading the base64 script bodies of platform scripts"
+        ".\\backup-intune-configuration.ps1 -SkipScriptContent \"true\"\nExports all areas but skips downloading the base64 script bodies of platform scripts"
       ],
       "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Settings catalog setting bodies and ADMX definition values require one extra request per policy\n- Graph never returns secret values (encrypted OMA-URI settings, passwords, certificates) in exports; those settings appear with secret references only and must be re-entered manually after a restore\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/configuration/backup-intune-configuration.ps1",
@@ -383,6 +407,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -467,6 +496,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -540,6 +574,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -602,6 +641,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -664,6 +708,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -737,6 +786,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -824,6 +878,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -887,6 +946,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -966,6 +1030,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1027,6 +1096,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1087,16 +1161,20 @@
       ],
       "permissions": [
         "DeviceManagementManagedDevices.ReadWrite.All",
-        "Group.Read.All",
         "GroupMember.Read.All"
       ],
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-07-28",
+      "version": "1.2",
+      "lastUpdate": "2026-07-30",
       "schedule": "",
-      "execution": "",
+      "execution": "LocalOnly",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Local-only interactive script"
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1104,13 +1182,13 @@
         {
           "name": "DeviceNames",
           "type": "string[",
-          "mandatory": true,
+          "mandatory": false,
           "switch": false
         },
         {
           "name": "GroupName",
           "type": "string",
-          "mandatory": true,
+          "mandatory": false,
           "switch": false
         },
         {
@@ -1122,9 +1200,9 @@
         },
         {
           "name": "DownloadExisting",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "TimeoutMinutes",
@@ -1135,15 +1213,15 @@
         },
         {
           "name": "ForceModuleInstall",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         }
       ],
       "examples": [
         ".\\collect-device-diagnostics.ps1 -DeviceNames \"PC-001\",\"PC-002\"\nTriggers diagnostics collection on two devices and downloads the packages when ready",
         ".\\collect-device-diagnostics.ps1 -GroupName \"Support - Troubleshooting\" -OutputPath \"C:\\DeviceLogs\"\nCollects diagnostics from all Windows devices in the group and saves packages to C:\\DeviceLogs",
-        ".\\collect-device-diagnostics.ps1 -DeviceNames \"PC-001\" -DownloadExisting\nSkips triggering a new collection and downloads the most recent completed package instead"
+        ".\\collect-device-diagnostics.ps1 -DeviceNames \"PC-001\" -DownloadExisting \"true\"\nSkips triggering a new collection and downloads the most recent completed package instead"
       ],
       "notes": "- Requires Microsoft.Graph.Authentication module\n- Collect diagnostics is only supported on Windows 10/11 devices; other platforms are skipped\n- The device must be online to receive the action; collection typically completes within minutes but the script stops waiting after -TimeoutMinutes\n- Listing and creating log collection requests requires DeviceManagementManagedDevices.ReadWrite.All (Graph rejects read-only scopes for this surface)\n- Uses beta Graph endpoints for the log collection surface\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/diagnostics/collect-device-diagnostics.ps1",
@@ -1173,6 +1251,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1281,6 +1364,11 @@
       "lastUpdate": "2025-06-09",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-antivirus-definitions.ps1",
@@ -1314,6 +1402,11 @@
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-disk-cleanup.ps1",
@@ -1354,6 +1447,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-local-admin-drift.ps1",
@@ -1394,6 +1492,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-onedrive-kfm.ps1",
@@ -1427,6 +1530,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-reboot-pending.ps1",
@@ -1460,6 +1568,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-winget-updates.ps1",
@@ -1494,6 +1607,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Daily",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -1554,6 +1672,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1616,6 +1739,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1671,6 +1799,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1755,6 +1888,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1840,6 +1978,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1897,6 +2040,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1966,6 +2114,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2020,6 +2173,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2081,6 +2239,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2152,6 +2315,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2208,6 +2376,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2296,6 +2469,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2345,6 +2523,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2438,6 +2621,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2507,6 +2695,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2564,6 +2757,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2638,6 +2836,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2752,6 +2955,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2821,6 +3029,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2891,6 +3104,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2953,6 +3171,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3012,10 +3235,15 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-07-28",
+      "version": "1.2",
+      "lastUpdate": "2026-07-30",
       "schedule": "",
-      "execution": "",
+      "execution": "LocalOnly",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Local-only interactive script"
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3028,9 +3256,9 @@
         },
         {
           "name": "ExportToCsv",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "OutputPath",
@@ -3041,14 +3269,14 @@
         },
         {
           "name": "ForceModuleInstall",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         }
       ],
       "examples": [
         ".\\get-policy-drift-report.ps1 -BaselinePath \".\\IntuneConfigBackup_2026-07-01_08-00-00\"\nCompares the current tenant state against the July 1st baseline",
-        ".\\get-policy-drift-report.ps1 -BaselinePath \".\\IntuneConfigBackup_2026-07-01_08-00-00\" -ExportToCsv\nExports the drift report to a timestamped CSV file"
+        ".\\get-policy-drift-report.ps1 -BaselinePath \".\\IntuneConfigBackup_2026-07-01_08-00-00\" -ExportToCsv \"true\"\nExports the drift report to a timestamped CSV file"
       ],
       "notes": "- Requires Microsoft.Graph.Authentication module\n- The baseline must be a folder created by backup-intune-configuration.ps1\n- Policies are matched by ID, so a policy that was deleted and recreated appears as one deletion plus one addition\n- Timestamps, version counters, and assignment state are excluded from the comparison; only configuration content counts as drift\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/configuration/get-policy-drift-report.ps1",
@@ -3076,6 +3304,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3156,6 +3389,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3226,6 +3464,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3287,6 +3530,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3349,6 +3597,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3410,6 +3663,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -3492,6 +3750,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Hourly",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -3571,6 +3834,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -3637,6 +3905,11 @@
       "lastUpdate": "2025-06-09",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-antivirus-definitions-outdated.ps1",
@@ -3670,6 +3943,11 @@
       "lastUpdate": "2026-07-19",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-disk-cleanup-needed.ps1",
@@ -3710,6 +3988,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-local-admin-drift.ps1",
@@ -3750,6 +4033,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-onedrive-kfm-not-configured.ps1",
@@ -3783,6 +4071,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-reboot-pending.ps1",
@@ -3816,6 +4109,11 @@
       "lastUpdate": "2026-07-20",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-winget-updates-available.ps1",
@@ -3850,6 +4148,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3927,6 +4230,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4003,10 +4311,15 @@
       "minRole": "Intune Administrator",
       "platform": "",
       "author": "Ugur Koc",
-      "version": "1.1",
-      "lastUpdate": "2026-07-28",
+      "version": "1.2",
+      "lastUpdate": "2026-07-30",
       "schedule": "",
-      "execution": "",
+      "execution": "LocalOnly",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Local-only interactive script"
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4026,9 +4339,9 @@
         },
         {
           "name": "RestoreAssignments",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         },
         {
           "name": "NamePrefix",
@@ -4039,15 +4352,15 @@
         },
         {
           "name": "ForceModuleInstall",
-          "type": "switch",
+          "type": "string",
           "mandatory": false,
-          "switch": true
+          "switch": false
         }
       ],
       "examples": [
         ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -WhatIf\nPreviews everything that would be created without writing to the tenant",
         ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -Areas CompliancePolicies\nRestores only the compliance policies from the backup",
-        ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -RestoreAssignments\nRestores all areas including group assignments (same-tenant restore)"
+        ".\\restore-intune-configuration.ps1 -BackupPath \".\\IntuneConfigBackup_2026-07-20_10-00-00\" -RestoreAssignments \"true\"\nRestores all areas including group assignments (same-tenant restore)"
       ],
       "notes": "- Requires Microsoft.Graph.Authentication module\n- Uses beta Graph endpoints because the full Intune configuration surface is not exposed on v1.0\n- Objects are created as new entries; existing policies with the same name are not touched, so a re-run creates duplicates\n- Compliance policies are created with their exported scheduledActionsForRule; if a backup predates that field, a default block rule is added because Graph rejects policies without one\n- Secret values (encrypted OMA-URI settings, passwords, certificates) are never present in Graph exports and must be re-entered manually after restore\n- ADMX presentation values referencing definitions that do not exist in the target tenant are skipped with a warning\n- Assignment restore requires the original group IDs to exist in the target tenant; failures are reported per policy and do not stop the restore\n- Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows",
       "path": "scripts/configuration/restore-intune-configuration.ps1",
@@ -4075,6 +4388,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4139,6 +4457,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4239,6 +4562,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -4300,6 +4628,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4381,6 +4714,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "Weekly",
       "execution": "RunbookOnly",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -4449,6 +4787,11 @@
       "lastUpdate": "2026-07-30",
       "schedule": "",
       "execution": "",
+      "runbook": {
+        "eligible": true,
+        "runtime": "PowerShell 7.4",
+        "exclusionReason": ""
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",

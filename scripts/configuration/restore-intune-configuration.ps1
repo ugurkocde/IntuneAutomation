@@ -24,18 +24,22 @@
 .PERMISSIONS
     DeviceManagementConfiguration.ReadWrite.All
 
+.EXECUTION
+    LocalOnly
+
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\restore-intune-configuration.ps1 -BackupPath ".\IntuneConfigBackup_2026-07-20_10-00-00" -WhatIf
@@ -46,7 +50,7 @@
     Restores only the compliance policies from the backup
 
 .EXAMPLE
-    .\restore-intune-configuration.ps1 -BackupPath ".\IntuneConfigBackup_2026-07-20_10-00-00" -RestoreAssignments
+    .\restore-intune-configuration.ps1 -BackupPath ".\IntuneConfigBackup_2026-07-20_10-00-00" -RestoreAssignments "true"
     Restores all areas including group assignments (same-tenant restore)
 
 .NOTES
@@ -71,14 +75,56 @@ param(
     [string[]]$Areas = @("DeviceConfigurations", "SettingsCatalog", "CompliancePolicies", "AdmxPolicies", "PlatformScripts"),
 
     [Parameter(Mandatory = $false, HelpMessage = "Also restore group assignments (requires source group IDs to exist)")]
-    [switch]$RestoreAssignments,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$RestoreAssignments,
 
     [Parameter(Mandatory = $false, HelpMessage = "Prefix added to restored object names, e.g. 'Restored - '")]
     [string]$NamePrefix = "",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('RestoreAssignments')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP

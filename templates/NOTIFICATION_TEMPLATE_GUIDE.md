@@ -153,7 +153,7 @@ function New-EmailBody {
 
 1. **Test locally first** with your own credentials:
    ```powershell
-   .\your-notification-script.ps1 -ThresholdParameter 10 -EmailRecipients "yourtestemail@domain.com"
+   .\your-notification-script.ps1 -ThresholdParameter 10 -EmailRecipients "<recipient-address>"
    ```
 
 2. **Deploy to Azure Automation** and test with Managed Identity
@@ -268,7 +268,7 @@ The template supports various configuration options:
 ```powershell
 $EmailConfig = @{
     Subject = "Your Custom Subject Line"
-    FromAddress = "noreply@yourdomain.com"
+    FromAddress = "<sender-address>"
     Priority = "High"  # Low, Normal, High
 }
 ```

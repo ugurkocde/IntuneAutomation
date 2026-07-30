@@ -59,24 +59,26 @@ For **scheduling**, **unattended execution**, or **more complex automation**, yo
 
 > **Step-by-step guide with screenshots:** [Deploy a script as a runbook with Managed Identity](docs/deploy-runbook-managed-identity.md) walks through the full flow from the Deploy to Azure button on intuneautomation.com to a scheduled runbook: deployment, granting Graph permissions to the managed identity in Cloud Shell, module import, and the first successful job.
 
+The enforced compatibility rules and local-only exclusions are documented in [Azure Automation runbook certification](docs/runbook-certification.md).
+
 #### Step 1: Create Managed Identity
-Create a **User Assigned Managed Identity** in your Azure tenant through the Azure Portal.
+Choose an existing Azure Automation account in the deployment form, or enable **Create Automation Account** to create one with a system-assigned managed identity. Reusing an account is the default and does not change its identity or region.
 
 #### Step 2: Grant Permissions
 Use our setup script to grant necessary Microsoft Graph permissions:
 
 ```powershell
-# Grant default Intune permissions to your managed identity
-.\grant-permissions-managed-identity.ps1 -ManagedIdentityDisplayName "YourManagedIdentityName"
-
-# Or grant custom permissions for specific use cases
-.\grant-permissions-managed-identity.ps1 -ManagedIdentityDisplayName "YourManagedIdentityName" -CustomPermissions @("User.Read.All", "Group.Read.All")
+# Grant only the permissions declared by the selected script
+.\grant-permissions-managed-identity.ps1 `
+  -ManagedIdentityDisplayName "YourAutomationAccountName" `
+  -CustomPermissions @("Permission.From.Script.Metadata")
 ```
 
 #### Step 3: Configure Azure Automation
-1. **Assign the managed identity** to your Azure Automation Account
-2. **Import the scripts** as runbooks
-3. **Schedule execution** as needed
+1. **Deploy the runbook** into an existing or new Automation account
+2. **Use the generated PowerShell 7.4 Runtime Environment**, which includes `Microsoft.Graph.Authentication`
+3. **Grant the script-specific Graph permissions** to the account's managed identity
+4. **Test with explicit parameters**, then schedule execution
 
 This approach enables:
 - **⏰ Scheduled execution** (daily, weekly, etc.)
@@ -84,20 +86,9 @@ This approach enables:
 - **📈 Centralized logging** and monitoring
 - **🔗 Integration** with other Azure services
 
-### Default Permissions for Automation
+### Least-privilege permissions
 
-The `grant-permissions-managed-identity.ps1` script grants these Microsoft Graph API permissions by default:
-
-| Permission | Description |
-|------------|-------------|
-| `DeviceManagementManagedDevices.ReadWrite.All` | Full device management access |
-| `DeviceManagementConfiguration.ReadWrite.All` | Configuration policy management |
-| `DeviceManagementApps.ReadWrite.All` | Application management |
-| `DeviceManagementServiceConfig.ReadWrite.All` | Service configuration |
-| `DeviceManagementRBAC.ReadWrite.All` | Role-based access control |
-| `DeviceManagementManagedDevices.PrivilegedOperations.All` | Advanced device operations |
-
-These permissions cover most common Intune automation scenarios.
+Do not grant a broad default permission bundle. Every script declares its own required Graph application permissions in `.PERMISSIONS`, and every generated template returns the same list in the `requiredGraphPermissions` deployment output.
 
 ### Option 3: Ask Claude (MCP Server)
 

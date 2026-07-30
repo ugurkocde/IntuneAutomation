@@ -27,7 +27,10 @@ Click **Deploy to Azure**. The Azure portal opens with a custom deployment form.
 ![Custom deployment form opened from the Deploy to Azure button](images/runbook-guide/02-custom-deployment-form.png)
 
 - **Subscription and Resource group**: create a dedicated resource group (for example `rg-intuneautomation-runbooks`) so all your runbook infrastructure lives in one place
-- **Automation Account Name**: pick a name like `aa-intuneautomation-demo`. If you already have an Automation account you want to reuse, enter its exact name and resource group instead and the runbook is added to it
+- **Automation Account Name**: enter the exact name of the account to reuse, or the name to create
+- **Create Automation Account**: leave this `false` to reuse the account. Set it to `true` only when the account does not exist
+- **New Automation Account Location**: used only when creating an account. For an existing account, the template reads the account's actual region and the field has no effect
+- **Create Runtime Environment**: leave this `true` to create or update the dedicated PowerShell 7.4 environment and Graph authentication package
 
 ![Deployment form with resource group and Automation account name filled in](images/runbook-guide/03-deployment-form-filled.png)
 
@@ -35,13 +38,13 @@ Click **Review + create**, check the summary, then **Create**:
 
 ![Review and create summary before deployment](images/runbook-guide/04-review-create.png)
 
-The template deploys two resources: the Automation account **with its system-assigned managed identity already enabled**, and the runbook with the script content imported from GitHub and published.
+For a new account, the template creates the account with a system-assigned identity. For an existing account, it leaves the account and identity unchanged. It then creates or updates a PowerShell 7.4 Runtime Environment, imports `Microsoft.Graph.Authentication`, and publishes the runbook.
 
 ![Deployment complete](images/runbook-guide/05-deployment-complete.png)
 
 ## Step 3: Find the managed identity
 
-Open the new Automation account and go to **Account Settings > Identity**. The system-assigned identity is already **On** (the deployment template enables it). Copy the **Object (principal) ID** - you need it in the next step.
+Open the Automation account and go to **Account Settings > Identity**. For a new account, the system-assigned identity is already **On**. For a reused account, enable it if it is not already enabled. Copy the **Object (principal) ID**, which you need in the next step.
 
 ![Automation account overview](images/runbook-guide/06-automation-account-overview.png)
 
@@ -67,7 +70,7 @@ for PERM in $PERMISSIONS; do
   ROLE_ID=$(az ad sp show --id 00000003-0000-0000-c000-000000000000 \
     --query "appRoles[?value=='$PERM'].id" -o tsv)
   az rest --method POST \
-    --url "https://graph.microsoft.com/v1.0/servicePrincipals/$MSI_ID/appRoleAssignments" \
+    --url "https://graph.microsoft.com/beta/servicePrincipals/$MSI_ID/appRoleAssignments" \
     --headers "Content-Type=application/json" \
     --body "{\"principalId\":\"$MSI_ID\",\"resourceId\":\"$GRAPH_SP_ID\",\"appRoleId\":\"$ROLE_ID\"}"
 done
@@ -77,7 +80,7 @@ Each successful grant returns a JSON object with your identity as `principalDisp
 
 ![Cloud Shell showing the app role assignment created for the managed identity](images/runbook-guide/08-cloudshell-grant.png)
 
-If you prefer PowerShell, the repository ships [grant-permissions-managed-identity.ps1](../grant-permissions-managed-identity.ps1) which does the same thing with a display-name parameter and a sensible default permission set.
+If you prefer PowerShell, the repository ships [grant-permissions-managed-identity.ps1](../grant-permissions-managed-identity.ps1). It requires the exact permission list so it cannot silently grant a broad default bundle.
 
 ### Verify the grant
 
@@ -87,11 +90,11 @@ Open **Microsoft Entra ID > Enterprise applications**, remove the application ty
 
 Least privilege matters here: grant only what the script's page lists, per script. `Mail.Send` as an application permission allows sending as any mailbox by default; if that is too broad for your tenant, scope it with an Exchange Online application access policy to the sender mailbox.
 
-## Step 5: Import the Microsoft.Graph.Authentication module
+## Step 5: Verify the Runtime Environment
 
-The scripts need exactly one module in the Automation account: `Microsoft.Graph.Authentication`. In the portal: **Shared Resources > Modules > Add a module > Browse from gallery**, search for the module, and import it for the runtime your runbook uses (the deploy template creates PowerShell 5.1 runbooks).
+The deployment template creates a PowerShell 7.4 Runtime Environment and imports `Microsoft.Graph.Authentication` by default. Open **Process Automation > Runtime Environments**, select `IntuneAutomation-PS74`, and verify the package shows a successful provisioning state.
 
-Or do it from the same Cloud Shell session:
+If you set **Create Runtime Environment** to `false`, the named environment must already exist and contain the package. You can import it manually when needed:
 
 ```powershell
 New-AzAutomationModule -AutomationAccountName "aa-intuneautomation-demo" `
@@ -115,6 +118,8 @@ For the Stale Device Cleanup Alert:
 - **StaleAfterDays**: `90`
 - **EmailRecipients**: where the report goes
 - **SenderUPN**: the licensed mailbox the mail is sent from (the managed identity needs Mail.Send for it)
+
+For parameters that represent true or false, enter the strings `true` or `false`. Do not enter PowerShell expressions such as `$True`. Scripts validate and normalize these values before any tenant operation.
 
 ![Start Runbook pane with parameters filled in](images/runbook-guide/13-start-parameters.png)
 
@@ -142,11 +147,11 @@ A report you run manually is a report you will forget. In the runbook, open **Re
 
 ## Troubleshooting
 
-**Deployment fails with an Automation account quota error.** Subscriptions have a per-region quota for Automation accounts. Either deploy into an existing account (enter its name in the form) or change the **Location** parameter in the deployment form to a different region and redeploy. This happened in the real deployment behind this guide:
+**Deployment fails with an Automation account quota error.** Leave **Create Automation Account** set to `false` and enter an existing account in the selected resource group. If you intentionally need a new account, set it to `true` and select an available **New Automation Account Location**.
 
 ![Quota exceeded error during deployment](images/runbook-guide/16-troubleshooting-quota-error.png)
 
-**Job fails with "Module 'Microsoft.Graph.Authentication' is not available".** The module import from step 5 has not finished (or was imported for a different runtime version). Check Modules for `Succeeded` state on the runtime your runbook uses.
+**Job fails with "Module 'Microsoft.Graph.Authentication' is not available".** The Runtime Environment package import has not finished, or the runbook is linked to a different environment. Check the package state and the runbook's Runtime Environment association.
 
 **Job fails with "Insufficient privileges" or 403 from Graph.** Either a permission from the script page was not granted, or the grant has not propagated yet. Verify the Enterprise application's Permissions blade shows every scope, then allow a few minutes; newly granted app roles are not always honored by the very next token.
 
