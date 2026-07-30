@@ -18,33 +18,34 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.Read.All,DeviceManagementConfiguration.Read.All
+    DeviceManagementManagedDevices.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - The ShowProgress switch now drives Write-Progress during metric collection; analytics queries select only the fields the report consumes; output directory is created automatically before exports; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); work from anywhere metrics now use the allDevices metricDevices endpoint
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-endpoint-analytics-report.ps1
     Generates a complete Endpoint Analytics report with all metrics
 
 .EXAMPLE
-    .\get-endpoint-analytics-report.ps1 -OutputPath "C:\Reports" -IncludeStartupPerformance
+    .\get-endpoint-analytics-report.ps1 -OutputPath "C:\Reports" -IncludeStartupPerformance "true"
     Generates report with only startup performance metrics
 
 .EXAMPLE
-    .\get-endpoint-analytics-report.ps1 -IncludeAll -ExportJson
+    .\get-endpoint-analytics-report.ps1 -IncludeAll "true" -ExportJson "true"
     Generates report with all metrics and exports to both CSV and JSON formats
 
 .NOTES
@@ -64,29 +65,77 @@ param(
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Include startup performance metrics")]
-    [switch]$IncludeStartupPerformance,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeStartupPerformance,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include application reliability metrics")]
-    [switch]$IncludeAppReliability,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeAppReliability,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include battery health metrics")]
-    [switch]$IncludeBatteryHealth,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeBatteryHealth,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include work from anywhere metrics")]
-    [switch]$IncludeWorkFromAnywhere,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeWorkFromAnywhere,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include all available metrics")]
-    [switch]$IncludeAll,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeAll,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results in JSON format as well")]
-    [switch]$ExportJson,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportJson,
 
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgress,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeStartupPerformance', 'IncludeAppReliability', 'IncludeBatteryHealth', 'IncludeWorkFromAnywhere', 'IncludeAll', 'ExportJson', 'ShowProgress')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # If no specific category is selected, include all by default
 if (-not ($IncludeStartupPerformance -or $IncludeAppReliability -or $IncludeBatteryHealth -or $IncludeWorkFromAnywhere -or $IncludeAll)) {
@@ -208,8 +257,7 @@ try {
     else {
         Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
-            "DeviceManagementManagedDevices.Read.All",
-            "DeviceManagementConfiguration.Read.All"
+            "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
@@ -243,7 +291,7 @@ function Get-MgGraphAllPage {
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {
@@ -262,13 +310,37 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $nextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $nextLink : $($_.Exception.Message)"
         }
     } while ($nextLink)
 
     # Comma prevents unrolling so single-element results stay arrays
     return , $allResults
+}
+
+function Get-SafeAverage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [object[]]$InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Property,
+
+        [double]$Divisor = 1
+    )
+
+    $numericValues = @(
+        foreach ($item in $InputObject) {
+            $propertyValue = $item.PSObject.Properties[$Property].Value
+            if ($null -ne $propertyValue -and $propertyValue -is [System.IConvertible]) {
+                try { [double]$propertyValue } catch { continue }
+            }
+        }
+    )
+
+    if ($numericValues.Count -eq 0) { return 0 }
+    return [math]::Round(($numericValues | Measure-Object -Average).Average / $Divisor, 1)
 }
 
 # ============================================================================
@@ -434,27 +506,23 @@ try {
     Write-Output "Calculating analytics statistics..."
 
     # Device Scores Analytics
-    $avgEndpointScore = if ($allMetrics['DeviceScores'].Count -gt 0) {
-        [math]::Round(($allMetrics['DeviceScores'] | Measure-Object -Property endpointAnalyticsScore -Average).Average, 1)
-    } else { 0 }
-
-    $avgStartupScore = if ($allMetrics['DeviceScores'].Count -gt 0) {
-        [math]::Round(($allMetrics['DeviceScores'] | Measure-Object -Property startupPerformanceScore -Average).Average, 1)
-    } else { 0 }
-
-    $avgAppReliabilityScore = if ($allMetrics['DeviceScores'].Count -gt 0) {
-        [math]::Round(($allMetrics['DeviceScores'] | Measure-Object -Property appReliabilityScore -Average).Average, 1)
-    } else { 0 }
+    $avgEndpointScore = Get-SafeAverage -InputObject @($allMetrics['DeviceScores']) -Property 'endpointAnalyticsScore'
+    $avgStartupScore = Get-SafeAverage -InputObject @($allMetrics['DeviceScores']) -Property 'startupPerformanceScore'
+    $avgAppReliabilityScore = Get-SafeAverage -InputObject @($allMetrics['DeviceScores']) -Property 'appReliabilityScore'
 
     # Startup Performance Analytics
     $slowBootDevices = @()
     $avgBootTime = 0
     if ($IncludeStartupPerformance -and $allMetrics['DevicePerformance'].Count -gt 0) {
         # Calculate total boot time (core + group policy)
-        $allMetrics['DevicePerformance'] | ForEach-Object {
-            $_.totalBootTime = ($_.coreBootTimeInMs + $_.groupPolicyBootTimeInMs)
-        }
-        $avgBootTime = [math]::Round(($allMetrics['DevicePerformance'] | Measure-Object -Property totalBootTime -Average).Average / 1000, 1)
+        $bootTimeRecords = @(
+            $allMetrics['DevicePerformance'] | ForEach-Object {
+                [pscustomobject]@{
+                    totalBootTime = [double]$_.coreBootTimeInMs + [double]$_.groupPolicyBootTimeInMs
+                }
+            }
+        )
+        $avgBootTime = Get-SafeAverage -InputObject $bootTimeRecords -Property 'totalBootTime' -Divisor 1000
         $slowBootDevices = $allMetrics['DevicePerformance'] |
             Where-Object { ($_.coreBootTimeInMs + $_.groupPolicyBootTimeInMs) -gt 60000 } |
             Sort-Object { $_.coreBootTimeInMs + $_.groupPolicyBootTimeInMs } -Descending |
@@ -474,7 +542,7 @@ try {
     $lowBatteryDevices = @()
     $avgBatteryHealth = 0
     if ($IncludeBatteryHealth -and $allMetrics['BatteryDevicePerformance'].Count -gt 0) {
-        $avgBatteryHealth = [math]::Round(($allMetrics['BatteryDevicePerformance'] | Measure-Object -Property deviceBatteryHealthScore -Average).Average, 1)
+        $avgBatteryHealth = Get-SafeAverage -InputObject @($allMetrics['BatteryDevicePerformance']) -Property 'deviceBatteryHealthScore'
         $lowBatteryDevices = $allMetrics['BatteryDevicePerformance'] |
             Where-Object { $_.maxCapacityPercentage -lt 60 } |
             Sort-Object maxCapacityPercentage |

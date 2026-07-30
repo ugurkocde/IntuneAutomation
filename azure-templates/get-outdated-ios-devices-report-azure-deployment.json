@@ -44,14 +44,14 @@
       "type": "string"
     },
     "runbookName": {
-      "defaultValue": "rotate-bitlocker-keys",
+      "defaultValue": "get-outdated-ios-devices-report",
       "metadata": {
         "description": "Name of the runbook to create or update."
       },
       "type": "string"
     },
     "runbookDescription": {
-      "defaultValue": "This script connects to Intune via Graph API and rotates the BitLocker keys for all managed Windows devices.",
+      "defaultValue": "Connects to Microsoft Graph and retrieves Intune-managed iOS devices, including",
       "metadata": {
         "description": "Description stored on the Azure Automation runbook."
       },
@@ -59,7 +59,7 @@
     }
   },
   "variables": {
-    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-bitlocker-keys.ps1"
+    "scriptUri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-outdated-ios-devices-report.ps1"
   },
   "resources": [
     {
@@ -174,7 +174,7 @@
                 "runtimeEnvironment": "[parameters('runtimeEnvironmentName')]",
                 "runbookType": "PowerShell",
                 "publishContentLink": {
-                  "uri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/security/rotate-bitlocker-keys.ps1"
+                  "uri": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/devices/get-outdated-ios-devices-report.ps1"
                 },
                 "logProgress": false,
                 "logVerbose": false
@@ -219,7 +219,7 @@
     },
     "requiredGraphPermissions": {
       "value": [
-        "DeviceManagementManagedDevices.ReadWrite.All"
+        "DeviceManagementManagedDevices.Read.All"
       ],
       "type": "array"
     },

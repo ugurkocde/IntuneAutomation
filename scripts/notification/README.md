@@ -74,7 +74,7 @@ az deployment group create \
   --parameters \
     automationAccountName="your-automation-account" \
     notificationDays=30 \
-    emailRecipients="admin@company.com,security@company.com"
+    emailRecipients="<recipient-address>,<security-recipient-address>"
 ```
 
 ### Step 2: Install Required Modules
@@ -123,7 +123,7 @@ Run the provided permission script to grant the necessary Microsoft Graph permis
 3. Click **Test pane**
 4. Provide test parameters:
    - **NotificationDays**: `30`
-   - **EmailRecipients**: `your-email@company.com`
+   - **EmailRecipients**: `<recipient-address>`
 5. Click **Start** to test
 
 ## 📋 Script Parameters
@@ -133,11 +133,11 @@ Run the provided permission script to grant the necessary Microsoft Graph permis
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `NotificationDays` | int | Yes | Days before expiration to trigger alerts | `30` |
-| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"admin@company.com,security@company.com"` |
+| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"<recipient-address>,<security-recipient-address>"` |
 
 **Minimal Example:**
 ```powershell
-.\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "admin@company.com"
+.\apple-token-expiration-alert.ps1 -NotificationDays 30 -EmailRecipients "<recipient-address>"
 ```
 
 ### Stale Device Cleanup Alert
@@ -145,11 +145,11 @@ Run the provided permission script to grant the necessary Microsoft Graph permis
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `StaleAfterDays` | int | Yes | Days since last check-in to consider device stale | `90` |
-| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"admin@company.com,security@company.com"` |
+| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"<recipient-address>,<security-recipient-address>"` |
 
 **Minimal Example:**
 ```powershell
-.\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "admin@company.com"
+.\stale-device-cleanup-alert.ps1 -StaleAfterDays 90 -EmailRecipients "<recipient-address>"
 ```
 
 ### Device Compliance Drift Alert
@@ -157,11 +157,11 @@ Run the provided permission script to grant the necessary Microsoft Graph permis
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `ComplianceThresholdPercent` | int | Yes | Minimum compliance percentage to trigger alerts | `85` |
-| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"admin@company.com,security@company.com"` |
+| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"<recipient-address>,<security-recipient-address>"` |
 
 **Minimal Example:**
 ```powershell
-.\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "admin@company.com"
+.\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "<recipient-address>"
 ```
 
 ### App Deployment Failure Alert
@@ -169,11 +169,11 @@ Run the provided permission script to grant the necessary Microsoft Graph permis
 | Parameter | Type | Required | Description | Example |
 |-----------|------|----------|-------------|---------|
 | `FailureThresholdPercent` | int | Yes | Maximum acceptable failure percentage for app deployments | `20` |
-| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"admin@company.com,appsupport@company.com"` |
+| `EmailRecipients` | string | Yes | Comma-separated email addresses | `"<recipient-address>,<app-support-recipient-address>"` |
 
 **Minimal Example:**
 ```powershell
-.\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "admin@company.com"
+.\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "<recipient-address>"
 ```
 
 ## 🔧 Configuration

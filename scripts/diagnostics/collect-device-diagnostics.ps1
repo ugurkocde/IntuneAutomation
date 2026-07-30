@@ -20,20 +20,24 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.ReadWrite.All,Group.Read.All,GroupMember.Read.All
+    DeviceManagementManagedDevices.ReadWrite.All,GroupMember.Read.All
+
+.EXECUTION
+    LocalOnly
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\collect-device-diagnostics.ps1 -DeviceNames "PC-001","PC-002"
@@ -44,7 +48,7 @@
     Collects diagnostics from all Windows devices in the group and saves packages to C:\DeviceLogs
 
 .EXAMPLE
-    .\collect-device-diagnostics.ps1 -DeviceNames "PC-001" -DownloadExisting
+    .\collect-device-diagnostics.ps1 -DeviceNames "PC-001" -DownloadExisting "true"
     Skips triggering a new collection and downloads the most recent completed package instead
 
 .NOTES
@@ -56,13 +60,13 @@
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
-[CmdletBinding(DefaultParameterSetName = "ByDevice")]
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = "ByDevice", HelpMessage = "Device names to collect diagnostics from")]
+    [Parameter(Mandatory = $false, HelpMessage = "Device names to collect diagnostics from")]
     [ValidateNotNullOrEmpty()]
     [string[]]$DeviceNames,
 
-    [Parameter(Mandatory = $true, ParameterSetName = "ByGroup", HelpMessage = "Entra ID group whose Windows devices get diagnostics collected")]
+    [Parameter(Mandatory = $false, HelpMessage = "Entra ID group whose Windows devices get diagnostics collected")]
     [ValidateNotNullOrEmpty()]
     [string]$GroupName,
 
@@ -70,15 +74,66 @@ param(
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Download the latest existing completed package instead of triggering a new collection")]
-    [switch]$DownloadExisting,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DownloadExisting,
 
     [Parameter(Mandatory = $false, HelpMessage = "Minutes to wait for collections to complete")]
     [ValidateRange(1, 120)]
     [int]$TimeoutMinutes = 15,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('DownloadExisting')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
+
+$selectedTargets = @(
+    if (@($DeviceNames).Count -gt 0) { 'ByDevice' }
+    if (-not [string]::IsNullOrWhiteSpace($GroupName)) { 'ByGroup' }
+)
+if ($selectedTargets.Count -ne 1) {
+    throw "Specify exactly one target: DeviceNames or GroupName."
+}
+$TargetMode = $selectedTargets[0]
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -160,7 +215,6 @@ try {
         Write-Output "Connecting to Microsoft Graph..."
         $Scopes = @(
             "DeviceManagementManagedDevices.ReadWrite.All",
-            "Group.Read.All",
             "GroupMember.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
@@ -193,7 +247,7 @@ function Get-MgGraphAllPage {
 
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {
@@ -208,8 +262,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -220,7 +273,7 @@ function Get-TargetDevice {
     # Resolves the requested devices to Intune Windows managed devices
     $devices = [System.Collections.Generic.List[Object]]::new()
 
-    if ($PSCmdlet.ParameterSetName -eq "ByDevice") {
+    if ($TargetMode -eq "ByDevice") {
         foreach ($deviceName in $DeviceNames) {
             $escapedName = $deviceName -replace "'", "''"
             $found = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=deviceName eq '$escapedName'&`$select=id,deviceName,operatingSystem,lastSyncDateTime"

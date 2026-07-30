@@ -55,10 +55,10 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Description of this parameter")]
     [ValidateNotNullOrEmpty()]
     [string]$RequiredParameter,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Description of this optional parameter")]
     [string]$OptionalParameter = "DefaultValue",
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$SwitchParameter
 )
@@ -111,28 +111,28 @@ function Get-MgGraphAllPages {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -145,7 +145,7 @@ function Get-MgGraphAllPages {
             break
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -155,11 +155,11 @@ function Invoke-CustomFunction {
         [Parameter(Mandatory = $true)]
         [string]$Parameter
     )
-    
+
     try {
         # Your function logic here
         Write-Information "Processing: $Parameter" -InformationAction Continue
-        
+
         # Return result
         return $true
     }
@@ -175,15 +175,15 @@ function Invoke-CustomFunction {
 
 try {
     Write-Output "Starting script execution..."
-    
+
     # Validate parameters
     if ([string]::IsNullOrWhiteSpace($RequiredParameter)) {
         throw "Required parameter cannot be empty"
     }
-    
+
     # Main script logic goes here
     Write-Output "Processing with parameter: $RequiredParameter"
-    
+
     # Example API call
     # $Results = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/your-endpoint"
 

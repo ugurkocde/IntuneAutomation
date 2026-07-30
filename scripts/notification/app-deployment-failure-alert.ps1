@@ -6,11 +6,11 @@
     Automated runbook to monitor application deployment failures in Intune and send email alerts for deployment issues.
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors application 
-    deployment status in Microsoft Intune and identifies applications with high failure rates or 
-    deployment issues. It tracks deployment success rates, identifies required applications with 
-    failures, and sends email notifications to administrators with detailed deployment reports. 
-    The script helps maintain application availability and user productivity by proactively alerting 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors application
+    deployment status in Microsoft Intune and identifies applications with high failure rates or
+    deployment issues. It tracks deployment success rates, identifies required applications with
+    failures, and sends email notifications to administrators with detailed deployment reports.
+    The script helps maintain application availability and user productivity by proactively alerting
     on deployment failures and providing actionable insights for remediation.
 
 .TAGS
@@ -26,16 +26,18 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.5
 
 .CHANGELOG
+    1.5 - Download the app installation report payload before parsing its JSON content and add MaxApps for bounded runbook validation
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-app report and assignment calls are paced and the app listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); app install status now read via deviceManagement/reports (mobileApps deviceStatuses was retired from the Graph service)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -50,11 +52,11 @@
     Notification
 
 .EXAMPLE
-    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
-    Alerts when app deployment failure rate exceeds 20% and sends notifications to admin@company.com
+    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 20 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
+    Alerts when app deployment failure rate exceeds 20% and sends notifications to <recipient-address>
 
 .EXAMPLE
-    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients "admin@company.com,appsupport@company.com" -SenderUPN "intune-alerts@company.com"
+    .\app-deployment-failure-alert.ps1 -FailureThresholdPercent 15 -EmailRecipients "<recipient-address>,<app-support-recipient-address>" -SenderUPN "<sender-upn>"
     Alerts when app deployment failure rate exceeds 15% and sends notifications to multiple recipients
 
 .NOTES
@@ -74,7 +76,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Maximum acceptable failure percentage for app deployments")]
     [ValidateRange(5, 50)]
     [int]$FailureThresholdPercent,
-    
+
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
@@ -83,9 +85,30 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$SenderUPN,
 
+    [Parameter(Mandatory = $false, HelpMessage = "Maximum number of applications to evaluate; 0 evaluates all applications")]
+    [ValidateRange(0, 10000)]
+    [int]$MaxApps = 0,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -97,12 +120,12 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -122,18 +145,18 @@ Required modules for this script:
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -143,7 +166,7 @@ Required modules for this script:
                 }
             }
         }
-        
+
         try {
             Write-Verbose "Importing module: $ModuleName"
             Import-Module -Name $ModuleName -Force -ErrorAction Stop
@@ -201,7 +224,7 @@ try {
             "DeviceManagementManagedDevices.Read.All",
             "Mail.Send"
         )
-        
+
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
     }
@@ -221,27 +244,27 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -250,8 +273,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -289,7 +311,16 @@ function Get-AppInstallStatusReportRow {
                 select = @("DeviceId", "DeviceName", "UserPrincipalName", "Platform", "AppVersion", "InstallState", "InstallStateDetail", "ErrorCode", "LastModifiedDateTime")
             } | ConvertTo-Json -Depth 5
 
-            $Response = Invoke-MgGraphRequest -Uri $ReportUri -Method POST -Body $Body -ContentType "application/json"
+            $ReportPath = Join-Path ([System.IO.Path]::GetTempPath()) "IntuneAutomation-AppDeploymentAlert-$([guid]::NewGuid().ToString('N')).json"
+            try {
+                Invoke-MgGraphRequest -Uri $ReportUri -Method POST -Body $Body -ContentType "application/json" -OutputFilePath $ReportPath | Out-Null
+                $Response = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json -AsHashtable
+            }
+            finally {
+                if (Test-Path -LiteralPath $ReportPath) {
+                    Remove-Item -LiteralPath $ReportPath -Force
+                }
+            }
 
             # The report returns columnar JSON - map Schema columns to row indexes,
             # column order is declared by Schema, not by the request
@@ -321,8 +352,7 @@ function Get-AppInstallStatusReportRow {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching install status report for app $AppId : $($_.Exception.Message)"
-            break
+            throw "Error fetching install status report for app $AppId : $($_.Exception.Message)"
         }
     } while ($Skip -lt $TotalRows)
 
@@ -332,7 +362,7 @@ function Get-AppInstallStatusReportRow {
 
 function Get-AppType {
     param([string]$ODataType)
-    
+
     switch ($ODataType) {
         "#microsoft.graph.win32LobApp" { return "Win32 App" }
         "#microsoft.graph.microsoftStoreForBusinessApp" { return "Store App" }
@@ -351,7 +381,7 @@ function Get-AppType {
 
 function Get-InstallIntentDisplay {
     param([string]$Intent)
-    
+
     switch ($Intent) {
         "required" { return "Required" }
         "available" { return "Available" }
@@ -363,7 +393,7 @@ function Get-InstallIntentDisplay {
 
 function Get-InstallStateDisplay {
     param([string]$InstallState)
-    
+
     switch ($InstallState) {
         "installed" { return "Installed" }
         "failed" { return "Failed" }
@@ -378,7 +408,7 @@ function Get-InstallStateDisplay {
 
 function Get-DeploymentSeverity {
     param([string]$InstallState, [string]$Intent)
-    
+
     if ($Intent -eq "required") {
         switch ($InstallState) {
             "failed" { return "Critical" }
@@ -406,7 +436,7 @@ function Send-EmailNotification {
         [string]$Subject,
         [string]$Body
     )
-    
+
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
@@ -423,13 +453,13 @@ function Send-EmailNotification {
                     }
                 )
             }
-            
+
             $RequestBody = @{
                 message = $Message
             } | ConvertTo-Json -Depth 10
-            
+
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
@@ -450,17 +480,17 @@ function New-EmailBody {
         [hashtable]$AppStats,
         [int]$FailureThreshold
     )
-    
+
     $TotalApps = $AllApps.Count
     $AppsWithFailures = ($AllApps | Where-Object { $_.FailureCount -gt 0 }).Count
-    $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) { 
-        [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1) 
+    $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) {
+        [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1)
     }
     else { 0 }
-    
+
     $AppTypeSummary = $FailedApps | Group-Object AppType | Sort-Object Count -Descending
     $PlatformSummary = $FailedApps | Group-Object TargetPlatform | Sort-Object Count -Descending
-    
+
     $Body = @"
 <!DOCTYPE html>
 <html>
@@ -498,14 +528,14 @@ function New-EmailBody {
         <h1>📱 App Deployment Failure Alert</h1>
         <p>Failure threshold: $FailureThreshold% | Current overall rate: $OverallFailureRate%</p>
     </div>
-    
+
     <div class="summary">
         <h2>Application Deployment Overview</h2>
         <div class="failure-meter">
             <div class="failure-fill" style="width: $(if ($OverallFailureRate -gt 100) { 100 } else { $OverallFailureRate })%; background-color: $(if ($OverallFailureRate -le $FailureThreshold) { '#28a745' } elseif ($OverallFailureRate -le ($FailureThreshold * 1.5)) { '#ffc107' } else { '#dc3545' });"></div>
             <div class="failure-text">$OverallFailureRate%</div>
         </div>
-        
+
         <div class="stats-grid">
             <div class="stat-card">
                 <h3 style="margin: 0; color: #0078d4;">$TotalApps</h3>
@@ -520,7 +550,7 @@ function New-EmailBody {
                 <p style="margin: 5px 0;">Required Apps Failing</p>
             </div>
         </div>
-        
+
         <div class="stats-grid">
             <div class="stat-card">
                 <h3 style="margin: 0; color: #17a2b8;">$($AppStats.TotalDeployments)</h3>
@@ -543,7 +573,7 @@ function New-EmailBody {
     <div class="critical">
         <h3><span class="status-icon">🚨</span>Required Applications with Failures - Critical Impact ($($RequiredFailedApps.Count) apps)</h3>
         <p>These required applications are failing to install and may impact user productivity:</p>
-        
+
         <table>
             <tr>
                 <th>Application Name</th>
@@ -555,7 +585,7 @@ function New-EmailBody {
                 <th>Success Rate</th>
             </tr>
 "@
-        
+
         foreach ($App in ($RequiredFailedApps | Sort-Object FailureRate -Descending | Select-Object -First 15)) {
             $SuccessRate = [math]::Round((($App.TotalDeployments - $App.FailureCount) / $App.TotalDeployments) * 100, 1)
             $Body += @"
@@ -575,7 +605,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($RequiredFailedApps.Count -gt 15) {
             $Body += @"
             <tr>
@@ -583,7 +613,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -593,7 +623,7 @@ function New-EmailBody {
     <div class="warning">
         <h3><span class="status-icon">⚠️</span>Available Applications with Failures ($($AvailableFailedApps.Count) apps)</h3>
         <p>These available applications have deployment failures that may affect user experience:</p>
-        
+
         <table>
             <tr>
                 <th>Application Name</th>
@@ -604,7 +634,7 @@ function New-EmailBody {
                 <th>Failure Rate</th>
             </tr>
 "@
-        
+
         foreach ($App in ($AvailableFailedApps | Sort-Object FailureRate -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
@@ -617,7 +647,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($AvailableFailedApps.Count -gt 10) {
             $Body += @"
             <tr>
@@ -625,7 +655,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -669,7 +699,7 @@ function New-EmailBody {
             <li><strong>Validate Dependencies:</strong> Ensure all application dependencies are properly installed</li>
             <li><strong>Check Target Requirements:</strong> Verify device requirements match application specifications</li>
         </ul>
-        
+
         <h4>Technical Investigation:</h4>
         <ul>
             <li><strong>Review Install Logs:</strong> Examine detailed installation logs for root cause analysis</li>
@@ -677,7 +707,7 @@ function New-EmailBody {
             <li><strong>Network Connectivity:</strong> Ensure devices have reliable connectivity for large app downloads</li>
             <li><strong>Storage Space:</strong> Verify target devices have sufficient storage for installations</li>
         </ul>
-        
+
         <h4>Process Improvements:</h4>
         <ul>
             <li><strong>Staging Deployments:</strong> Implement phased rollouts for better failure detection</li>
@@ -686,7 +716,7 @@ function New-EmailBody {
             <li><strong>Rollback Plans:</strong> Prepare rollback procedures for problematic deployments</li>
         </ul>
     </div>
-    
+
     <div class="footer">
         <p><strong>Next Steps:</strong></p>
         <ol>
@@ -711,23 +741,24 @@ function New-EmailBody {
 
 try {
     Write-Output "Starting app deployment failure monitoring..."
-    
+
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-    
+
     if ($EmailRecipientList.Count -eq 0) {
         throw "No valid email recipients provided"
     }
-    
+
     Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
     Write-Output "Failure threshold: $FailureThresholdPercent%"
-    
+
     # Initialize results arrays
     $AllApps = @()
     $FailedApps = @()
     $RequiredFailedApps = @()
     $NotificationFailed = $false
-    
+    $AppProcessingErrors = 0
+
     # Initialize statistics
     $AppStats = @{
         TotalDeployments = 0
@@ -735,45 +766,42 @@ try {
         TotalFailures    = 0
         TotalPending     = 0
     }
-    
+
     # ========================================================================
     # GET ALL MOBILE APPLICATIONS
     # ========================================================================
-    
+
     Write-Output "Retrieving mobile applications..."
-    
+
     try {
-        $AppsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,isFeatured,isAssigned,createdDateTime,lastModifiedDateTime"
+        $AppsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,createdDateTime,lastModifiedDateTime"
         $Apps = Get-MgGraphAllPage -Uri $AppsUri
+        if ($MaxApps -gt 0) {
+            $Apps = @($Apps | Select-Object -First $MaxApps)
+        }
         Write-Output "Found $($Apps.Count) applications"
-        
+
         foreach ($App in $Apps) {
             try {
-                # Skip featured apps
-                if ($App.isFeatured -eq $true) {
-                    Write-Verbose "Skipping featured app: $($App.displayName)"
-                    continue
-                }
-                
                 # Skip apps without essential information
                 if (-not $App.id -or -not $App.displayName) {
                     Write-Verbose "Skipping app with missing essential data"
                     continue
                 }
-                
+
                 Write-Verbose "Processing app: $($App.displayName)"
-                
+
                 # Get app install status for this application via the reports endpoint
                 $InstallStatuses = Get-AppInstallStatusReportRow -AppId $App.id
-                
+
                 # Get app assignments to determine install intent
-                $AppAssignmentsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps/$($App.id)/assignments"
+                $AppAssignmentsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($App.id)/assignments"
                 $Assignments = Get-MgGraphAllPage -Uri $AppAssignmentsUri
-                
+
                 # Determine primary install intent (prioritize required)
                 $InstallIntent = "available"
                 $TargetPlatform = "Unknown"
-                
+
                 if ($Assignments) {
                     foreach ($Assignment in $Assignments) {
                         if ($Assignment.intent -eq "required") {
@@ -785,7 +813,7 @@ try {
                         }
                     }
                 }
-                
+
                 # Determine target platform from app type
                 switch -Regex ($App.'@odata.type') {
                     "win32|office" { $TargetPlatform = "Windows" }
@@ -795,7 +823,7 @@ try {
                     "web" { $TargetPlatform = "Web" }
                     default { $TargetPlatform = "Cross-Platform" }
                 }
-                
+
                 # Calculate deployment statistics
                 # InstallState values per the resultantAppState enum (Microsoft Graph beta):
                 # 1 installed, 2 failed, 3 notInstalled, 4 uninstallFailed, 5 pendingInstall
@@ -803,15 +831,15 @@ try {
                 $SuccessfulInstalls = ($InstallStatuses | Where-Object { $_.InstallState -eq 1 }).Count
                 $FailedInstalls = ($InstallStatuses | Where-Object { $_.InstallState -in @(2, 4) }).Count
                 $PendingInstalls = ($InstallStatuses | Where-Object { $_.InstallState -eq 5 }).Count
-                
-                $FailureRate = if ($TotalDeployments -gt 0) { 
-                    [math]::Round(($FailedInstalls / $TotalDeployments) * 100, 1) 
+
+                $FailureRate = if ($TotalDeployments -gt 0) {
+                    [math]::Round(($FailedInstalls / $TotalDeployments) * 100, 1)
                 }
                 else { 0 }
-                
+
                 $AppType = Get-AppType -ODataType $App.'@odata.type'
                 $InstallIntentDisplay = Get-InstallIntentDisplay -Intent $InstallIntent
-                
+
                 $AppInfo = [PSCustomObject]@{
                     AppId                = $App.id
                     AppName              = $App.displayName
@@ -829,19 +857,19 @@ try {
                     CreatedDateTime      = if ($App.createdDateTime) { [datetime]$App.createdDateTime } else { $null }
                     LastModifiedDateTime = if ($App.lastModifiedDateTime) { [datetime]$App.lastModifiedDateTime } else { $null }
                 }
-                
+
                 # Update overall statistics
                 $AppStats.TotalDeployments += $TotalDeployments
                 $AppStats.TotalSuccesses += $SuccessfulInstalls
                 $AppStats.TotalFailures += $FailedInstalls
                 $AppStats.TotalPending += $PendingInstalls
-                
+
                 $AllApps += $AppInfo
-                
+
                 # Categorize apps with failures
                 if ($FailedInstalls -gt 0 -and $FailureRate -gt $FailureThresholdPercent) {
                     $FailedApps += $AppInfo
-                    
+
                     if ($InstallIntent -eq "required") {
                         $RequiredFailedApps += $AppInfo
                     }
@@ -851,11 +879,16 @@ try {
                 Start-Sleep -Milliseconds 200
             }
             catch {
-                Write-Verbose "Error processing app '$($App.displayName)' (ID: $($App.id)): $($_.Exception.Message)"
+                $AppProcessingErrors++
+                Write-Warning "Error processing app '$($App.displayName)' (ID: $($App.id)): $($_.Exception.Message)"
                 continue
             }
         }
-        
+
+        if ($AppProcessingErrors -gt 0) {
+            throw "The report could not fully evaluate $AppProcessingErrors application(s). No healthy result will be reported from partial data."
+        }
+
         Write-Output "✓ Processed $($AllApps.Count) applications successfully"
         Write-Output "  • Applications with failures: $($FailedApps.Count)"
         Write-Output "  • Required apps with failures: $($RequiredFailedApps.Count)"
@@ -864,32 +897,32 @@ try {
         Write-Error "Failed to retrieve mobile applications: $($_.Exception.Message)"
         exit 1
     }
-    
+
     # ========================================================================
     # CALCULATE OVERALL STATISTICS
     # ========================================================================
-    
-    $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) { 
-        [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1) 
+
+    $OverallFailureRate = if ($AppStats.TotalDeployments -gt 0) {
+        [math]::Round(($AppStats.TotalFailures / $AppStats.TotalDeployments) * 100, 1)
     }
     else { 0 }
-    
+
     Write-Output "  • Total deployments: $($AppStats.TotalDeployments)"
     Write-Output "  • Successful installs: $($AppStats.TotalSuccesses)"
     Write-Output "  • Failed installs: $($AppStats.TotalFailures)"
     Write-Output "  • Overall failure rate: $OverallFailureRate%"
-    
+
     # ========================================================================
     # SEND NOTIFICATIONS IF DEPLOYMENT FAILURES DETECTED
     # ========================================================================
-    
-    $RequiresNotification = ($OverallFailureRate -gt $FailureThresholdPercent) -or 
-                           ($RequiredFailedApps.Count -gt 0) -or 
+
+    $RequiresNotification = ($OverallFailureRate -gt $FailureThresholdPercent) -or
+                           ($RequiredFailedApps.Count -gt 0) -or
                            ($FailedApps.Count -gt 0)
-    
+
     if ($RequiresNotification) {
         Write-Output "Preparing email notification for app deployment failures..."
-        
+
         $Subject = if ($RequiredFailedApps.Count -gt 0) {
             "[Intune Alert] CRITICAL: $($RequiredFailedApps.Count) Required App(s) Failing to Deploy"
         }
@@ -899,9 +932,9 @@ try {
         else {
             "[Intune Alert] APPLICATION MONITORING: $($FailedApps.Count) App(s) with Deployment Failures"
         }
-        
+
         $EmailBody = New-EmailBody -AllApps $AllApps -FailedApps $FailedApps -RequiredFailedApps $RequiredFailedApps -AppStats $AppStats -FailureThreshold $FailureThresholdPercent
-        
+
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
@@ -915,11 +948,11 @@ try {
     else {
         Write-Output "✓ No significant app deployment failures detected. All applications are deploying successfully."
     }
-    
+
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
-    
+
     Write-Output "`n📱 APP DEPLOYMENT FAILURE MONITORING SUMMARY"
     Write-Output "============================================="
     Write-Output "Total Applications: $($AllApps.Count)"
@@ -938,7 +971,7 @@ try {
     Write-Output "  • Apps with failures: $($FailedApps.Count)"
     Write-Output "  • Required apps failing: $($RequiredFailedApps.Count)"
     Write-Output ""
-    
+
     if ($RequiredFailedApps.Count -gt 0) {
         Write-Output "Top Required Apps with Failures:"
         $TopRequiredFailed = $RequiredFailedApps | Sort-Object FailureRate -Descending | Select-Object -First 5
@@ -947,10 +980,10 @@ try {
         }
         Write-Output ""
     }
-    
+
     $StatusIcon = if ($OverallFailureRate -le $FailureThresholdPercent -and $RequiredFailedApps.Count -eq 0) { "✅" } else { "⚠️" }
     Write-Output "$StatusIcon Deployment Status: $(if ($OverallFailureRate -le $FailureThresholdPercent -and $RequiredFailedApps.Count -eq 0) { 'HEALTHY' } else { 'ISSUES DETECTED' })"
-    
+
     Write-Output "`n✓ App deployment failure monitoring completed successfully"
 }
 catch {

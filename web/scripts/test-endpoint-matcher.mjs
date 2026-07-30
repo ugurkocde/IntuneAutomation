@@ -17,7 +17,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = resolve(HERE, "..", "src", "lib", "generator-graph-data.ts");
 
 const src = readFileSync(DATA_FILE, "utf8");
-const m = src.match(/export const GRAPH_ENDPOINTS: readonly string\[\] = (\[[\s\S]*?\]);/);
+const m = src.match(
+  /export const GRAPH_ENDPOINTS: readonly string\[\] = (\[[\s\S]*?\]);/,
+);
 if (!m) {
   console.error("GRAPH_ENDPOINTS not found in data file");
   process.exit(1);
@@ -66,7 +68,7 @@ const cases = [
   ["GET", "/v1.0/deviceManagement/managedDevices", true],
   ["GET", "/beta/deviceManagement/managedDevices/abc-123", true],
   ["GET", "/v1.0/users", true],
-  ["GET", "/v1.0/users/jane@contoso.com", true],
+  ["GET", "/v1.0/users/00000000-0000-0000-0000-000000000001", true],
   ["GET", "/v1.0/groups", true],
   ["GET", "/beta/identity/conditionalAccess/policies", true],
   ["GET", "/v1.0/deviceManagement/roleDefinitions", true],
@@ -103,8 +105,7 @@ function stripQueryAndFragment(url) {
 }
 function extractUsages(body) {
   const usages = [];
-  const re =
-    /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
+  const re = /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
   for (const m of body.matchAll(re)) {
     const raw = m[0].slice(1, -1);
     const url = stripQueryAndFragment(raw);
@@ -131,14 +132,18 @@ Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/v1.0/users/\$id"
 Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?\`$filter=operatingSystem eq 'macOS'&\`$select=id,deviceName"
 `;
 const usages = extractUsages(scriptSample);
-console.log(`\nIntegration: extracted ${usages.length} URIs from sample script`);
+console.log(
+  `\nIntegration: extracted ${usages.length} URIs from sample script`,
+);
 let unknownCount = 0;
 for (const u of usages) {
   const ok = isKnown(u.method, u.path);
   if (!ok) unknownCount++;
   console.log(`  ${u.method} ${u.path} -> ${ok ? "known" : "UNKNOWN"}`);
 }
-console.log(`Expected 1 unknown ("/deviceManagement/notARealThing"), got ${unknownCount}`);
+console.log(
+  `Expected 1 unknown ("/deviceManagement/notARealThing"), got ${unknownCount}`,
+);
 const integrationOk = unknownCount === 1;
 // Regression: the macOS-filter sample contains an OData query with a literal
 // space (`eq 'macOS'`). The old extractor regex bailed on whitespace and

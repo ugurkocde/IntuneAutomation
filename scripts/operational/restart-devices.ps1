@@ -18,22 +18,26 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.PrivilegedOperations.All,DeviceManagementManagedDevices.Read.All,Group.Read.All,GroupMember.Read.All
+    DeviceManagementManagedDevices.PrivilegedOperations.All,DeviceManagementManagedDevices.Read.All,GroupMember.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.7
 
 .CHANGELOG
+    1.7 - Let the finally block own Graph disconnection so early exits do not emit a second-disconnect error
+    1.6 - Ignore empty string-array values supplied by Azure Automation when validating the selected target
+    1.5 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added -WhatIf dry run support; exit code 1 when any restart fails; 429 retry with 60s wait on restart calls; group matching now falls back to userPrincipalName/mail so user-membership groups work; group lookup failures abort with a distinct error; added $select to managed device queries
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\restart-devices.ps1 -DeviceNames "LAPTOP001","DESKTOP002"
@@ -48,8 +52,12 @@
     Restarts all devices belonging to users in the specified Entra ID group
 
 .EXAMPLE
-    .\restart-devices.ps1 -DeviceNames "LAPTOP001" -Force
+    .\restart-devices.ps1 -DeviceNames "LAPTOP001" -Force "true"
     Restarts a specific device without confirmation prompt
+
+.EXAMPLE
+    .\restart-devices.ps1 -EntraGroupName "IT Department Devices" -DryRun "true"
+    Lists the target devices without sending a restart action
 
 .NOTES
     - Supports both local execution and Azure Automation Runbook environments
@@ -66,26 +74,85 @@
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
 #>
 
-[CmdletBinding(DefaultParameterSetName = 'DeviceNames', SupportsShouldProcess = $true)]
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = 'DeviceNames')]
+    [Parameter(Mandatory = $false)]
     [string[]]$DeviceNames,
 
-    [Parameter(Mandatory = $true, ParameterSetName = 'DeviceIds')]
+    [Parameter(Mandatory = $false)]
     [string[]]$DeviceIds,
 
-    [Parameter(Mandatory = $true, ParameterSetName = 'EntraGroup')]
+    [Parameter(Mandatory = $false)]
     [string]$EntraGroupName,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Force,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$Force,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Preview target devices without restarting them")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun,
 
     [Parameter(Mandatory = $false)]
     [int]$RestartDelaySeconds = 2,
 
     [Parameter(Mandatory = $false, HelpMessage = 'Force module installation without prompting')]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('Force', 'DryRun')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
+
+$DeviceNames = @($DeviceNames | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+$DeviceIds = @($DeviceIds | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+
+$selectedTargets = @(
+    if ($DeviceNames.Count -gt 0) { 'DeviceNames' }
+    if ($DeviceIds.Count -gt 0) { 'DeviceIds' }
+    if (-not [string]::IsNullOrWhiteSpace($EntraGroupName)) { 'EntraGroup' }
+)
+if ($selectedTargets.Count -ne 1) {
+    throw "Specify exactly one target: DeviceNames, DeviceIds, or EntraGroupName."
+}
+$TargetMode = $selectedTargets[0]
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -210,8 +277,8 @@ try {
 
         $scopes = @('DeviceManagementManagedDevices.PrivilegedOperations.All', 'DeviceManagementManagedDevices.Read.All')
 
-        if ($PSCmdlet.ParameterSetName -eq 'EntraGroup') {
-            $scopes += @('Group.Read.All', 'GroupMember.Read.All')
+        if ($TargetMode -eq 'EntraGroup') {
+            $scopes += 'GroupMember.Read.All'
         }
         Connect-MgGraphCommunity -Scopes $scopes -NoWelcome -ErrorAction Stop
         Write-Output '✓ Successfully connected to Microsoft Graph'
@@ -243,7 +310,7 @@ function Get-MgGraphAllPage {
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $response.value | ForEach-Object {
                     $allResults.Add($_)
                 }
@@ -260,8 +327,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $nextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $nextLink : $($_.Exception.Message)"
         }
     } while ($nextLink)
 
@@ -276,7 +342,7 @@ function Invoke-DeviceRestart {
     )
 
     try {
-        $restartUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$DeviceId')/rebootNow"
+        $restartUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$DeviceId')/rebootNow"
         Invoke-MgGraphRequest -Uri $restartUri -Method POST
         Write-Information "✓ Restart triggered successfully for device: $DeviceName" -InformationAction Continue
         return $true
@@ -308,7 +374,7 @@ function Get-DevicesByEntraGroup {
         Write-Information "Finding Entra ID group: $GroupName..." -InformationAction Continue
 
         # Find the group
-        $groupUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$GroupName'"
+        $groupUri = "https://graph.microsoft.com/beta/groups?`$filter=displayName eq '$GroupName'"
         $groups = @(Get-MgGraphAllPage -Uri $groupUri)
 
         if ($groups.Count -eq 0) {
@@ -323,14 +389,14 @@ function Get-DevicesByEntraGroup {
 
         # Get group members
         Write-Information 'Retrieving group members...' -InformationAction Continue
-        $membersUri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/members"
+        $membersUri = "https://graph.microsoft.com/beta/groups/$($group.id)/members"
         $members = @(Get-MgGraphAllPage -Uri $membersUri)
 
         Write-Information "✓ Found $($members.Count) members in group" -InformationAction Continue
 
         # Get all managed devices
         Write-Information 'Retrieving managed devices...' -InformationAction Continue
-        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
+        $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
         $allDevices = @(Get-MgGraphAllPage -Uri $devicesUri)
 
         # Filter devices by group members (device membership first, then user membership fallback)
@@ -392,10 +458,10 @@ try {
     # Get target devices based on parameter set
     $targetDevices = @()
 
-    switch ($PSCmdlet.ParameterSetName) {
+    switch ($TargetMode) {
         'DeviceNames' {
             Write-Output 'Retrieving devices by names...'
-            $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
+            $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
             $allDevices = Get-MgGraphAllPage -Uri $devicesUri
 
             foreach ($deviceName in $DeviceNames) {
@@ -414,7 +480,7 @@ try {
             Write-Output 'Retrieving devices by IDs...'
             foreach ($deviceId in $DeviceIds) {
                 try {
-                    $deviceUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
+                    $deviceUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$deviceId`?`$select=id,deviceName,azureADDeviceId,userPrincipalName,operatingSystem,osVersion,model,lastSyncDateTime"
                     $device = Invoke-MgGraphRequest -Uri $deviceUri -Method GET
                     $targetDevices += $device
                     Write-Output "✓ Found device: $($device.deviceName)"
@@ -431,8 +497,7 @@ try {
     }
 
     if ($targetDevices.Count -eq 0) {
-        Write-Warning 'No target devices found. Exiting.'
-        $null = Disconnect-MgGraph
+        Write-Output 'No target devices found. No restart action is required.'
         exit 0
     }
 
@@ -445,6 +510,11 @@ try {
     # Show device details
     Show-DeviceDetail -Devices $targetDevices
 
+    if ($DryRun) {
+        Write-Output "✓ Dry run completed. No restart actions were sent."
+        exit 0
+    }
+
     # Confirmation prompt unless Force or WhatIf is specified
     if (-not $Force -and -not $IsAzureAutomation -and -not $WhatIfPreference) {
         Write-Output "`nCONFIRMATION REQUIRED"
@@ -455,7 +525,6 @@ try {
 
         if ($confirmation -ne 'CONFIRM') {
             Write-Output "Operation cancelled by user."
-            $null = Disconnect-MgGraph
             exit 0
         }
     }
@@ -518,8 +587,10 @@ catch {
 finally {
     # Disconnect from Microsoft Graph
     try {
-        $null = Disconnect-MgGraph
-        Write-Output '✓ Disconnected from Microsoft Graph'
+        if (Get-MgContext) {
+            $null = Disconnect-MgGraph -ErrorAction SilentlyContinue
+            Write-Output '✓ Disconnected from Microsoft Graph'
+        }
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected

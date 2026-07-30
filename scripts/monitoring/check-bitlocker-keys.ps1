@@ -19,33 +19,34 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.Read.All,BitlockerKey.Read.All
+    DeviceManagementManagedDevices.Read.All,BitlockerKey.ReadBasic.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Summary now reuses collected results instead of re-querying every device; key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields (isEncrypted replaces the invalid encryptionState property); pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\check-bitlocker-keys.ps1
     Generates BitLocker key storage report for all Windows devices in Intune
 
 .EXAMPLE
-    .\check-bitlocker-keys.ps1 -OutputPath "C:\Reports" -OnlyShowMissing
+    .\check-bitlocker-keys.ps1 -OutputPath "C:\Reports" -OnlyShowMissing "true"
     Saves report to specified directory and shows only devices missing BitLocker keys
 
 .EXAMPLE
-    .\check-bitlocker-keys.ps1 -IncludeLastSync -ExportJson
+    .\check-bitlocker-keys.ps1 -IncludeLastSync "true" -ExportJson "true"
     Includes last sync information and exports results in JSON format as well
 
 .NOTES
@@ -62,22 +63,67 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Directory path to save reports")]
     [ValidateNotNullOrEmpty()]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Only show devices missing BitLocker keys")]
-    [switch]$OnlyShowMissing,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OnlyShowMissing,
+
     [Parameter(Mandatory = $false, HelpMessage = "Include last sync date information")]
-    [switch]$IncludeLastSync,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeLastSync,
+
     [Parameter(Mandatory = $false, HelpMessage = "Export results in JSON format as well")]
-    [switch]$ExportJson,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportJson,
+
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgress,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OnlyShowMissing', 'IncludeLastSync', 'ExportJson', 'ShowProgress')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -93,13 +139,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -121,19 +167,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -143,7 +189,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -201,7 +247,7 @@ try {
         Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.Read.All",
-            "BitlockerKey.Read.All"
+            "BitlockerKey.ReadBasic.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
@@ -223,28 +269,28 @@ function Get-MgGraphPaginatedData {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResult = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResult += $Response.value
             }
             else {
                 $AllResult += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -253,8 +299,7 @@ function Get-MgGraphPaginatedData {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -317,18 +362,18 @@ function Test-BitLockerKeyAvailability {
 # Function to format device last sync date
 function Format-LastSyncDate {
     param([datetime]$LastSyncDateTime)
-    
+
     if ($LastSyncDateTime -eq [datetime]::MinValue) {
         return "Never"
     }
-    
+
     $daysSinceSync = (Get-Date) - $LastSyncDateTime
-    
+
     if ($daysSinceSync.TotalDays -lt 1) {
         return "Today"
     }
     elseif ($daysSinceSync.TotalDays -lt 2) {
-        return "Yesterday" 
+        return "Yesterday"
     }
     else {
         return "$([math]::Round($daysSinceSync.TotalDays)) days ago"
@@ -341,25 +386,25 @@ function Format-LastSyncDate {
 
 try {
     Write-Output "Starting BitLocker key storage check..."
-    
+
     # Validate output path
     if (-not (Test-Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
         Write-Output "Created output directory: $OutputPath"
     }
-    
+
     # Get all Windows devices from Intune
     Write-Output "Retrieving Windows devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,serialNumber,model,manufacturer,osVersion,azureADDeviceId,complianceState,isEncrypted,lastSyncDateTime"
     $devices = Get-MgGraphPaginatedData -Uri $devicesUri
-    
+
     if ($devices.Count -eq 0) {
         Write-Warning "No Windows devices found in Intune"
         return
     }
-    
+
     Write-Output "Found $($devices.Count) Windows devices. Checking BitLocker key status..."
-    
+
     $results = @()
     $processedCount = 0
     $devicesWithKeys = 0
@@ -383,7 +428,7 @@ try {
         if ($bitlockerCheck.HasKey) {
             $devicesWithKeys++
         }
-        
+
         # Prepare result object
         $deviceResult = [PSCustomObject]@{
             DeviceName                  = $device.deviceName
@@ -414,26 +459,26 @@ try {
             $deviceResult | Add-Member -MemberType NoteProperty -Name "Last Sync" -Value $lastSyncDisplay
             $deviceResult | Add-Member -MemberType NoteProperty -Name "Sync Status" -Value $syncStatusDisplay
         }
-        
+
         # Add to results (filter if only showing missing keys)
         if (-not $OnlyShowMissing -or -not $bitlockerCheck.HasKey) {
             $results += $deviceResult
         }
     }
-    
+
     if ($ShowProgress) {
         Write-Progress -Activity "Checking BitLocker Keys" -Completed
     }
-    
+
     # Display results
     Write-Output "`nBitLocker Key Storage Results:"
     $results | Format-Table -AutoSize
-    
+
     # Calculate and display summary statistics from the results collected above
     $totalDevices = $devices.Count
     $devicesWithoutKeys = $totalDevices - $devicesWithKeys
     $compliancePercentage = [math]::Round(($devicesWithKeys / $totalDevices) * 100, 1)
-    
+
     Write-Output "`n========================================"
     Write-Output "BitLocker Key Storage Summary"
     Write-Output "========================================"
@@ -442,13 +487,13 @@ try {
     Write-Output "Devices without BitLocker keys: $devicesWithoutKeys"
     Write-Output "Compliance percentage: $compliancePercentage%"
     Write-Output "========================================"
-    
+
     # Export results to CSV
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $csvPath = Join-Path $OutputPath "BitLocker-Key-Storage-Report-$timestamp.csv"
     $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding utf8
     Write-Output "✓ Results exported to: $csvPath"
-    
+
     # Export to JSON if requested
     if ($ExportJson) {
         $jsonPath = Join-Path $OutputPath "BitLocker-Key-Storage-Report-$timestamp.json"
@@ -465,14 +510,14 @@ try {
         $jsonData | ConvertTo-Json -Depth 3 | Set-Content -Path $jsonPath
         Write-Output "✓ Results exported to JSON: $jsonPath"
     }
-    
+
     # Show devices without keys if any exist and not in OnlyShowMissing mode
     if ($devicesWithoutKeys -gt 0 -and -not $OnlyShowMissing) {
         Write-Output "`nDevices without BitLocker keys in Entra ID:"
         $devicesWithoutKeysList = $results | Where-Object { $_."BitLocker Key in Entra ID" -eq "No" } | Select-Object DeviceName, SerialNumber, Status
         $devicesWithoutKeysList | Format-Table -AutoSize
     }
-    
+
     Write-Output "✓ BitLocker key storage check completed successfully"
 }
 catch {

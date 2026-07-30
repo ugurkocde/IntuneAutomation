@@ -6,10 +6,10 @@
     Automated runbook to monitor device compliance drift in Intune and send email alerts for compliance deterioration.
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance 
-    status in Microsoft Intune and identifies devices that have fallen out of compliance. It tracks compliance 
-    trends, identifies patterns of compliance deterioration, and sends email notifications to administrators 
-    with detailed compliance reports. The script helps maintain security posture by proactively alerting on 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors device compliance
+    status in Microsoft Intune and identifies devices that have fallen out of compliance. It tracks compliance
+    trends, identifies patterns of compliance deterioration, and sends email notifications to administrators
+    with detailed compliance reports. The script helps maintain security posture by proactively alerting on
     compliance drift and providing actionable insights for remediation.
 
 .TAGS
@@ -25,16 +25,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Mail now sends from a mandatory SenderUPN mailbox via /users/{upn}/sendMail (app-only managed identity cannot use /me); send failures now fail the run; per-device policy state calls are paced and fetch failures are summarized in a warning; device listing uses select; pagination helper preserves single-item arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); assigned compliance policy is now resolved via per-device deviceCompliancePolicyStates for reported devices
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -49,11 +50,11 @@
     Notification
 
 .EXAMPLE
-    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
-    Alerts when overall compliance falls below 85% and sends notifications to admin@company.com
+    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 85 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
+    Alerts when overall compliance falls below 85% and sends notifications to <recipient-address>
 
 .EXAMPLE
-    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients "admin@company.com,security@company.com" -SenderUPN "intune-alerts@company.com"
+    .\device-compliance-drift-alert.ps1 -ComplianceThresholdPercent 90 -EmailRecipients "<recipient-address>,<security-recipient-address>" -SenderUPN "<sender-upn>"
     Alerts when overall compliance falls below 90% and sends notifications to multiple recipients
 
 .NOTES
@@ -73,7 +74,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Minimum compliance percentage threshold to trigger alerts")]
     [ValidateRange(50, 100)]
     [int]$ComplianceThresholdPercent,
-    
+
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to send notifications")]
     [ValidateNotNullOrEmpty()]
     [string]$EmailRecipients,
@@ -83,8 +84,25 @@ param(
     [string]$SenderUPN,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -96,12 +114,12 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -121,18 +139,18 @@ Required modules for this script:
             }
             else {
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -142,7 +160,7 @@ Required modules for this script:
                 }
             }
         }
-        
+
         try {
             Write-Verbose "Importing module: $ModuleName"
             Import-Module -Name $ModuleName -Force -ErrorAction Stop
@@ -200,7 +218,7 @@ try {
             "DeviceManagementConfiguration.Read.All",
             "Mail.Send"
         )
-        
+
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
     }
@@ -220,27 +238,27 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -249,8 +267,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -260,7 +277,7 @@ function Get-MgGraphAllPage {
 
 function Get-DevicePlatform {
     param([string]$OperatingSystem)
-    
+
     switch -Regex ($OperatingSystem) {
         "^Windows" { return "Windows" }
         "^iOS" { return "iOS" }
@@ -274,7 +291,7 @@ function Get-DevicePlatform {
 
 function Get-ComplianceStatus {
     param([string]$ComplianceState)
-    
+
     switch ($ComplianceState) {
         "compliant" { return "Compliant" }
         "noncompliant" { return "Non-Compliant" }
@@ -289,7 +306,7 @@ function Get-ComplianceStatus {
 
 function Get-ComplianceSeverity {
     param([string]$ComplianceState)
-    
+
     switch ($ComplianceState) {
         "compliant" { return "Success" }
         "noncompliant" { return "Critical" }
@@ -302,9 +319,9 @@ function Get-ComplianceSeverity {
 
 function Format-TimeSpan {
     param([datetime]$Date)
-    
+
     $TimeSpan = (Get-Date) - $Date
-    
+
     if ($TimeSpan.TotalDays -lt 1) {
         return "Today"
     }
@@ -323,7 +340,7 @@ function Send-EmailNotification {
         [string]$Subject,
         [string]$Body
     )
-    
+
     try {
         foreach ($Recipient in $Recipients) {
             $Message = @{
@@ -340,13 +357,13 @@ function Send-EmailNotification {
                     }
                 )
             }
-            
+
             $RequestBody = @{
                 message = $Message
             } | ConvertTo-Json -Depth 10
-            
+
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
@@ -369,14 +386,14 @@ function New-EmailBody {
         [array]$GracePeriodDevices,
         [int]$ComplianceThreshold
     )
-    
+
     $TotalDevices = $AllDevices.Count
     $CompliantDevices = $AllDevices | Where-Object { $_.ComplianceStatus -eq "Compliant" }
     $CompliancePercentage = if ($TotalDevices -gt 0) { [math]::Round(($CompliantDevices.Count / $TotalDevices) * 100, 1) } else { 0 }
-    
+
     $PlatformSummary = $NonCompliantDevices | Group-Object Platform | Sort-Object Name
     $PolicySummary = $NonCompliantDevices | Group-Object AssignedCompliancePolicy | Sort-Object Name
-    
+
     $Body = @"
 <!DOCTYPE html>
 <html>
@@ -412,14 +429,14 @@ function New-EmailBody {
         <h1>🛡️ Device Compliance Drift Alert</h1>
         <p>Compliance threshold: $ComplianceThreshold% | Current: $CompliancePercentage%</p>
     </div>
-    
+
     <div class="summary">
         <h2>Compliance Overview</h2>
         <div class="compliance-meter">
             <div class="compliance-fill" style="width: $CompliancePercentage%; background-color: $(if ($CompliancePercentage -ge $ComplianceThreshold) { '#28a745' } elseif ($CompliancePercentage -ge ($ComplianceThreshold * 0.8)) { '#ffc107' } else { '#dc3545' });"></div>
             <div class="compliance-text">$CompliancePercentage%</div>
         </div>
-        
+
         <div class="stats-grid">
             <div class="stat-card">
                 <h3 style="margin: 0; color: #28a745;">$($CompliantDevices.Count)</h3>
@@ -434,7 +451,7 @@ function New-EmailBody {
                 <p style="margin: 5px 0;">Total Devices</p>
             </div>
         </div>
-        
+
         <div class="stats-grid">
             <div class="stat-card">
                 <h3 style="margin: 0; color: #ffc107;">$($ConflictDevices.Count)</h3>
@@ -456,7 +473,7 @@ function New-EmailBody {
         $Body += @"
     <div class="critical">
         <h3><span class="status-icon">🚨</span>Non-Compliant Devices - Immediate Attention Required ($($NonCompliantDevices.Count) devices)</h3>
-        
+
         <h4>Platform Breakdown:</h4>
 "@
         foreach ($Platform in $PlatformSummary) {
@@ -493,7 +510,7 @@ function New-EmailBody {
                 <th>Days Since Check-in</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($NonCompliantDevices | Sort-Object LastSyncDateTime -Descending | Select-Object -First 20)) {
             $DaysSinceSync = if ($Device.LastSyncDateTime) { ((Get-Date) - $Device.LastSyncDateTime).Days } else { "Unknown" }
             $PolicyName = if ($Device.AssignedCompliancePolicy) { $Device.AssignedCompliancePolicy } else { "No Policy" }
@@ -508,7 +525,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($NonCompliantDevices.Count -gt 20) {
             $Body += @"
             <tr>
@@ -516,7 +533,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -525,7 +542,7 @@ function New-EmailBody {
     <div class="warning">
         <h3><span class="status-icon">⚠️</span>Devices with Policy Conflicts ($($ConflictDevices.Count) devices)</h3>
         <p>These devices have conflicting compliance policies that need resolution:</p>
-        
+
         <table>
             <tr>
                 <th>Device Name</th>
@@ -534,7 +551,7 @@ function New-EmailBody {
                 <th>Last Check-in</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($ConflictDevices | Sort-Object LastSyncDateTime -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
@@ -545,7 +562,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($ConflictDevices.Count -gt 10) {
             $Body += @"
             <tr>
@@ -553,7 +570,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -562,7 +579,7 @@ function New-EmailBody {
     <div class="critical">
         <h3><span class="status-icon">❌</span>Devices with Compliance Errors ($($ErrorDevices.Count) devices)</h3>
         <p>These devices are experiencing errors in compliance evaluation:</p>
-        
+
         <table>
             <tr>
                 <th>Device Name</th>
@@ -571,7 +588,7 @@ function New-EmailBody {
                 <th>Last Check-in</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($ErrorDevices | Sort-Object LastSyncDateTime -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
@@ -582,7 +599,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($ErrorDevices.Count -gt 10) {
             $Body += @"
             <tr>
@@ -590,7 +607,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -599,7 +616,7 @@ function New-EmailBody {
     <div class="info">
         <h3><span class="status-icon">⏰</span>Devices in Grace Period ($($GracePeriodDevices.Count) devices)</h3>
         <p>These devices are currently in grace period and will become non-compliant soon:</p>
-        
+
         <table>
             <tr>
                 <th>Device Name</th>
@@ -608,7 +625,7 @@ function New-EmailBody {
                 <th>Last Check-in</th>
             </tr>
 "@
-        
+
         foreach ($Device in ($GracePeriodDevices | Sort-Object LastSyncDateTime -Descending | Select-Object -First 10)) {
             $Body += @"
             <tr>
@@ -619,7 +636,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         if ($GracePeriodDevices.Count -gt 10) {
             $Body += @"
             <tr>
@@ -627,7 +644,7 @@ function New-EmailBody {
             </tr>
 "@
         }
-        
+
         $Body += "</table></div>"
     }
 
@@ -641,7 +658,7 @@ function New-EmailBody {
             <li><strong>Fix Compliance Errors:</strong> Investigate and resolve devices showing compliance evaluation errors</li>
             <li><strong>Monitor Grace Period:</strong> Proactively address devices in grace period before they become non-compliant</li>
         </ul>
-        
+
         <h4>Policy Review:</h4>
         <ul>
             <li><strong>Compliance Policy Effectiveness:</strong> Review policies with high non-compliance rates</li>
@@ -649,7 +666,7 @@ function New-EmailBody {
             <li><strong>Grace Period Settings:</strong> Adjust grace periods based on organizational needs</li>
             <li><strong>Remediation Actions:</strong> Configure automatic remediation where possible</li>
         </ul>
-        
+
         <h4>User Communication:</h4>
         <ul>
             <li><strong>End User Education:</strong> Provide guidance on maintaining device compliance</li>
@@ -657,7 +674,7 @@ function New-EmailBody {
             <li><strong>Clear Messaging:</strong> Ensure compliance notifications are actionable and clear</li>
         </ul>
     </div>
-    
+
     <div class="footer">
         <p><strong>Next Steps:</strong></p>
         <ol>
@@ -682,17 +699,17 @@ function New-EmailBody {
 
 try {
     Write-Output "Starting device compliance drift monitoring..."
-    
+
     # Parse email recipients
     $EmailRecipientList = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-    
+
     if ($EmailRecipientList.Count -eq 0) {
         throw "No valid email recipients provided"
     }
-    
+
     Write-Output "Email recipients: $($EmailRecipientList -join ', ')"
     Write-Output "Compliance threshold: $ComplianceThresholdPercent%"
-    
+
     # Initialize results arrays
     $AllDevices = @()
     $NonCompliantDevices = @()
@@ -702,33 +719,33 @@ try {
     $CompliancePolicies = @()
     $NotificationFailed = $false
     $PolicyStateFetchFailures = 0
-    
+
     # ========================================================================
     # GET COMPLIANCE POLICIES
     # ========================================================================
-    
+
     Write-Output "Retrieving compliance policies..."
-    
+
     try {
-        $PoliciesUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies"
+        $PoliciesUri = "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies"
         $CompliancePolicies = Get-MgGraphAllPage -Uri $PoliciesUri
         Write-Output "Found $($CompliancePolicies.Count) compliance policies"
     }
     catch {
         Write-Warning "Failed to retrieve compliance policies: $($_.Exception.Message)"
     }
-    
+
     # ========================================================================
     # GET ALL MANAGED DEVICES WITH COMPLIANCE STATUS
     # ========================================================================
-    
+
     Write-Output "Retrieving managed devices with compliance status..."
-    
+
     try {
-        $DevicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer,jailBroken,managementAgent"
+        $DevicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userDisplayName,userPrincipalName,lastSyncDateTime,enrolledDateTime,complianceState,managementState,serialNumber,model,manufacturer,jailBroken,managementAgent"
         $Devices = Get-MgGraphAllPage -Uri $DevicesUri
         Write-Output "Found $($Devices.Count) managed devices"
-        
+
         foreach ($Device in $Devices) {
             try {
                 # Skip devices without essential information
@@ -736,18 +753,18 @@ try {
                     Write-Verbose "Skipping device with missing ID"
                     continue
                 }
-                
+
                 $LastSyncDateTime = if ($Device.lastSyncDateTime) { [datetime]$Device.lastSyncDateTime } else { [datetime]::MinValue }
                 $EnrolledDateTime = if ($Device.enrolledDateTime) { [datetime]$Device.enrolledDateTime } else { $null }
                 $Platform = Get-DevicePlatform -OperatingSystem $Device.operatingSystem
                 $ComplianceStatus = Get-ComplianceStatus -ComplianceState $Device.complianceState
                 $ComplianceSeverity = Get-ComplianceSeverity -ComplianceState $Device.complianceState
-                
+
                 # Try to get the assigned compliance policy (fetched per device, only for reported states, to avoid throttling)
                 $AssignedPolicy = "Unknown"
                 if ($Device.complianceState -in @("noncompliant", "conflict", "error", "inGracePeriod")) {
                     try {
-                        $PolicyStatesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices('$($Device.id)')/deviceCompliancePolicyStates"
+                        $PolicyStatesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$($Device.id)')/deviceCompliancePolicyStates"
                         $PolicyStates = Get-MgGraphAllPage -Uri $PolicyStatesUri
                         $NonCompliantPolicies = @($PolicyStates | Where-Object { $_.state -eq "noncompliant" -and $_.displayName })
                         if ($NonCompliantPolicies.Count -gt 0) {
@@ -762,7 +779,7 @@ try {
                     # Pace per-device policy state calls to avoid throttling
                     Start-Sleep -Milliseconds 100
                 }
-                
+
                 $DeviceInfo = [PSCustomObject]@{
                     DeviceId                 = $Device.id
                     DeviceName               = if ($Device.deviceName) { $Device.deviceName } else { "Unknown" }
@@ -784,9 +801,9 @@ try {
                     JailBroken               = $Device.jailBroken
                     ManagementAgent          = $Device.managementAgent
                 }
-                
+
                 $AllDevices += $DeviceInfo
-                
+
                 # Categorize devices based on compliance status
                 switch ($Device.complianceState) {
                     "noncompliant" { $NonCompliantDevices += $DeviceInfo }
@@ -800,7 +817,7 @@ try {
                 continue
             }
         }
-        
+
         Write-Output "✓ Processed $($AllDevices.Count) devices successfully"
 
         if ($PolicyStateFetchFailures -gt 0) {
@@ -811,15 +828,15 @@ try {
         Write-Error "Failed to retrieve managed devices: $($_.Exception.Message)"
         exit 1
     }
-    
+
     # ========================================================================
     # CALCULATE COMPLIANCE STATISTICS
     # ========================================================================
-    
+
     $TotalDevices = $AllDevices.Count
     $CompliantDevices = $AllDevices | Where-Object { $_.ComplianceStatus -eq "Compliant" }
     $CompliancePercentage = if ($TotalDevices -gt 0) { [math]::Round(($CompliantDevices.Count / $TotalDevices) * 100, 1) } else { 0 }
-    
+
     $ComplianceStats = @{
         TotalDevices         = $TotalDevices
         CompliantDevices     = $CompliantDevices.Count
@@ -830,25 +847,25 @@ try {
         CompliancePercentage = $CompliancePercentage
         ThresholdMet         = $CompliancePercentage -ge $ComplianceThresholdPercent
     }
-    
+
     Write-Output "  • Compliant devices: $($CompliantDevices.Count) ($CompliancePercentage%)"
     Write-Output "  • Non-compliant devices: $($NonCompliantDevices.Count)"
     Write-Output "  • Conflict devices: $($ConflictDevices.Count)"
     Write-Output "  • Error devices: $($ErrorDevices.Count)"
     Write-Output "  • Grace period devices: $($GracePeriodDevices.Count)"
-    
+
     # ========================================================================
     # SEND NOTIFICATIONS IF COMPLIANCE DRIFT DETECTED
     # ========================================================================
-    
-    $RequiresNotification = ($CompliancePercentage -lt $ComplianceThresholdPercent) -or 
-                           ($NonCompliantDevices.Count -gt 0) -or 
-                           ($ConflictDevices.Count -gt 0) -or 
+
+    $RequiresNotification = ($CompliancePercentage -lt $ComplianceThresholdPercent) -or
+                           ($NonCompliantDevices.Count -gt 0) -or
+                           ($ConflictDevices.Count -gt 0) -or
                            ($ErrorDevices.Count -gt 0)
-    
+
     if ($RequiresNotification) {
         Write-Output "Preparing email notification for compliance drift..."
-        
+
         $Subject = if ($CompliancePercentage -lt $ComplianceThresholdPercent) {
             "[Intune Alert] COMPLIANCE DRIFT: $CompliancePercentage% Below Threshold ($ComplianceThresholdPercent%)"
         }
@@ -858,9 +875,9 @@ try {
         else {
             "[Intune Alert] COMPLIANCE MONITORING: Policy Conflicts and Errors Detected"
         }
-        
+
         $EmailBody = New-EmailBody -AllDevices $AllDevices -NonCompliantDevices $NonCompliantDevices -ConflictDevices $ConflictDevices -ErrorDevices $ErrorDevices -GracePeriodDevices $GracePeriodDevices -ComplianceThreshold $ComplianceThresholdPercent
-        
+
         $EmailSent = Send-EmailNotification -Recipients $EmailRecipientList -Subject $Subject -Body $EmailBody
 
         if ($EmailSent) {
@@ -874,11 +891,11 @@ try {
     else {
         Write-Output "✓ No compliance drift detected. All devices meet compliance requirements."
     }
-    
+
     # ========================================================================
     # DISPLAY SUMMARY
     # ========================================================================
-    
+
     Write-Output "`n🛡️ DEVICE COMPLIANCE DRIFT MONITORING SUMMARY"
     Write-Output "==============================================="
     Write-Output "Total Managed Devices: $TotalDevices"
@@ -893,7 +910,7 @@ try {
     Write-Output "  • Errors: $($ErrorDevices.Count)"
     Write-Output "  • Grace Period: $($GracePeriodDevices.Count)"
     Write-Output ""
-    
+
     if ($NonCompliantDevices.Count -gt 0) {
         Write-Output "Platform Breakdown (Non-Compliant Devices):"
         $PlatformGroups = $NonCompliantDevices | Group-Object Platform | Sort-Object Name
@@ -902,10 +919,10 @@ try {
         }
         Write-Output ""
     }
-    
+
     $StatusIcon = if ($CompliancePercentage -ge $ComplianceThresholdPercent) { "✅" } else { "⚠️" }
     Write-Output "$StatusIcon Compliance Status: $(if ($CompliancePercentage -ge $ComplianceThresholdPercent) { 'MEETING THRESHOLD' } else { 'BELOW THRESHOLD' })"
-    
+
     Write-Output "`n✓ Device compliance drift monitoring completed successfully"
 }
 catch {

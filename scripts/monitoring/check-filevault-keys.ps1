@@ -19,33 +19,34 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.PrivilegedOperations.All,DeviceManagementManagedDevices.Read.All,DeviceManagementConfiguration.Read.All
+    DeviceManagementManagedDevices.PrivilegedOperations.All,DeviceManagementManagedDevices.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Key checks get a per-device delay and 429 retry; guarded last sync date parsing; device list selects only needed fields; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\check-filevault-keys.ps1
     Generates FileVault key storage report for all macOS devices in Intune
 
 .EXAMPLE
-    .\check-filevault-keys.ps1 -OutputPath "C:\Reports" -OnlyShowMissing
+    .\check-filevault-keys.ps1 -OutputPath "C:\Reports" -OnlyShowMissing "true"
     Saves report to specified directory and shows only devices missing FileVault keys
 
 .EXAMPLE
-    .\check-filevault-keys.ps1 -IncludeLastSync -ExportJson
+    .\check-filevault-keys.ps1 -IncludeLastSync "true" -ExportJson "true"
     Includes last sync information and exports results in JSON format as well
 
 .NOTES
@@ -64,20 +65,65 @@ param(
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Only show devices missing FileVault keys")]
-    [switch]$OnlyShowMissing,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OnlyShowMissing,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include last sync date information")]
-    [switch]$IncludeLastSync,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeLastSync,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results in JSON format as well")]
-    [switch]$ExportJson,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportJson,
 
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgress,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OnlyShowMissing', 'IncludeLastSync', 'ExportJson', 'ShowProgress')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -201,8 +247,7 @@ try {
         Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementManagedDevices.PrivilegedOperations.All",
-            "DeviceManagementManagedDevices.Read.All",
-            "DeviceManagementConfiguration.Read.All"
+            "DeviceManagementManagedDevices.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
@@ -239,7 +284,7 @@ function Get-MgGraphPaginatedData {
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
 
-            if ($Response.value) {
+            if ($null -ne $Response.value) {
                 $AllResult += $Response.value
             }
             else {
@@ -254,8 +299,7 @@ function Get-MgGraphPaginatedData {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 

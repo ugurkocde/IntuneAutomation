@@ -27,14 +27,15 @@
     Ugur Koc
 
 .VERSION
-    1.1
+    1.2
 
 .CHANGELOG
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXECUTION
     RunbookOnly
@@ -49,11 +50,11 @@
     Notification
 
 .EXAMPLE
-    .\license-threshold-alert.ps1 -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
+    .\license-threshold-alert.ps1 -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
     Alerts when any Intune-capable SKU passes 90 percent utilization
 
 .EXAMPLE
-    .\license-threshold-alert.ps1 -ThresholdPercent 80 -IncludeAllSkus -EmailRecipients "admin@company.com" -SenderUPN "intune-alerts@company.com"
+    .\license-threshold-alert.ps1 -ThresholdPercent 80 -IncludeAllSkus "true" -EmailRecipients "<recipient-address>" -SenderUPN "<sender-upn>"
     Alerts at 80 percent utilization across every SKU in the tenant
 
 .NOTES
@@ -80,14 +81,57 @@ param(
     [int]$ThresholdPercent = 90,
 
     [Parameter(Mandatory = $false, HelpMessage = "Include SKUs without an Intune service plan")]
-    [switch]$IncludeAllSkus,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeAllSkus,
 
     [Parameter(Mandatory = $false, HelpMessage = "Send the report even when no SKU crosses the threshold")]
-    [switch]$AlwaysSend,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$AlwaysSend,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeAllSkus', 'AlwaysSend')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -217,7 +261,7 @@ function Get-MgGraphAllPage {
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
 
-            if ($Response.value) {
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
@@ -232,8 +276,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -271,7 +314,7 @@ function Send-EmailNotification {
             } | ConvertTo-Json -Depth 10
 
             if ($PSCmdlet.ShouldProcess($Recipient, "Send Email Notification")) {
-                $Uri = "https://graph.microsoft.com/v1.0/users/$SenderUPN/sendMail"
+                $Uri = "https://graph.microsoft.com/beta/users/$SenderUPN/sendMail"
                 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json" | Out-Null
                 Write-Information "✓ Email sent to $Recipient via Microsoft Graph" -InformationAction Continue
             }
@@ -329,7 +372,7 @@ function New-EmailBody {
 
 try {
     Write-Output "Retrieving subscribed SKUs..."
-    $skus = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/v1.0/subscribedSkus?`$select=skuPartNumber,skuId,consumedUnits,prepaidUnits,servicePlans,capabilityStatus"
+    $skus = Get-MgGraphAllPage -Uri "https://graph.microsoft.com/beta/subscribedSkus?`$select=skuPartNumber,skuId,consumedUnits,prepaidUnits,servicePlans,capabilityStatus"
 
     [System.Collections.Generic.List[Object]]$skuReport = @()
 

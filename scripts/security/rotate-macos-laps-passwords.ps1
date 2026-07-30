@@ -24,16 +24,18 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.5
 
 .CHANGELOG
+    1.5 - Treat test-mode and empty-target outcomes as normal runbook output instead of warning streams
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Confirmation prompt is now local-only: Azure Automation runs require -Force and exit with an error instead of hanging on Read-Host; rotation calls retry once after 60 seconds on throttling; results collection switched to a generic list
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); added DeviceManagementManagedDevices.PrivilegedOperations.All scope required by the Graph action (calls previously always failed with 403)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\rotate-macos-laps-passwords.ps1
@@ -44,11 +46,11 @@
     Rotates LAPS password for a specific device
 
 .EXAMPLE
-    .\rotate-macos-laps-passwords.ps1 -DelaySeconds 5 -ExportReport
+    .\rotate-macos-laps-passwords.ps1 -DelaySeconds 5 -ExportReport "true"
     Rotates LAPS passwords with a 5-second delay between operations and exports results
 
 .EXAMPLE
-    .\rotate-macos-laps-passwords.ps1 -TestMode -DeviceLimit 5
+    .\rotate-macos-laps-passwords.ps1 -TestMode "true" -DeviceLimit 5
     Runs in test mode, processing only 5 devices without actual rotation
 
 .NOTES
@@ -72,26 +74,71 @@ param(
     [int]$DelaySeconds = 2,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export rotation results to CSV")]
-    [switch]$ExportReport,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportReport,
 
     [Parameter(Mandatory = $false, HelpMessage = "Directory path to save reports")]
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Test mode - show what would be rotated without making changes")]
-    [switch]$TestMode,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$TestMode,
 
     [Parameter(Mandatory = $false, HelpMessage = "Limit number of devices to process (useful for testing)")]
     [int]$DeviceLimit = 0,
 
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgress,
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall,
 
     [Parameter(Mandatory = $false, HelpMessage = "Skip confirmation prompt before rotation")]
-    [switch]$Force
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$Force
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('ExportReport', 'TestMode', 'ShowProgress', 'Force')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -253,7 +300,7 @@ function Get-MgGraphPaginatedData {
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
 
-            if ($Response.value) {
+            if ($null -ne $Response.value) {
                 $AllResult += $Response.value
             }
             else {
@@ -268,8 +315,7 @@ function Get-MgGraphPaginatedData {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -408,7 +454,7 @@ try {
     }
 
     if ($devices.Count -eq 0) {
-        Write-Warning "No macOS devices found"
+        Write-Output "No macOS devices found. No password rotation is required."
         return
     }
 
@@ -422,7 +468,7 @@ try {
 
     # Show test mode warning
     if ($TestMode) {
-        Write-Warning "RUNNING IN TEST MODE - No actual LAPS passwords will be rotated"
+        Write-Output "RUNNING IN TEST MODE - No actual LAPS passwords will be rotated"
     }
 
     # Confirmation gate: local runs prompt unless -Force; Azure Automation

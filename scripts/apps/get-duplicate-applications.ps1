@@ -25,16 +25,17 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), request only needed app fields via $select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-duplicate-applications.ps1
@@ -45,7 +46,7 @@
     Generates duplicate applications report and saves to specified directory
 
 .EXAMPLE
-    .\get-duplicate-applications.ps1 -ForceModuleInstall
+    .\get-duplicate-applications.ps1 -ForceModuleInstall "true"
     Forces module installation without prompting and generates the report
 
 .NOTES
@@ -65,10 +66,27 @@
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Output directory for reports")]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -84,13 +102,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -112,19 +130,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -134,7 +152,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -213,30 +231,30 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
-            
+
             # Show progress for large datasets
             if ($RequestCount % 10 -eq 0) {
                 Write-Information "." -InformationAction Continue
@@ -248,11 +266,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     # The comma preserves single-element arrays (Invoke-MgGraphRequest hashtable rows otherwise unroll and .Count returns key count)
     return , $AllResults
 }
@@ -260,12 +277,12 @@ function Get-MgGraphAllPage {
 # Function to normalize application names for comparison
 function Get-NormalizedAppName {
     param([string]$AppName)
-    
+
     # Remove common suffixes and prefixes
     $normalized = $AppName -replace '\s*(x64|x86|32-bit|64-bit|\(.*?\))\s*', ''
     $normalized = $normalized -replace '\s+', ' '
     $normalized = $normalized.Trim()
-    
+
     return $normalized.ToLower()
 }
 
@@ -275,22 +292,22 @@ function Get-NormalizedAppName {
 
 try {
     Write-Output "Starting duplicate applications detection..."
-    
+
     # Get all Intune applications
     Write-Output "Retrieving Intune applications..."
     # $select trims the payload to the fields the report reads; @odata.type is always returned on typed collections
-    $appsUri = "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,description,createdDateTime,lastModifiedDateTime"
+    $appsUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName,publisher,description,createdDateTime,lastModifiedDateTime"
     $intuneApps = Get-MgGraphAllPage -Uri $appsUri
     Write-Output "`n✓ Found $($intuneApps.Count) Intune applications"
-    
+
     # Create application inventory array
     $applicationInventory = @()
     $totalApplications = 0
-    
+
     foreach ($app in $intuneApps) {
         # Skip if no display name
         if ([string]::IsNullOrWhiteSpace($app.displayName)) { continue }
-        
+
         # Create application inventory entry
         $appEntry = [PSCustomObject]@{
             ApplicationName      = $app.displayName
@@ -302,53 +319,53 @@ try {
             LastModifiedDateTime = $app.lastModifiedDateTime
             NormalizedName       = Get-NormalizedAppName -AppName $app.displayName
         }
-        
+
         $applicationInventory += $appEntry
         $totalApplications++
     }
-    
+
     # ============================================================================
     # DUPLICATE DETECTION LOGIC
     # ============================================================================
-    
+
     Write-Output "Analyzing applications for duplicates..."
-    
+
     # Group applications by normalized name to find potential duplicates
     $appGroups = $applicationInventory | Group-Object NormalizedName
-    
+
     # Filter groups that have multiple variations or meet minimum device count
     $duplicateGroups = @()
-    
+
     foreach ($group in $appGroups) {
         # Skip if only one app in group (not a duplicate)
         if ($group.Count -lt 2) { continue }
-        
+
         # Check for different publishers and names
         $publishers = $group.Group | Group-Object Publisher | Where-Object { $_.Name -ne "Unknown" }
         $originalNames = $group.Group | Group-Object ApplicationName
         $appTypes = $group.Group | Group-Object AppType
-        
+
         $isDuplicate = $false
         $duplicateType = @()
-        
+
         # Multiple publishers for same app name
         if ($publishers.Count -gt 1) {
             $isDuplicate = $true
             $duplicateType += "Multiple Publishers"
         }
-        
+
         # Multiple original names (case differences, extra spaces, etc.)
         if ($originalNames.Count -gt 1) {
             $isDuplicate = $true
             $duplicateType += "Name Variations"
         }
-        
+
         # Multiple app types for same name
         if ($appTypes.Count -gt 1) {
             $isDuplicate = $true
             $duplicateType += "Multiple App Types"
         }
-        
+
         if ($isDuplicate) {
             $duplicateInfo = [PSCustomObject]@{
                 NormalizedName = $group.Name
@@ -362,28 +379,28 @@ try {
             $duplicateGroups += $duplicateInfo
         }
     }
-    
+
     # Sort duplicates by app count (descending)
     $duplicateGroups = $duplicateGroups | Sort-Object AppCount -Descending
-    
+
     Write-Output "✓ Found $($duplicateGroups.Count) duplicate application groups:"
-    
+
     # Display duplicate app names in console
     if ($duplicateGroups.Count -gt 0) {
         foreach ($duplicate in $duplicateGroups) {
             Write-Output "  • $($duplicate.OriginalNames) ($($duplicate.DuplicateType))"
         }
     }
-    
+
     # ============================================================================
     # GENERATE REPORTS
     # ============================================================================
-    
+
     # Generate timestamp for file names
     $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $csvPath = Join-Path $OutputPath "Intune_Duplicate_Applications_Report_$timestamp.csv"
     $htmlPath = Join-Path $OutputPath "Intune_Duplicate_Applications_Report_$timestamp.html"
-    
+
     # Prepare detailed CSV data
     $csvData = @()
     foreach ($duplicate in $duplicateGroups) {
@@ -402,7 +419,7 @@ try {
             }
         }
     }
-    
+
     # Export to CSV
     try {
         $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
@@ -411,7 +428,7 @@ try {
     catch {
         Write-Error "Failed to save CSV report: $($_.Exception.Message)"
     }
-    
+
     # Generate HTML report
     try {
         $htmlContent = @"
@@ -449,7 +466,7 @@ try {
         <h1>🔍 Intune Duplicate Applications Report</h1>
         <p>Generated on: $(Get-Date -Format "dddd, MMMM dd, yyyy 'at' HH:mm:ss")</p>
     </div>
-    
+
     <div class="summary">
         <h2>Summary</h2>
         <div class="summary-grid">
@@ -479,7 +496,7 @@ try {
         }
         else {
             $htmlContent += "<h2>Duplicate Application Groups</h2>"
-            
+
             foreach ($duplicate in $duplicateGroups) {
                 $badgeClass = switch -Regex ($duplicate.DuplicateType) {
                     "Multiple Publishers" { "badge-publisher" }
@@ -487,7 +504,7 @@ try {
                     "Multiple App Types" { "badge-version" }
                     default { "badge-publisher" }
                 }
-                
+
                 $htmlContent += @"
     <div class="duplicate-group">
         <div class="duplicate-header">
@@ -521,7 +538,7 @@ try {
     catch {
         Write-Error "Failed to generate HTML report: $($_.Exception.Message)"
     }
-    
+
     Write-Output "✓ Duplicate applications analysis completed successfully"
 }
 catch {

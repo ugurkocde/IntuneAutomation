@@ -2,6 +2,8 @@
 
 This guide explains how to deploy IntuneAutomation scripts as Azure Automation runbooks using the one-click deployment feature.
 
+The current templates reuse an existing Automation account by default, link the runbook to a PowerShell 7.4 Runtime Environment, and import `Microsoft.Graph.Authentication`. The location field is used only when **Create Automation Account** is set to `true`.
+
 ## 🚀 Quick Start
 
 1. Visit [intuneautomation.com](https://intuneautomation.com)
@@ -13,7 +15,7 @@ This guide explains how to deploy IntuneAutomation scripts as Azure Automation r
 
 ### Azure Automation Account Setup
 
-1. **Create an Automation Account** (if you don't have one)
+1. **Choose an existing Automation Account**, or create one if needed
 
    ```bash
    az automation account create \
@@ -28,23 +30,15 @@ This guide explains how to deploy IntuneAutomation scripts as Azure Automation r
    - Navigate to **Identity** > **System assigned**
    - Set Status to **On** and save
 
-3. **Import Required PowerShell Modules**
-   - Go to **Modules** > **Browse Gallery**
-   - Search and import: `Microsoft.Graph.Authentication`
-   - Import any additional modules required by specific scripts
+3. **Verify the Runtime Environment**
+   - The deployment creates or updates `IntuneAutomation-PS74`
+   - Verify `Microsoft.Graph.Authentication` reaches a successful provisioning state
 
 ### Microsoft Graph Permissions
 
 Assign the required permissions to your Automation Account's Managed Identity:
 
-#### Using Azure Portal
-
-1. Go to **Azure Active Directory** > **Enterprise applications**
-2. Search for your Automation Account name
-3. Go to **API permissions** > **Add a permission**
-4. Select **Microsoft Graph** > **Application permissions**
-5. Add required permissions (see script documentation)
-6. Grant admin consent
+Managed identity Graph app roles are assigned through Microsoft Graph. Use the repository permission script or Cloud Shell, then verify the service principal under **Microsoft Entra ID > Enterprise applications > Permissions**.
 
 #### Using PowerShell
 
@@ -59,10 +53,9 @@ $managedIdentity = Get-MgServicePrincipal -Filter "displayName eq '$automationAc
 # Get Microsoft Graph service principal
 $graphServicePrincipal = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
 
-# Common permissions for most scripts
+# Exact permissions copied from the selected script's .PERMISSIONS metadata
 $permissions = @(
-    "DeviceManagementManagedDevices.Read.All",
-    "DeviceManagementManagedDevices.ReadWrite.All"
+    "Permission.From.Script.Metadata"
 )
 
 foreach ($permission in $permissions) {
@@ -119,6 +112,8 @@ In the Azure portal deployment form:
 - **Enter the exact name** of your existing Automation Account
 - ❌ **No dropdown available** - you must type the name manually
 - ✅ **Case sensitive** - ensure exact spelling and capitalization
+- Leave **Create Automation Account** set to `false`
+- **New Automation Account Location** is ignored when an existing account is reused
 
 #### **Runbook Name**
 
@@ -145,8 +140,8 @@ Runbook Name: rotate-bitlocker-keys (or customize)
 After successful deployment:
 
 1. Go to your Automation Account > **Runbooks**
-2. Find your newly created runbook (it will be in **Draft** status)
-3. Click **Publish** to make it available for execution
+2. Find the deployed runbook
+3. Verify it is published and linked to the expected Runtime Environment
 4. Test the runbook using **Start**
 
 ## ⚠️ Common Deployment Issues

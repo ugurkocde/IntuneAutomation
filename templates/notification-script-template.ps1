@@ -6,10 +6,10 @@
     Automated runbook to monitor [specific Intune aspect] and send email alerts for [specific conditions].
 
 .DESCRIPTION
-    This script is designed to run as a scheduled Azure Automation runbook that monitors [specific functionality] 
-    in Microsoft Intune and identifies [specific conditions to monitor]. It tracks [what it tracks], 
-    identifies [what it identifies], and sends email notifications to administrators with detailed reports. 
-    The script helps maintain [benefit] by proactively alerting on [conditions] and providing actionable 
+    This script is designed to run as a scheduled Azure Automation runbook that monitors [specific functionality]
+    in Microsoft Intune and identifies [specific conditions to monitor]. It tracks [what it tracks],
+    identifies [what it identifies], and sends email notifications to administrators with detailed reports.
+    The script helps maintain [benefit] by proactively alerting on [conditions] and providing actionable
     insights for remediation.
 
     Key Features:
@@ -54,11 +54,11 @@
     Notification
 
 .EXAMPLE
-    .\your-notification-script.ps1 -ThresholdParameter 85 -EmailRecipients "admin@company.com"
+    .\your-notification-script.ps1 -ThresholdParameter 85 -EmailRecipients "<recipient-address>"
     [Description of what this example does]
 
 .EXAMPLE
-    .\your-notification-script.ps1 -ThresholdParameter 90 -EmailRecipients "admin@company.com,security@company.com"
+    .\your-notification-script.ps1 -ThresholdParameter 90 -EmailRecipients "<recipient-address>,<security-recipient-address>"
     [Description of what this example does with multiple recipients]
 
 .NOTES
@@ -76,7 +76,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Threshold value that triggers notifications (e.g., percentage, number of days, count)")]
     [ValidateRange(1, 100)]
     [int]$ThresholdParameter,
-    
+
     # Email recipients for notifications
     [Parameter(Mandatory = $true, HelpMessage = "Comma-separated list of email addresses to receive notifications")]
     [ValidateScript({
@@ -87,7 +87,7 @@ param(
         }
     })]
     [string]$EmailRecipients,
-    
+
     # Optional: Additional filtering parameter
     [Parameter(Mandatory = $false, HelpMessage = "Optional filter for specific platforms, categories, etc.")]
     [ValidateSet("All", "Windows", "iOS", "Android", "macOS")]
@@ -137,7 +137,7 @@ foreach ($Module in $RequiredModules) {
 # Connect to Microsoft Graph
 try {
     Write-Output "Connecting to Microsoft Graph..."
-    
+
     if ($RunningInAzureAutomation) {
         # Use Managed Identity in Azure Automation
         Connect-MgGraph -Identity -NoWelcome
@@ -166,7 +166,7 @@ catch {
 # Email configuration
 $EmailConfig = @{
     Subject = "[ALERT] [Your Organization] - [Alert Type] Detected"
-    FromAddress = "noreply@yourdomain.com"  # Update with your organization's address
+    FromAddress = "<sender-address>"  # Update with your organization's address
     Priority = "High"  # Options: Low, Normal, High
 }
 
@@ -190,30 +190,30 @@ function Get-MgGraphAllPages {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
+
             if ($Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
-            
+
             # Show progress for long-running operations
             if ($RequestCount % 10 -eq 0) {
                 Write-Information "Processed $RequestCount API pages, retrieved $($AllResults.Count) items..." -InformationAction Continue
@@ -229,7 +229,7 @@ function Get-MgGraphAllPages {
             break
         }
     } while ($NextLink)
-    
+
     Write-Information "✓ Retrieved $($AllResults.Count) total items from Graph API" -InformationAction Continue
     return $AllResults
 }
@@ -242,18 +242,18 @@ function New-EmailBody {
         [Parameter(Mandatory = $true)]
         [hashtable]$Summary
     )
-    
+
     # Determine alert level based on your criteria
-    $AlertLevel = if ($Summary.CriticalCount -gt 0) { "Critical" } 
-                  elseif ($Summary.WarningCount -gt 0) { "Warning" } 
+    $AlertLevel = if ($Summary.CriticalCount -gt 0) { "Critical" }
+                  elseif ($Summary.WarningCount -gt 0) { "Warning" }
                   else { "Info" }
-    
+
     $AlertColor = switch ($AlertLevel) {
         "Critical" { "#dc3545" }
         "Warning" { "#ffc107" }
         "Info" { "#28a745" }
     }
-    
+
     $EmailBody = @"
 <!DOCTYPE html>
 <html>
@@ -293,7 +293,7 @@ function New-EmailBody {
             <h1>🔔 [Your Alert Type] Alert</h1>
             <div class="subtitle">Proactive monitoring detected conditions requiring attention</div>
         </div>
-        
+
         <div class="content">
             <div class="summary-grid">
                 <div class="summary-card">
@@ -317,7 +317,7 @@ function New-EmailBody {
                     <div class="label">Items Checked</div>
                 </div>
             </div>
-            
+
             <div class="alert-section">
                 <h2>🚨 Critical Issues</h2>
 "@
@@ -341,7 +341,7 @@ function New-EmailBody {
     $WarningItems = $AlertData | Where-Object { $_.Level -eq "Warning" }
     $EmailBody += @"
             </div>
-            
+
             <div class="alert-section">
                 <h2>⚠️ Warning Items</h2>
 "@
@@ -362,7 +362,7 @@ function New-EmailBody {
     # Add recommendations section
     $EmailBody += @"
             </div>
-            
+
             <div class="recommendations">
                 <h3>📋 Recommended Actions</h3>
                 <ul>
@@ -373,12 +373,12 @@ function New-EmailBody {
                     <!-- Add specific recommendations based on your monitoring type -->
                 </ul>
             </div>
-            
+
             <div class="timestamp">
                 Report generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
             </div>
         </div>
-        
+
         <div class="footer">
             This is an automated notification from your Intune monitoring system.<br>
             For questions or issues, please contact your IT administrator.
@@ -401,10 +401,10 @@ function Send-EmailNotification {
         [Parameter(Mandatory = $true)]
         [string]$Subject
     )
-    
+
     try {
         Write-Information "Preparing email notification..." -InformationAction Continue
-        
+
         # Prepare recipients array
         $ToRecipients = @()
         foreach ($Recipient in $Recipients) {
@@ -414,7 +414,7 @@ function Send-EmailNotification {
                 }
             }
         }
-        
+
         # Prepare email message
         $Message = @{
             subject = $Subject
@@ -425,16 +425,16 @@ function Send-EmailNotification {
             toRecipients = $ToRecipients
             importance = $EmailConfig.Priority.ToLower()
         }
-        
+
         # Send email using Microsoft Graph
         $RequestBody = @{
             message = $Message
             saveToSentItems = $false
         } | ConvertTo-Json -Depth 10
-        
+
         $Uri = "https://graph.microsoft.com/v1.0/me/sendMail"
         Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $RequestBody -ContentType "application/json"
-        
+
         Write-Information "✓ Email notification sent successfully to: $($Recipients -join ', ')" -InformationAction Continue
         return $true
     }
@@ -450,29 +450,29 @@ function Get-MonitoringData {
         [Parameter(Mandatory = $true)]
         [hashtable]$Config
     )
-    
+
     try {
         Write-Information "Gathering monitoring data..." -InformationAction Continue
-        
+
         # REPLACE THIS SECTION WITH YOUR SPECIFIC MONITORING LOGIC
         # Examples of what you might monitor:
-        
+
         # Example 1: Monitor device compliance
         # $Devices = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
-        
+
         # Example 2: Monitor application assignments
         # $Apps = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps"
-        
+
         # Example 3: Monitor certificate expiration
         # $Certificates = Get-MgGraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations"
-        
+
         # For this template, we'll create sample data
         $MonitoringResults = @()
-        
+
         # Simulate some monitoring results
         for ($i = 1; $i -le 10; $i++) {
             $Status = if ($i -le 2) { "Critical" } elseif ($i -le 5) { "Warning" } else { "OK" }
-            
+
             $MonitoringResults += [PSCustomObject]@{
                 Name = "Sample Item $i"
                 Status = $Status
@@ -482,7 +482,7 @@ function Get-MonitoringData {
                 Details = "Sample details for item $i"
             }
         }
-        
+
         Write-Information "✓ Retrieved $($MonitoringResults.Count) monitoring items" -InformationAction Continue
         return $MonitoringResults
     }
@@ -500,7 +500,7 @@ function Get-AlertAnalysis {
         [Parameter(Mandatory = $true)]
         [hashtable]$Config
     )
-    
+
     $AlertData = @()
     $Summary = @{
         TotalCount = $MonitoringData.Count
@@ -508,20 +508,20 @@ function Get-AlertAnalysis {
         WarningCount = 0
         HealthyCount = 0
     }
-    
+
     # Apply platform filter if specified
     if ($Config.PlatformFilter -ne "All") {
         $MonitoringData = $MonitoringData | Where-Object { $_.Platform -eq $Config.PlatformFilter }
         Write-Information "Applied platform filter: $($Config.PlatformFilter). $($MonitoringData.Count) items remaining." -InformationAction Continue
     }
-    
+
     foreach ($Item in $MonitoringData) {
         # CUSTOMIZE THIS LOGIC BASED ON YOUR MONITORING CRITERIA
-        
+
         # Example criteria - replace with your specific conditions
         $Level = "Info"
         $ShouldAlert = $false
-        
+
         if ($Item.Status -eq "Critical") {
             $Level = "Critical"
             $ShouldAlert = $true
@@ -535,7 +535,7 @@ function Get-AlertAnalysis {
         else {
             $Summary.HealthyCount++
         }
-        
+
         if ($ShouldAlert) {
             $AlertData += [PSCustomObject]@{
                 Title = "Alert: $($Item.Name)"
@@ -547,7 +547,7 @@ function Get-AlertAnalysis {
             }
         }
     }
-    
+
     return @{
         AlertData = $AlertData
         Summary = $Summary
@@ -563,53 +563,53 @@ try {
     Write-Output "Threshold Parameter: $ThresholdParameter"
     Write-Output "Platform Filter: $PlatformFilter"
     Write-Output "Email Recipients: $EmailRecipients"
-    
+
     # Step 1: Gather monitoring data
     $MonitoringData = Get-MonitoringData -Config $MonitoringConfig
-    
+
     if ($MonitoringData.Count -eq 0) {
         Write-Output "No monitoring data found. Exiting without sending notifications."
         exit 0
     }
-    
+
     # Step 2: Analyze data and determine alerts
     $Analysis = Get-AlertAnalysis -MonitoringData $MonitoringData -Config $MonitoringConfig
     $AlertData = $Analysis.AlertData
     $Summary = $Analysis.Summary
-    
+
     Write-Output "Analysis complete: $($Summary.CriticalCount) critical, $($Summary.WarningCount) warning, $($Summary.HealthyCount) healthy"
-    
+
     # Step 3: Determine if notification should be sent
     $ShouldSendNotification = $Summary.CriticalCount -gt 0 -or $Summary.WarningCount -gt 0
-    
+
     if (-not $ShouldSendNotification) {
         Write-Output "✓ No issues detected. No notification needed."
         exit 0
     }
-    
+
     # Step 4: Create and send email notification
     Write-Output "Issues detected. Preparing email notification..."
-    
+
     # Prepare email subject
     $AlertLevel = if ($Summary.CriticalCount -gt 0) { "CRITICAL" } else { "WARNING" }
     $Subject = "[$AlertLevel] [Your Organization] - [Your Alert Type] Alert - $($Summary.CriticalCount) Critical, $($Summary.WarningCount) Warning"
-    
+
     # Generate email body
     $EmailBody = New-EmailBody -AlertData $AlertData -Summary $Summary
-    
+
     # Parse email recipients
     $Recipients = $EmailRecipients -split ',' | ForEach-Object { $_.Trim() }
-    
+
     # Send email notification
     $EmailSent = Send-EmailNotification -Body $EmailBody -Recipients $Recipients -Subject $Subject
-    
+
     if ($EmailSent) {
         Write-Output "✓ Notification sent successfully"
     } else {
         Write-Error "Failed to send email notification"
         exit 1
     }
-    
+
     Write-Output "✓ [Your Alert Type] monitoring completed successfully"
 }
 catch {

@@ -23,16 +23,18 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.5
 
 .CHANGELOG
+    1.5 - Added a DryRun mode so Azure Automation can validate targeting and permissions without rotating keys
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Added a confirmation prompt before tenant-wide rotation (skippable with -Force; Azure Automation runbooks now require -Force); rotation calls retry once after 60 seconds on throttling
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\rotate-bitlocker-keys.ps1
@@ -43,8 +45,12 @@
     Rotates BitLocker keys with a 5-second delay between operations
 
 .EXAMPLE
-    .\rotate-bitlocker-keys.ps1 -Force
+    .\rotate-bitlocker-keys.ps1 -Force "true"
     Rotates BitLocker keys without the confirmation prompt (required when running as an Azure Automation runbook)
+
+.EXAMPLE
+    .\rotate-bitlocker-keys.ps1 -DryRun "true"
+    Lists the Windows devices that would be targeted without rotating any BitLocker keys
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
@@ -61,13 +67,59 @@
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Delay in seconds between BitLocker key rotation operations")]
     [int]$DelaySeconds = 2,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall,
 
     [Parameter(Mandatory = $false, HelpMessage = "Skip confirmation prompt before rotation")]
-    [switch]$Force
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$Force,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Preview targeted devices without rotating BitLocker keys")]
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$DryRun
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('Force', 'DryRun')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -83,13 +135,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -111,19 +163,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -133,7 +185,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -212,28 +264,28 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -242,11 +294,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -258,11 +309,11 @@ function Invoke-BitLockerKeyRotation {
         [Parameter(Mandatory = $true)]
         [string]$DeviceName
     )
-    
+
     try {
         $rotateUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$DeviceId')/rotateBitLockerKeys"
         Invoke-MgGraphRequest -Method POST -Uri $rotateUri -ContentType "application/json"
-        
+
         Write-Information "✓ Successfully rotated BitLocker keys for device: $DeviceName" -InformationAction Continue
         return $true
     }
@@ -293,18 +344,29 @@ function Invoke-BitLockerKeyRotation {
 
 try {
     Write-Output "Starting BitLocker key rotation process..."
-    
+
     # Get all managed Windows devices from Intune
     Write-Output "Retrieving all Windows devices from Intune..."
-    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem&`$filter=operatingSystem eq 'Windows'"
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem&`$filter=operatingSystem eq 'Windows'"
     $managedDevices = Get-MgGraphAllPage -Uri $devicesUri
-    
+
     if ($managedDevices.Count -eq 0) {
-        Write-Warning "No Windows devices found in Intune."
+        Write-Output "No Windows devices found in Intune. No rotation is required."
         exit 0
     }
-    
+
     Write-Output "✓ Found $($managedDevices.Count) Windows devices"
+
+    if ($DryRun) {
+        Write-Output "`nDRY-RUN PREVIEW"
+        Write-Output "==============="
+        Write-Output "Windows devices that would receive a BitLocker key rotation: $($managedDevices.Count)"
+        foreach ($device in $managedDevices) {
+            Write-Output "• $($device.deviceName) [$($device.id)]"
+        }
+        Write-Output "✓ Dry run completed. No BitLocker keys were rotated."
+        exit 0
+    }
 
     # Confirmation gate: local runs prompt unless -Force; Azure Automation
     # cannot prompt, so -Force is required there
@@ -326,31 +388,31 @@ try {
     $failureCount = 0
     $totalDevices = $managedDevices.Count
     $currentDevice = 0
-    
+
     # Process each device
     foreach ($device in $managedDevices) {
         $currentDevice++
         $deviceId = $device.id
         $deviceName = $device.deviceName
-        
+
         Write-Output "[$currentDevice/$totalDevices] Processing device: $deviceName"
-        
+
         # Rotate BitLocker keys
         $success = Invoke-BitLockerKeyRotation -DeviceId $deviceId -DeviceName $deviceName
-        
+
         if ($success) {
             $successCount++
         }
         else {
             $failureCount++
         }
-        
+
         # Add delay between operations if specified
         if ($DelaySeconds -gt 0 -and $currentDevice -lt $totalDevices) {
             Start-Sleep -Seconds $DelaySeconds
         }
     }
-    
+
     # Display summary
     Write-Output "`n"
     Write-Output "============================================"
@@ -361,7 +423,7 @@ try {
     Write-Output "Failed rotations: $failureCount"
     Write-Output "Success rate: $([math]::Round(($successCount / $totalDevices) * 100, 2))%"
     Write-Output "============================================"
-    
+
     Write-Output "✓ BitLocker key rotation process completed"
 }
 catch {
@@ -378,4 +440,4 @@ finally {
         # Ignore disconnection errors - this is expected behavior when already disconnected
         Write-Verbose "Graph disconnection completed (may have already been disconnected)"
     }
-} 
+}

@@ -24,15 +24,19 @@
     Intune Administrator, Key Vault Secrets Officer (ABAC) or Key Vault Administrator
 
 .PERMISSIONS
-    DeviceManagementManagedDevices.Read.All,BitlockerKey.Read.All,https://vault.azure.net/user_impersonation
+    DeviceManagementManagedDevices.Read.All,BitlockerKey.Read.All
+
+.EXECUTION
+    LocalOnly
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Renamed the automation detection variable to the name the CI runbook-readiness check recognizes; no functional change (the script already refused to run as a runbook before any prompt)
     1.2 - A failure on one key no longer discards a device's other keys: successfully fetched keys are kept and the device is reported as Partial; secret names now always carry the volume type suffix so they stay stable across runs (previously the suffix was only added when multiple keys existed; unsuffixed secrets written by earlier versions remain untouched); results table now shows the Key Vault secret version
@@ -40,14 +44,14 @@
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://bitlockerfilevaultkeys.vault.azure.net"
     Backs up all BitLocker keys to the specified Azure Key Vault
 
 .EXAMPLE
-    .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://myvault.vault.azure.net" -OverwriteExisting -ShowProgress
+    .\backup-bitlocker-keys-to-keyvault.ps1 -VaultUri "https://myvault.vault.azure.net" -OverwriteExisting "true" -ShowProgress "true"
     Backs up keys with overwrite option and progress display
 
 
@@ -62,13 +66,13 @@
     - Consider implementing retention policies in Key Vault
     - Regular backups ensure recovery key availability
     - Vault URI format: https://yourvault.vault.azure.net
-    
+
     PERMISSION CONSENT:
     On first run, you'll be prompted to consent to the following permissions:
     - Azure Key Vault access (https://vault.azure.net/user_impersonation)
     - Read Intune devices (DeviceManagementManagedDevices.Read.All)
     - Read BitLocker keys (BitlockerKey.Read.All)
-    
+
     To avoid the consent prompt:
     - Accept once and check "Consent on behalf of your organization" (admin only)
     - Pre-consent in Azure AD portal under Enterprise Applications
@@ -81,19 +85,62 @@ param(
     [ValidateNotNullOrEmpty()]
     [ValidatePattern('^https://[a-zA-Z0-9-]+\.vault\.azure\.net/?$')]
     [string]$VaultUri,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Overwrite existing secrets in Key Vault")]
-    [switch]$OverwriteExisting,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OverwriteExisting,
+
     [Parameter(Mandatory = $false, HelpMessage = "Show progress during processing")]
-    [switch]$ShowProgress,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgress,
 
     [Parameter(Mandatory = $false, HelpMessage = "Entra tenant ID or domain to sign in to (recommended when you have access to multiple tenants, so both sign-ins land in the same tenant)")]
     [string]$TenantId = "",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OverwriteExisting', 'ShowProgress')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -224,28 +271,28 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -254,11 +301,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -400,33 +446,33 @@ function Set-KeyVaultSecret {
 
 try {
     Write-Output "Starting BitLocker keys backup to Azure Key Vault..."
-    
+
     # Get all Windows devices from Intune
     Write-Output "Retrieving Windows devices from Intune..."
     $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,serialNumber,azureADDeviceId,model,manufacturer,isEncrypted"
     $devices = Get-MgGraphAllPage -Uri $devicesUri
-    
+
     if ($devices.Count -eq 0) {
         Write-Warning "No Windows devices found in Intune"
         return
     }
-    
+
     Write-Output "Found $($devices.Count) Windows devices. Processing BitLocker keys..."
-    
+
     $results = @()
     $processedCount = 0
     $successCount = 0
     $failedCount = 0
     $skippedCount = 0
-    
+
     foreach ($device in $devices) {
         $processedCount++
-        
+
         if ($ShowProgress) {
             $percentComplete = [math]::Round(($processedCount / $devices.Count) * 100, 1)
             Write-Progress -Activity "Backing up BitLocker Keys" -Status "Processing device: $($device.deviceName)" -PercentComplete $percentComplete
         }
-        
+
         # Devices without BitLocker or without an Entra device ID cannot have escrowed keys
         if (-not $device.isEncrypted -or -not $device.azureADDeviceId) {
             $reason = if (-not $device.isEncrypted) { "Not BitLocker Encrypted" } else { "No Entra Device ID" }
@@ -474,10 +520,10 @@ try {
                 BackupDate = (Get-Date -Format "yyyy-MM-dd")
                 Source = "IntuneAutomation"
             }
-            
+
             # Store in Key Vault
             $kvResult = Set-KeyVaultSecret -SecretName $secretName -SecretValue $recoveryKey.Key -Tags $tags -VaultUri $VaultUri
-            
+
             if ($kvResult.Success) {
                 Write-Output "✓ Successfully backed up key for: $($device.deviceName)"
                 $successCount++
@@ -488,7 +534,7 @@ try {
                 $failedCount++
                 $status = "Failed: $($kvResult.Error)"
             }
-            
+
             $results += [PSCustomObject]@{
                 DeviceName = $device.deviceName
                 SerialNumber = $device.serialNumber
@@ -513,15 +559,15 @@ try {
             }
         }
     }
-    
+
     if ($ShowProgress) {
         Write-Progress -Activity "Backing up BitLocker Keys" -Completed
     }
-    
+
     # Display results
     Write-Output "`nBitLocker Keys Backup Results:"
     $results | Format-Table -AutoSize
-    
+
     Write-Output "✓ BitLocker keys backup completed successfully"
 }
 catch {

@@ -9,6 +9,8 @@
 #   metadata      Required comment-based help fields present
 #   runbookReady  No interactive cmdlets in the script body
 #   runbookLogging Script-scope status messages use a stream captured by Azure Automation
+#   runbookContract Azure-import-safe parameters, beta Graph endpoints, and declared scopes
+#   emailSafety   No hardcoded mailbox or recipient addresses
 #   moduleDeps    Literal Import-Module names resolve to known modules
 #
 # Shell scripts:
@@ -225,6 +227,169 @@ function Test-RunbookLogging {
     }
 }
 
+function Get-RunbookEligibility {
+    param([string]$Path)
+
+    $relativePath = $Path.Replace($RepoRoot, '').TrimStart([IO.Path]::DirectorySeparatorChar).Replace('\','/')
+    if ($relativePath -match '^scripts/remediation/') {
+        return @{ eligible = $false; reason = 'Intune remediation scripts are endpoint scripts, not Azure Automation runbooks.' }
+    }
+
+    $content = Get-Content -LiteralPath $Path -Raw
+    $block = Get-CommentBlock $content
+    if ($block -match '(?im)^\s*\.EXECUTION\s*\r?\n\s*LocalOnly\s*$') {
+        return @{ eligible = $false; reason = 'Script metadata declares LocalOnly execution.' }
+    }
+
+    return @{ eligible = $true; reason = '' }
+}
+
+function Test-RunbookContract {
+    param([string]$Path)
+
+    $eligibility = Get-RunbookEligibility -Path $Path
+    if (-not $eligibility.eligible) {
+        return @{ status = 'skip'; eligible = $false; findings = @(); reason = $eligibility.reason }
+    }
+
+    $tokens = $null
+    $errors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        $Path,
+        [ref]$tokens,
+        [ref]$errors
+    )
+    if (@($errors).Count -gt 0) {
+        return @{ status = 'skip'; eligible = $true; findings = @() }
+    }
+
+    $content = Get-Content -Path $Path -Raw
+    $stripped = Remove-Comments -Content $content
+    $findings = @()
+
+    if ($ast.ParamBlock -and $ast.ParamBlock.Extent.Text -match '\bParameterSetName\s*=|\bDefaultParameterSetName\s*=') {
+        $findings += @{
+            line = $ast.ParamBlock.Extent.StartLineNumber
+            reason = 'Azure Automation does not support parameter sets in imported runbooks. Use optional inputs and explicit mutual-exclusion validation.'
+        }
+    }
+
+    if ($ast.ParamBlock) {
+        foreach ($parameter in $ast.ParamBlock.Parameters) {
+            if ($parameter.StaticType -eq [System.Management.Automation.SwitchParameter]) {
+                $findings += @{
+                    line = $parameter.Extent.StartLineNumber
+                    reason = "Public runbook parameter '$($parameter.Name.VariablePath.UserPath)' uses [switch]. Azure portal values bind as strings, so use a validated string and normalize it."
+                }
+            }
+        }
+    }
+
+    if (
+        $stripped -match '\$forceModuleInstallRaw\s*=\s*\[string\]\$ForceModuleInstall' -and
+        $stripped -notmatch 'Remove-Variable\s+-Name\s+ForceModuleInstall'
+    ) {
+        $findings += @{
+            line = 1
+            reason = 'ForceModuleInstall is declared as [string] but normalized in place. Remove the typed parameter variable before assigning a Boolean, otherwise PowerShell keeps the value as a string and [bool] binding fails.'
+        }
+    }
+
+    if (
+        $stripped -match '\$runbookBooleanRaw\s*=\s*\[string\]\(Get-Variable\s+-Name\s+\$runbookBooleanParameter' -and
+        $stripped -notmatch 'Remove-Variable\s+-Name\s+\$runbookBooleanParameter'
+    ) {
+        $findings += @{
+            line = 1
+            reason = 'Portal-safe Boolean parameters are normalized in place while still type-constrained as [string]. Remove each typed parameter variable before assigning the normalized Boolean value.'
+        }
+    }
+
+    foreach ($match in [regex]::Matches($stripped, 'https://graph\.microsoft\.com/v1\.0', 'IgnoreCase')) {
+        $line = ($stripped.Substring(0, $match.Index) -split "`n").Count
+        $findings += @{
+            line = $line
+            reason = 'Repository Graph calls must use the beta endpoint so local and runbook execution use the same API contract.'
+        }
+    }
+
+    if ($stripped -match '(?s)Write-Warning\s+"Error fetching data[^"]*".{0,120}\bbreak\b') {
+        $findings += @{
+            line = 1
+            reason = 'A Graph paging helper converts a required fetch failure into partial or empty data. Throw after retry exhaustion so the runbook cannot report false success.'
+        }
+    }
+
+    if ($stripped -match 'if\s*\(\s*\$[Rr]esponse\.value\s*\)') {
+        $findings += @{
+            line = 1
+            reason = 'A Graph paging helper tests collection truthiness. Empty value arrays must still be treated as collections, otherwise the response envelope is reported as one result.'
+        }
+    }
+
+    if ($stripped -match 'if\s*\(\s*@\(\$(?:DeviceNames|DeviceIds)\)\.Count\s+-gt\s+0\s*\)') {
+        $findings += @{
+            line = 1
+            reason = 'Azure Automation can bind an omitted string-array parameter as an array containing an empty string. Remove blank elements before target-count validation.'
+        }
+    }
+
+    $metadataBlock = Get-CommentBlock $content
+    $declaredPermissions = @()
+    if ($metadataBlock -match '(?im)^\s*\.PERMISSIONS\s*\r?\n\s*(.+)$') {
+        $declaredPermissions = @($Matches[1] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    $usedPermissions = @(
+        [regex]::Matches($stripped, "['`"]([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+)['`"]") |
+            ForEach-Object { $_.Groups[1].Value } |
+            Where-Object { $_ -match '\.(Read|ReadBasic|ReadWrite|PrivilegedOperations)\.All$|^Mail\.Send$' } |
+            Sort-Object -Unique
+    )
+    foreach ($permission in $usedPermissions) {
+        if ($permission -notin $declaredPermissions) {
+            $findings += @{
+                line = 1
+                reason = "Microsoft Graph permission '$permission' is used for local authentication but is missing from .PERMISSIONS metadata."
+            }
+        }
+    }
+
+    if ($stripped -match '/sendMail\b' -and 'Mail.Send' -notin $declaredPermissions) {
+        $findings += @{ line = 1; reason = 'The script calls sendMail but .PERMISSIONS does not declare Mail.Send.' }
+    }
+
+    return @{
+        status = if ($findings.Count -eq 0) { 'pass' } else { 'fail' }
+        eligible = $true
+        findings = $findings
+    }
+}
+
+function Test-EmailSafety {
+    param([string]$Path)
+
+    $content = Get-Content -LiteralPath $Path -Raw
+    $findings = @(
+        [regex]::Matches(
+            $content,
+            '(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b'
+        ) | Where-Object {
+            $_.Value -notmatch '(?i)@odata\.'
+        } | ForEach-Object {
+            @{
+                line = ($content.Substring(0, $_.Index) -split "`n").Count
+                match = $_.Value
+                reason = 'Email addresses must be supplied at runtime or through external configuration, including examples and templates.'
+            }
+        }
+    )
+
+    return @{
+        status = if ($findings.Count -eq 0) { 'pass' } else { 'fail' }
+        findings = $findings
+    }
+}
+
 function Test-ModuleDeps {
     param([string]$Path)
     $content  = Get-Content $Path -Raw
@@ -279,6 +444,41 @@ foreach ($templateFile in $templateFiles) {
             reason = $finding.reason
         }
     }
+
+    $templateEmailSafety = Test-EmailSafety $templateFile.FullName
+    foreach ($finding in $templateEmailSafety.findings) {
+        $templateFailures += @{
+            path = $templateFile.FullName
+            line = $finding.line
+            reason = $finding.reason
+        }
+    }
+}
+
+$emailSafetyFiles = @(
+    Get-ChildItem -Path $RepoRoot -Recurse -File |
+        Where-Object {
+            $_.FullName -notmatch '[/\\](?:\.git|node_modules|build|dist|coverage)[/\\]' -and
+            (
+                [string]::IsNullOrEmpty($_.Extension) -or
+                $_.Extension -in @(
+                    '.config', '.cs', '.css', '.csv', '.env', '.example', '.html',
+                    '.ini', '.js', '.json', '.jsx', '.md', '.mdx', '.mjs', '.ps1',
+                    '.sh', '.svg', '.toml', '.ts', '.tsx', '.txt', '.xml', '.yaml',
+                    '.yml'
+                )
+            )
+        }
+)
+foreach ($emailSafetyFile in $emailSafetyFiles) {
+    $emailSafety = Test-EmailSafety $emailSafetyFile.FullName
+    foreach ($finding in $emailSafety.findings) {
+        $templateFailures += @{
+            path = $emailSafetyFile.FullName
+            line = $finding.line
+            reason = $finding.reason
+        }
+    }
 }
 
 $nowIso = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -295,6 +495,8 @@ foreach ($f in $psFiles) {
     $metadata     = Test-Metadata     $f.FullName
     $runbookReady = Test-RunbookReady $f.FullName
     $runbookLogging = if ($parse.status -eq 'pass') { Test-RunbookLogging $f.FullName } else { @{ status = 'skip'; findings = @() } }
+    $runbookContract = if ($parse.status -eq 'pass') { Test-RunbookContract $f.FullName } else { @{ status = 'skip'; findings = @() } }
+    $emailSafety = Test-EmailSafety $f.FullName
     $moduleDeps   = Test-ModuleDeps   $f.FullName
 
     $tiers = [ordered]@{
@@ -303,6 +505,8 @@ foreach ($f in $psFiles) {
         metadata     = $metadata
         runbookReady = $runbookReady
         runbookLogging = $runbookLogging
+        runbookContract = $runbookContract
+        emailSafety = $emailSafety
         moduleDeps   = $moduleDeps
     }
     $hasFail = ($tiers.Values | Where-Object { $_.status -eq 'fail' }).Count -gt 0
@@ -391,17 +595,17 @@ $summary = [System.Text.StringBuilder]::new()
 if ($psResults.Count -gt 0) {
     [void]$summary.AppendLine('## PowerShell')
     [void]$summary.AppendLine('')
-    [void]$summary.AppendLine('| Script | Parse | Lint | Metadata | Runbook-ready | Runbook logging | Module deps | Overall |')
-    [void]$summary.AppendLine('|---|---|---|---|---|---|---|---|')
+    [void]$summary.AppendLine('| Script | Parse | Lint | Metadata | Runbook-ready | Logging | Contract | Email safety | Module deps | Overall |')
+    [void]$summary.AppendLine('|---|---|---|---|---|---|---|---|---|---|')
     foreach ($name in $results.Keys) {
         $r = $results[$name]
         if ($r.type -ne 'PowerShell') { continue }
-        $cells = @('parse','lint','metadata','runbookReady','runbookLogging','moduleDeps') | ForEach-Object {
+        $cells = @('parse','lint','metadata','runbookReady','runbookLogging','runbookContract','emailSafety','moduleDeps') | ForEach-Object {
             $s = $r.tests.$_.status
             if ($s -eq 'pass') { 'pass' } elseif ($s -eq 'skip') { 'skip' } else { '**FAIL**' }
         }
         $overallCell = if ($r.overall -eq 'pass') { 'pass' } else { '**FAIL**' }
-        [void]$summary.AppendLine("| $name | $($cells[0]) | $($cells[1]) | $($cells[2]) | $($cells[3]) | $($cells[4]) | $($cells[5]) | $overallCell |")
+        [void]$summary.AppendLine("| $name | $($cells[0]) | $($cells[1]) | $($cells[2]) | $($cells[3]) | $($cells[4]) | $($cells[5]) | $($cells[6]) | $($cells[7]) | $overallCell |")
     }
     [void]$summary.AppendLine('')
 }
@@ -429,7 +633,7 @@ if ($failingPs.Count -gt 0) {
     foreach ($name in $failingPs) {
         $r = $results[$name]
         [void]$summary.AppendLine("### $name")
-        foreach ($tier in @('parse','lint','metadata','runbookReady','runbookLogging','moduleDeps')) {
+        foreach ($tier in @('parse','lint','metadata','runbookReady','runbookLogging','runbookContract','emailSafety','moduleDeps')) {
             $t = $r.tests.$tier
             if ($t.status -eq 'fail') {
                 [void]$summary.AppendLine("- **$tier**:")
@@ -439,6 +643,8 @@ if ($failingPs.Count -gt 0) {
                     'metadata'     { [void]$summary.AppendLine("    - Missing fields: $($t.missing -join ', ')") }
                     'runbookReady' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line) [$($f.match)]: $($f.reason)") } }
                     'runbookLogging' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line): $($f.reason)") } }
+                    'runbookContract' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line): $($f.reason)") } }
+                    'emailSafety' { foreach ($f in $t.findings) { [void]$summary.AppendLine("    - L$($f.line) [$($f.match)]: $($f.reason)") } }
                     'moduleDeps'   { [void]$summary.AppendLine("    - Unknown modules: $($t.unknown -join ', ')") }
                 }
             }
@@ -473,6 +679,22 @@ $loggingFails = ($results.Values | Where-Object {
 }).Count
 if ($loggingFails -gt 0) {
     Write-Output "FAIL: $loggingFails script(s) use Write-Information at script scope"
+    exit 1
+}
+
+$contractFails = ($results.Values | Where-Object {
+    $_.type -eq 'PowerShell' -and $_.tests.runbookContract.status -eq 'fail'
+}).Count
+if ($contractFails -gt 0) {
+    Write-Output "FAIL: $contractFails runbook-eligible script(s) violate the Azure Automation contract"
+    exit 1
+}
+
+$emailSafetyFails = ($results.Values | Where-Object {
+    $_.type -eq 'PowerShell' -and $_.tests.emailSafety.status -eq 'fail'
+}).Count
+if ($emailSafetyFails -gt 0) {
+    Write-Output "FAIL: $emailSafetyFails script(s) contain hardcoded email address literals"
     exit 1
 }
 

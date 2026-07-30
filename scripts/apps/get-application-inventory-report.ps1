@@ -23,9 +23,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.4 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.3 - Preserve single-element arrays in the paging helper (Count was returning hashtable key count), genuinely retry a device after a 429 with max 3 attempts (continue was skipping it), request only needed device fields via $select
     1.2 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing); report auto-open failures no longer abort the script
@@ -33,22 +34,22 @@
     1.1 - Enrich publisher/platform/size from aggregate detectedApps endpoint (per-device expand returns null/unknown), enforce MaxDevices as a hard cap, drop unused DeviceManagementApps.Read.All permission
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-application-inventory-report.ps1
     Generates application inventory reports for all managed devices
 
 .EXAMPLE
-    .\get-application-inventory-report.ps1 -OutputPath "C:\Reports" -IncludeSystemApps
+    .\get-application-inventory-report.ps1 -OutputPath "C:\Reports" -IncludeSystemApps "true"
     Generates reports including system applications and saves them to the specified directory
 
 .EXAMPLE
-    .\get-application-inventory-report.ps1 -FilterByPublisher "Microsoft Corporation" -OpenReport
+    .\get-application-inventory-report.ps1 -FilterByPublisher "Microsoft Corporation" -OpenReport "true"
     Generates reports filtered by Microsoft applications and opens the HTML report
 
 .EXAMPLE
-    .\get-application-inventory-report.ps1 -ForceModuleInstall
+    .\get-application-inventory-report.ps1 -ForceModuleInstall "true"
     Forces module installation without prompting and generates the report
 
 .NOTES
@@ -66,25 +67,68 @@
 param(
     [Parameter(Mandatory = $false)]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false)]
-    [switch]$IncludeSystemApps,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeSystemApps,
+
     [Parameter(Mandatory = $false)]
     [string]$FilterByPublisher = "",
-    
+
     [Parameter(Mandatory = $false)]
     [string]$FilterByAppName = "",
-    
+
     [Parameter(Mandatory = $false)]
-    [switch]$OpenReport,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OpenReport,
+
     [Parameter(Mandatory = $false)]
     [int]$MaxDevices = 0,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeSystemApps', 'OpenReport')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -100,13 +144,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -128,19 +172,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -150,7 +194,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -244,7 +288,7 @@ function Get-MgGraphAllPage {
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
             $requestCount++
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {
@@ -259,7 +303,7 @@ function Get-MgGraphAllPage {
             }
 
             $nextLink = $response.'@odata.nextLink'
-            
+
             # Show progress for large datasets
             if ($requestCount % 10 -eq 0) {
                 Write-Information "." -InformationAction Continue
@@ -271,11 +315,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $nextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $nextLink : $($_.Exception.Message)"
         }
     } while ($nextLink)
-    
+
     # The comma preserves single-element arrays (Invoke-MgGraphRequest hashtable rows otherwise unroll and .Count returns key count)
     return , $allResults
 }
@@ -327,7 +370,7 @@ try {
     # Get all managed devices
     Write-Output "Retrieving managed devices..."
     # $select trims the payload to the fields the report reads
-    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userPrincipalName,userDisplayName,model,manufacturer,lastSyncDateTime,managementState,managedDeviceOwnerType,complianceState"
+    $devicesUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,operatingSystem,osVersion,userPrincipalName,userDisplayName,model,manufacturer,lastSyncDateTime,managementState,managedDeviceOwnerType,complianceState"
     if ($MaxDevices -gt 0) {
         # Graph caps page size at 1000; MaxResults enforces the actual device limit
         $pageSize = [math]::Min($MaxDevices, 1000)
@@ -363,14 +406,14 @@ try {
         $device = $devices[$deviceIndex]
         $processedDevices = $deviceIndex + 1
         Write-Progress -Activity "Processing Device Applications" -Status "Processing device $processedDevices of $($devices.Count): $($device.deviceName)" -PercentComplete (($processedDevices / $devices.Count) * 100)
-    
+
         try {
             # Use the beta endpoint with expand to get detected apps for each device
             $deviceAppsUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$($device.id)?`$expand=detectedApps"
             Write-Verbose "Processing device: $($device.deviceName) (ID: $($device.id))" -Verbose
             Write-Verbose "API URL: $deviceAppsUri" -Verbose
             $deviceWithApps = Invoke-MgGraphRequest -Uri $deviceAppsUri -Method GET
-        
+
             if ($deviceWithApps.detectedApps) {
                 foreach ($app in $deviceWithApps.detectedApps) {
                     # Skip system apps if not included
@@ -384,7 +427,7 @@ try {
                         }
                         if ($isSystemApp) { continue }
                     }
-                
+
                     # Enrich from the aggregate metadata lookup; the per-device
                     # expand omits publisher/platform/size, so prefer the lookup
                     # value and fall back to whatever the expand returned.
@@ -397,11 +440,11 @@ try {
                     if ($FilterByPublisher -and $resolvedPublisher -notlike "*$FilterByPublisher*") {
                         continue
                     }
-                
+
                     if ($FilterByAppName -and $app.displayName -notlike "*$FilterByAppName*") {
                         continue
                     }
-                
+
                     # Calculate days since last seen
                     $daysSinceLastSeen = if ($device.lastSyncDateTime) {
                         [math]::Round(((Get-Date) - [DateTime]$device.lastSyncDateTime).TotalDays, 1)
@@ -409,7 +452,7 @@ try {
                     else {
                         "Never"
                     }
-                
+
                     # Create application inventory entry
                     $appEntry = [PSCustomObject]@{
                         DeviceName          = $device.deviceName
@@ -433,12 +476,12 @@ try {
                         ComplianceState     = $device.complianceState
                         ApplicationId       = $app.id
                     }
-                
+
                     $applicationInventory += $appEntry
                     $totalApplications++
                 }
             }
-        
+
             # Add a small delay to respect rate limits
             Start-Sleep -Milliseconds 100
         }
@@ -469,8 +512,8 @@ try {
     $uniqueDevices = $applicationInventory | Group-Object DeviceName | Measure-Object | Select-Object -ExpandProperty Count
 
     # Get top applications by device count
-    $topApplications = $applicationInventory | Group-Object ApplicationName | 
-    ForEach-Object { 
+    $topApplications = $applicationInventory | Group-Object ApplicationName |
+    ForEach-Object {
         [PSCustomObject]@{
             ApplicationName = $_.Name
             DeviceCount     = $_.Count
@@ -480,8 +523,8 @@ try {
     } | Sort-Object DeviceCount -Descending | Select-Object -First 10
 
     # Get top publishers by application count
-    $topPublishers = $applicationInventory | Group-Object Publisher | 
-    ForEach-Object { 
+    $topPublishers = $applicationInventory | Group-Object Publisher |
+    ForEach-Object {
         [PSCustomObject]@{
             Publisher        = $_.Name
             ApplicationCount = ($_.Group | Group-Object ApplicationName | Measure-Object).Count
@@ -569,7 +612,7 @@ try {
                 <div>Devices with Applications</div>
             </div>
         </div>
-        
+
         <div class="top-lists">
             <div class="top-list">
                 <h3>Top 10 Applications by Device Count</h3>
@@ -593,7 +636,7 @@ try {
             </div>
         </div>
     </div>
-    
+
     <div class="summary">
         <h2>Detailed Application Inventory</h2>
         <table>
@@ -634,7 +677,7 @@ try {
             </tbody>
         </table>
     </div>
-    
+
     <div class='footer'>Report generated by Intune Application Inventory Script v1.1</div>
 </body>
 </html>
@@ -642,7 +685,7 @@ try {
 
         $htmlContent | Out-File -FilePath $htmlPath -Encoding UTF8
         Write-Output "✓ HTML report saved: $htmlPath"
-    
+
         if ($OpenReport) {
             try {
                 Start-Process $htmlPath
@@ -692,4 +735,4 @@ finally {
         # Ignore disconnection errors - this is expected behavior when already disconnected
         Write-Verbose "Graph disconnection completed (may have already been disconnected)"
     }
-} 
+}

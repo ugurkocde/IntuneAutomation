@@ -113,7 +113,7 @@ export default function SubscriptionForm() {
         >
           <input
             type="email"
-            placeholder="you@company.com"
+            placeholder="Work email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

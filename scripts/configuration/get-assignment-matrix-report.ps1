@@ -22,31 +22,33 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,Group.Read.All
+    DeviceManagementConfiguration.Read.All,DeviceManagementApps.Read.All,DeviceManagementScripts.Read.All,Group.Read.All
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.1
+    1.3
 
 .CHANGELOG
+    1.3 - Declare and request DeviceManagementScripts.Read.All for PowerShell, shell, and remediation script inventory
+    1.2 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.1 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-assignment-matrix-report.ps1
     Shows the assignment matrix for all surfaces in the console
 
 .EXAMPLE
-    .\get-assignment-matrix-report.ps1 -ExportToCsv
+    .\get-assignment-matrix-report.ps1 -ExportToCsv "true"
     Exports the full assignment matrix to a timestamped CSV file
 
 .EXAMPLE
-    .\get-assignment-matrix-report.ps1 -Surfaces Apps,CompliancePolicies -IncludeUnassigned
+    .\get-assignment-matrix-report.ps1 -Surfaces Apps,CompliancePolicies -IncludeUnassigned "true"
     Reports only apps and compliance policies, including objects that have no assignments
 
 .NOTES
@@ -64,17 +66,60 @@ param(
     [string[]]$Surfaces = @("DeviceConfigurations", "SettingsCatalog", "CompliancePolicies", "AdmxPolicies", "PlatformScripts", "Remediations", "Apps"),
 
     [Parameter(Mandatory = $false, HelpMessage = "Include objects that have no assignments")]
-    [switch]$IncludeUnassigned,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeUnassigned,
 
     [Parameter(Mandatory = $false, HelpMessage = "Export results to CSV")]
-    [switch]$ExportToCsv,
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ExportToCsv,
 
     [Parameter(Mandatory = $false, HelpMessage = "Output path for exports")]
     [string]$OutputPath = ".",
 
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('IncludeUnassigned', 'ExportToCsv')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -157,6 +202,7 @@ try {
         $Scopes = @(
             "DeviceManagementConfiguration.Read.All",
             "DeviceManagementApps.Read.All",
+            "DeviceManagementScripts.Read.All",
             "Group.Read.All"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
@@ -189,7 +235,7 @@ function Get-MgGraphAllPage {
 
             $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET
 
-            if ($response.value) {
+            if ($null -ne $response.value) {
                 $allResults += $response.value
             }
             else {
@@ -204,8 +250,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data: $($_.Exception.Message)"
-            break
+            throw "Error fetching data: $($_.Exception.Message)"
         }
     } while ($nextLink)
 

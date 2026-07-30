@@ -7,13 +7,13 @@
 
 .DESCRIPTION
     This script connects to Microsoft Graph and retrieves all managed devices from Intune,
-    filtering them by specified Scope Tags. It generates detailed reports showing device 
-    status, owner information, enrollment profiles, compliance state, and other critical 
-    data. The script supports both CSV and HTML output formats, with the HTML report 
+    filtering them by specified Scope Tags. It generates detailed reports showing device
+    status, owner information, enrollment profiles, compliance state, and other critical
+    data. The script supports both CSV and HTML output formats, with the HTML report
     featuring a management-friendly styled interface.
-    
-    Ideal for multi-school environments or organizations using Scope Tags for 
-    administrative delegation, this script helps analyze device distribution and 
+
+    Ideal for multi-school environments or organizations using Scope Tags for
+    administrative delegation, this script helps analyze device distribution and
     status across different organizational units.
 
 .TAGS
@@ -29,16 +29,18 @@
     Ugur Koc
 
 .VERSION
-    1.3
+    1.5
 
 .CHANGELOG
+    1.5 - Fixed managed-device URI construction when no platform or compliance filter is supplied
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - HTML-encode all report values to prevent markup injection and limit the initial device fetch with select
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\get-devices-by-scopetag.ps1 -IncludeScopeTag "School_A"
@@ -74,30 +76,73 @@
 param(
     [Parameter(Mandatory = $false, HelpMessage = "Comma-separated list of Scope Tags to include")]
     [string]$IncludeScopeTag,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Comma-separated list of Scope Tags to exclude")]
     [string]$ExcludeScopeTag,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Directory path for CSV and HTML exports (defaults to current directory)")]
     [string]$ExportPath = (Get-Location).Path,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by specific platform (Windows, iOS, Android, macOS)")]
     [ValidateSet("Windows", "iOS", "Android", "macOS", "All")]
     [string]$Platform = "All",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Filter by compliance state")]
     [ValidateSet("Compliant", "NonCompliant", "Unknown", "All")]
     [string]$ComplianceState = "All",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Show progress bar during processing")]
-    [switch]$ShowProgressBar,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ShowProgressBar,
+
     [Parameter(Mandatory = $false, HelpMessage = "Include detailed device information")]
-    [switch]$IncludeDetails,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeDetails,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('ShowProgressBar', 'IncludeDetails')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -113,13 +158,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -141,19 +186,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -163,7 +208,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -243,28 +288,28 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -273,11 +318,10 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
-    
+
     return $AllResults
 }
 
@@ -293,14 +337,14 @@ function Get-AllScopeTagDetail {
             Description = "Default scope tag"
         }
     }
-    
+
     foreach ($scopeTag in $scopeTagsResponse.value) {
         $scopeTagDetails[$scopeTag.id] = @{
             DisplayName = $scopeTag.displayName
             Description = $scopeTag.description
         }
     }
-    
+
     Write-Verbose "Retrieved $($scopeTagDetails.Count) scope tags"
     return $scopeTagDetails
 }
@@ -313,9 +357,9 @@ function Get-ScopeTagName {
         [Parameter(Mandatory = $true)]
         [hashtable]$ScopeTagCache
     )
-    
+
     $ScopeTagNames = @()
-    
+
     foreach ($TagId in $ScopeTagIds) {
         if ($ScopeTagCache.ContainsKey($TagId)) {
             $ScopeTagNames += $ScopeTagCache[$TagId].DisplayName
@@ -325,7 +369,7 @@ function Get-ScopeTagName {
             $ScopeTagNames += "Unknown ($TagId)"
         }
     }
-    
+
     return $ScopeTagNames -join ", "
 }
 
@@ -339,7 +383,7 @@ function Format-DeviceInfo {
         [Parameter(Mandatory = $false)]
         [switch]$IncludeDetails
     )
-    
+
     # Get scope tag names
     $ScopeTagNames = if ($Device.roleScopeTagIds -and $Device.roleScopeTagIds.Count -gt 0) {
         Get-ScopeTagName -ScopeTagIds $Device.roleScopeTagIds -ScopeTagCache $ScopeTagCache
@@ -347,7 +391,7 @@ function Format-DeviceInfo {
     else {
         "None"
     }
-    
+
     # Format dates
     $LastCheckIn = if ($Device.lastSyncDateTime -and $Device.lastSyncDateTime -ne "0001-01-01T00:00:00Z") {
         ([DateTime]::Parse($Device.lastSyncDateTime)).ToString("yyyy-MM-dd HH:mm:ss")
@@ -355,14 +399,14 @@ function Format-DeviceInfo {
     else {
         "Never"
     }
-    
+
     $EnrollmentDate = if ($Device.enrolledDateTime -and $Device.enrolledDateTime -ne "0001-01-01T00:00:00Z") {
         ([DateTime]::Parse($Device.enrolledDateTime)).ToString("yyyy-MM-dd")
     }
     else {
         "Unknown"
     }
-    
+
     # Get user principal name
     $UserPrincipalName = if ($Device.userPrincipalName) {
         $Device.userPrincipalName
@@ -370,7 +414,7 @@ function Format-DeviceInfo {
     else {
         "No User Assigned"
     }
-    
+
     # Get enrollment profile name
     $EnrollmentProfile = if ($Device.enrollmentProfileName) {
         $Device.enrollmentProfileName
@@ -378,7 +422,7 @@ function Format-DeviceInfo {
     else {
         "Direct Enrollment"
     }
-    
+
     # Build device info object
     $DeviceInfo = [PSCustomObject]@{
         ScopeTags         = $ScopeTagNames
@@ -400,21 +444,21 @@ function Format-DeviceInfo {
         EnrollmentType    = $Device.deviceEnrollmentType
         AutoPilotEnrolled = $Device.autopilotEnrolled
         IsEncrypted       = $Device.isEncrypted
-        TotalStorageSpace = if ($Device.totalStorageSpaceInBytes) { 
-            [math]::Round($Device.totalStorageSpaceInBytes / 1GB, 2).ToString() + " GB" 
+        TotalStorageSpace = if ($Device.totalStorageSpaceInBytes) {
+            [math]::Round($Device.totalStorageSpaceInBytes / 1GB, 2).ToString() + " GB"
         }
         else { "Unknown" }
-        FreeStorageSpace  = if ($Device.freeStorageSpaceInBytes) { 
-            [math]::Round($Device.freeStorageSpaceInBytes / 1GB, 2).ToString() + " GB" 
+        FreeStorageSpace  = if ($Device.freeStorageSpaceInBytes) {
+            [math]::Round($Device.freeStorageSpaceInBytes / 1GB, 2).ToString() + " GB"
         }
         else { "Unknown" }
     }
-    
+
     if (-not $IncludeDetails) {
-        $DeviceInfo = $DeviceInfo | Select-Object ScopeTags, DeviceName, Platform, OSVersion, Owner, 
+        $DeviceInfo = $DeviceInfo | Select-Object ScopeTags, DeviceName, Platform, OSVersion, Owner,
         EnrollmentProfile, LastCheckIn, ComplianceState, EnrollmentDate
     }
-    
+
     return $DeviceInfo
 }
 
@@ -428,7 +472,7 @@ function Test-DeviceScopeTag {
         [string[]]$IncludeTags,
         [string[]]$ExcludeTags
     )
-    
+
     # Get device's scope tag names
     $DeviceScopeTags = if ($Device.roleScopeTagIds -and $Device.roleScopeTagIds.Count -gt 0) {
         $TagNames = @()
@@ -442,7 +486,7 @@ function Test-DeviceScopeTag {
     else {
         @()
     }
-    
+
     # Check exclude tags first
     if ($ExcludeTags -and $ExcludeTags.Count -gt 0) {
         foreach ($ExcludeTag in $ExcludeTags) {
@@ -451,7 +495,7 @@ function Test-DeviceScopeTag {
             }
         }
     }
-    
+
     # Check include tags
     if ($IncludeTags -and $IncludeTags.Count -gt 0) {
         foreach ($IncludeTag in $IncludeTags) {
@@ -461,7 +505,7 @@ function Test-DeviceScopeTag {
         }
         return $false
     }
-    
+
     # If no include tags specified, include all (unless excluded)
     return $true
 }
@@ -476,15 +520,15 @@ function New-HTMLReport {
         [string[]]$IncludeTags,
         [string[]]$ExcludeTags
     )
-    
+
     $ReportDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $TotalDevices = $Devices.Count
-    
+
     # Group devices by various categories
     $DevicesByPlatform = $Devices | Group-Object Platform
     $DevicesByCompliance = $Devices | Group-Object ComplianceState
     $DevicesByScopeTag = $Devices | Group-Object ScopeTags
-    
+
     # Build HTML content
     $HTMLContent = @"
 <!DOCTYPE html>
@@ -757,7 +801,7 @@ function New-HTMLReport {
                 "noncompliant" { "noncompliant" }
                 default { "unknown" }
             }
-            
+
             $PlatformClass = [System.Net.WebUtility]::HtmlEncode("platform-$($Device.Platform.ToLower())")
             $EncodedScopeTags = [System.Net.WebUtility]::HtmlEncode([string]$Device.ScopeTags)
             $EncodedDeviceName = [System.Net.WebUtility]::HtmlEncode([string]$Device.DeviceName)
@@ -806,22 +850,22 @@ function New-HTMLReport {
             const platformFilter = document.getElementById('platformFilter').value.toLowerCase();
             const complianceFilter = document.getElementById('complianceFilter').value.toLowerCase();
             const scopeTagFilter = document.getElementById('scopeTagFilter').value.toLowerCase();
-            
+
             const table = document.getElementById('deviceTable');
             const tr = table.getElementsByTagName('tr');
-            
+
             for (let i = 1; i < tr.length; i++) {
                 const scopeTag = tr[i].getElementsByTagName('td')[0].textContent.toLowerCase();
                 const deviceName = tr[i].getElementsByTagName('td')[1].textContent.toLowerCase();
                 const platform = tr[i].getElementsByTagName('td')[2].textContent.toLowerCase();
                 const owner = tr[i].getElementsByTagName('td')[4].textContent.toLowerCase();
                 const compliance = tr[i].getElementsByTagName('td')[7].textContent.toLowerCase();
-                
+
                 const matchesSearch = deviceName.includes(searchInput) || owner.includes(searchInput) || scopeTag.includes(searchInput);
                 const matchesPlatform = !platformFilter || platform === platformFilter;
                 const matchesCompliance = !complianceFilter || compliance === complianceFilter;
                 const matchesScopeTag = !scopeTagFilter || scopeTag === scopeTagFilter;
-                
+
                 if (matchesSearch && matchesPlatform && matchesCompliance && matchesScopeTag) {
                     tr[i].style.display = '';
                 } else {
@@ -829,11 +873,11 @@ function New-HTMLReport {
                 }
             }
         }
-        
+
         function exportTableToCSV(filename) {
             const table = document.getElementById('deviceTable');
             const rows = Array.from(table.querySelectorAll('tr:not([style*="display: none"])'));
-            
+
             const csv = rows.map(row => {
                 const cells = Array.from(row.querySelectorAll('th, td'));
                 return cells.map(cell => {
@@ -841,7 +885,7 @@ function New-HTMLReport {
                     return `"${text}"`;
                 }).join(',');
             }).join('\n');
-            
+
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -873,11 +917,11 @@ function New-HTMLReport {
 
 try {
     Write-Output "Starting device report generation..."
-    
+
     # Parse scope tags
     $IncludeTags = if ($IncludeScopeTag) { $IncludeScopeTag -split ',' | ForEach-Object { $_.Trim() } } else { @() }
     $ExcludeTags = if ($ExcludeScopeTag) { $ExcludeScopeTag -split ',' | ForEach-Object { $_.Trim() } } else { @() }
-    
+
     Write-Output "Configuration:"
     if ($IncludeTags.Count -gt 0) {
         Write-Output "  - Include Scope Tags: $($IncludeTags -join ', ')"
@@ -887,38 +931,38 @@ try {
     }
     Write-Output "  - Platform filter: $Platform"
     Write-Output "  - Compliance filter: $ComplianceState"
-    
+
     # Fetch all scope tag details upfront
     Write-Output "Fetching scope tag details..."
     $ScopeTagCache = Get-AllScopeTagDetail
     Write-Output "✓ Retrieved $($ScopeTagCache.Count) scope tags"
-    
+
     # Build the API URI with platform filter using beta endpoint for full device details
     $BaseUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices"
     $FilterParts = @()
-    
+
     if ($Platform -ne "All") {
         $FilterParts += "operatingSystem eq '$Platform'"
     }
-    
+
     if ($ComplianceState -ne "All") {
         $FilterParts += "complianceState eq '$($ComplianceState.ToLower())'"
     }
-    
+
     $SelectClause = "`$select=id,deviceName,operatingSystem,complianceState"
 
     $Uri = if ($FilterParts.Count -gt 0) {
         "$BaseUri?`$filter=" + ($FilterParts -join ' and ') + "&$SelectClause"
     }
     else {
-        "$BaseUri?$SelectClause"
+        "${BaseUri}?$SelectClause"
     }
-    
+
     # Retrieve all managed devices
     Write-Output "Retrieving managed devices from Intune..."
     $AllDevices = Get-MgGraphAllPage -Uri $Uri
     Write-Output "✓ Retrieved $($AllDevices.Count) devices"
-    
+
     # Process devices
     Write-Output "Processing devices..."
     if ($AllDevices.Count -gt 100) {
@@ -926,20 +970,20 @@ try {
     }
     $FilteredDevices = @()
     $ProcessedCount = 0
-    
+
     foreach ($Device in $AllDevices) {
         $ProcessedCount++
-        
+
         if ($ShowProgressBar) {
             $PercentComplete = [math]::Round(($ProcessedCount / $AllDevices.Count) * 100)
             Write-Progress -Activity "Processing devices" -Status "Device $ProcessedCount of $($AllDevices.Count)" -PercentComplete $PercentComplete
         }
-        
+
         # Fetch full device details to get roleScopeTagIds
         try {
             $DeviceDetailsUri = "https://graph.microsoft.com/beta/deviceManagement/managedDevices('$($Device.id)')"
             $DeviceDetails = Invoke-MgGraphRequest -Uri $DeviceDetailsUri -Method GET
-            
+
             # Use the detailed device object which includes roleScopeTagIds
             if (Test-DeviceScopeTag -Device $DeviceDetails -ScopeTagCache $ScopeTagCache -IncludeTags $IncludeTags -ExcludeTags $ExcludeTags) {
                 $FormattedDevice = Format-DeviceInfo -Device $DeviceDetails -ScopeTagCache $ScopeTagCache -IncludeDetails:$IncludeDetails
@@ -950,11 +994,11 @@ try {
             Write-Warning "Could not retrieve details for device $($Device.deviceName): $($_.Exception.Message)"
         }
     }
-    
+
     if ($ShowProgressBar) {
         Write-Progress -Activity "Processing devices" -Completed
     }
-    
+
     # Display results
     Write-Output "✓ Processing completed"
     Write-Output ""
@@ -965,7 +1009,7 @@ try {
     Write-Output "Devices matching criteria: $($FilteredDevices.Count)"
     Write-Output "========================================"
     Write-Output ""
-    
+
     if ($FilteredDevices.Count -gt 0) {
         # Group by scope tag for summary
         $ScopeTagSummary = $FilteredDevices | Group-Object ScopeTags | Sort-Object Count -Descending
@@ -974,28 +1018,28 @@ try {
             Write-Output "  - $($Group.Name): $($Group.Count) devices"
         }
         Write-Output ""
-        
+
         # Display the devices (limited view in console)
         $FilteredDevices | Select-Object -First 10 | Format-Table -AutoSize
-        
+
         if ($FilteredDevices.Count -gt 10) {
             Write-Output "... and $($FilteredDevices.Count - 10) more devices"
         }
-        
+
         # Export reports
         # Ensure export directory exists
         if (-not (Test-Path $ExportPath)) {
             New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
         }
-        
+
         # Generate filenames with timestamp
         $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
         $CSVFileName = "DeviceReport_ByScopeTag_$Timestamp.csv"
         $HTMLFileName = "DeviceReport_ByScopeTag_$Timestamp.html"
-        
+
         $CSVPath = Join-Path $ExportPath $CSVFileName
         $HTMLPath = Join-Path $ExportPath $HTMLFileName
-        
+
         # Export to CSV
         try {
             $FilteredDevices | Export-Csv -Path $CSVPath -NoTypeInformation -Encoding utf8
@@ -1004,14 +1048,14 @@ try {
         catch {
             Write-Warning "Failed to export CSV: $($_.Exception.Message)"
         }
-        
+
         # Generate HTML report
         New-HTMLReport -Devices $FilteredDevices -ReportPath $HTMLPath -IncludeTags $IncludeTags -ExcludeTags $ExcludeTags
     }
     else {
         Write-Output "No devices found matching the specified criteria."
     }
-    
+
     Write-Output "✓ Script completed successfully"
 }
 catch {
@@ -1039,7 +1083,7 @@ Write-Output "
 Script Execution Summary
 ========================================
 Script: Get Devices by Scope Tag Report
-Parameters: 
+Parameters:
   - Include Tags: $($IncludeTags -join ', ')
   - Exclude Tags: $($ExcludeTags -join ', ')
   - Platform: $Platform

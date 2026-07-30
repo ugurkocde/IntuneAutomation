@@ -20,22 +20,23 @@
     Intune Administrator
 
 .PERMISSIONS
-    DeviceManagementApps.Read.All,DeviceManagementConfiguration.Read.All
+    DeviceManagementApps.Read.All,Mail.Send
 
 .AUTHOR
     Ugur Koc
 
 .VERSION
-    1.3
+    1.4
 
 .CHANGELOG
+    1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Audit log filter timestamp is now built from UTC; severity check on activityResult is now case-insensitive (Graph returns "Success"/"Failure" capitalized); output directory is created automatically before the CSV export; pagination helper keeps single-item results as arrays
     1.1 - Local runs now use MgGraphCommunity for WAM-free interactive sign-in (auto-installed if missing)
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-28
+    2026-07-30
 
 .EXAMPLE
     .\check-policy-changes.ps1
@@ -46,12 +47,13 @@
     Generates a report of policy changes from the last 30 days and saves to specified directory
 
 .EXAMPLE
-    .\check-policy-changes.ps1 -OnlyShowChanges -SendEmailAlert -AlertEmailAddress "admin@contoso.com"
+    .\check-policy-changes.ps1 -OnlyShowChanges "true" -SendEmailAlert "true" -AlertEmailAddress "<recipient-address>" -SenderUPN "<sender-upn>"
     Shows only modified policies and sends email alerts for changes
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
     - Requires appropriate permissions in Azure AD
+    - Email alerts require Mail.Send and a runtime-supplied SenderUPN and recipient address
     - Policies use modern configuration templates
     - Policies require beta Graph endpoint access
     - Audit data is available for up to 30 days by default
@@ -65,26 +67,73 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = "Number of days to look back for changes")]
     [ValidateRange(1, 90)]
     [int]$DaysBack = 30,
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Directory path to save reports")]
     [ValidateNotNullOrEmpty()]
     [string]$OutputPath = ".",
-    
+
     [Parameter(Mandatory = $false, HelpMessage = "Only show policies with changes")]
-    [switch]$OnlyShowChanges,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$OnlyShowChanges,
+
     [Parameter(Mandatory = $false, HelpMessage = "Send email alert for policy changes")]
-    [switch]$SendEmailAlert,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$SendEmailAlert,
+
     [Parameter(Mandatory = $false, HelpMessage = "Email address to send alerts to")]
     [string]$AlertEmailAddress = "",
-    
+
+    [Parameter(Mandatory = $false, HelpMessage = "Mailbox UPN used to send alerts")]
+    [string]$SenderUPN = "",
+
     [Parameter(Mandatory = $false, HelpMessage = "Include detailed change information")]
-    [switch]$IncludeDetails,
-    
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$IncludeDetails,
+
     [Parameter(Mandatory = $false, HelpMessage = "Force module installation without prompting")]
-    [switch]$ForceModuleInstall
+    [ValidateSet("true", "false", "1", "0", '$true', '$false')]
+    [string]$ForceModuleInstall
 )
+
+# Normalize the local module-install override for Azure Automation parameter binding.
+$forceModuleInstallRaw = [string]$ForceModuleInstall
+Remove-Variable -Name ForceModuleInstall
+if ([string]::IsNullOrWhiteSpace($forceModuleInstallRaw)) {
+    $ForceModuleInstall = $false
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("true", "1", '$true')) {
+    $ForceModuleInstall = $true
+}
+elseif ($forceModuleInstallRaw.Trim().ToLowerInvariant() -in @("false", "0", '$false')) {
+    $ForceModuleInstall = $false
+}
+else {
+    throw "Parameter 'ForceModuleInstall' accepts only true, false, 1, 0, $true, or $false."
+}
+
+# Azure Automation supplies portal parameter values as strings. Normalize the
+# public boolean parameters once so local and runbook execution use real booleans.
+foreach ($runbookBooleanParameter in @('OnlyShowChanges', 'SendEmailAlert', 'IncludeDetails')) {
+    $runbookBooleanRaw = [string](Get-Variable -Name $runbookBooleanParameter -ValueOnly)
+    Remove-Variable -Name $runbookBooleanParameter
+
+    if ([string]::IsNullOrWhiteSpace($runbookBooleanRaw)) {
+        Set-Variable -Name $runbookBooleanParameter -Value $false
+        continue
+    }
+
+    switch ($runbookBooleanRaw.Trim().ToLowerInvariant()) {
+        { $_ -in @("true", "1", '$true') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $true
+        }
+        { $_ -in @("false", "0", '$false') } {
+            Set-Variable -Name $runbookBooleanParameter -Value $false
+        }
+        default {
+            throw "Parameter '$runbookBooleanParameter' accepts only true, false, 1, 0, $true, or $false."
+        }
+    }
+}
 
 # ============================================================================
 # ENVIRONMENT DETECTION AND SETUP
@@ -100,13 +149,13 @@ function Initialize-RequiredModule {
         [bool]$IsAutomationEnvironment,
         [bool]$ForceInstall = $false
     )
-    
+
     foreach ($ModuleName in $ModuleNames) {
         Write-Verbose "Checking module: $ModuleName"
-        
+
         # Check if module is available
         $module = Get-Module -ListAvailable -Name $ModuleName | Select-Object -First 1
-        
+
         if (-not $module) {
             if ($IsAutomationEnvironment) {
                 $errorMessage = @"
@@ -128,19 +177,19 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
             else {
                 # Local environment - attempt to install
                 Write-Information "Module '$ModuleName' not found. Attempting to install..." -InformationAction Continue
-                
+
                 if (-not $ForceInstall) {
                     $response = Read-Host "Install module '$ModuleName'? (Y/N)"
                     if ($response -notmatch '^[Yy]') {
                         throw "Module '$ModuleName' is required but installation was declined."
                     }
                 }
-                
+
                 try {
                     # Check if running as administrator for AllUsers scope
                     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
                     $scope = if ($isAdmin) { "AllUsers" } else { "CurrentUser" }
-                    
+
                     Write-Information "Installing '$ModuleName' in scope '$scope'..." -InformationAction Continue
                     Install-Module -Name $ModuleName -Scope $scope -Force -AllowClobber -Repository PSGallery
                     Write-Information "✓ Successfully installed '$ModuleName'" -InformationAction Continue
@@ -150,7 +199,7 @@ Import-AzAutomationModule -AutomationAccountName "YourAccount" -ResourceGroupNam
                 }
             }
         }
-        
+
         # Import the module
         try {
             Write-Verbose "Importing module: $ModuleName"
@@ -208,7 +257,7 @@ try {
         Write-Output "Connecting to Microsoft Graph with interactive authentication..."
         $Scopes = @(
             "DeviceManagementApps.Read.All",
-            "DeviceManagementConfiguration.Read.All"
+            "Mail.Send"
         )
         Connect-MgGraphCommunity -Scopes $Scopes -NoWelcome -ErrorAction Stop
         Write-Output "✓ Successfully connected to Microsoft Graph"
@@ -230,28 +279,28 @@ function Get-MgGraphAllPage {
         [string]$Uri,
         [int]$DelayMs = 100
     )
-    
+
     $AllResults = @()
     $NextLink = $Uri
     $RequestCount = 0
-    
+
     do {
         try {
             # Add delay to respect rate limits
             if ($RequestCount -gt 0) {
                 Start-Sleep -Milliseconds $DelayMs
             }
-            
+
             $Response = Invoke-MgGraphRequest -Uri $NextLink -Method GET
             $RequestCount++
-            
-            if ($Response.value) {
+
+            if ($null -ne $Response.value) {
                 $AllResults += $Response.value
             }
             else {
                 $AllResults += $Response
             }
-            
+
             $NextLink = $Response.'@odata.nextLink'
         }
         catch {
@@ -260,8 +309,7 @@ function Get-MgGraphAllPage {
                 Start-Sleep -Seconds 60
                 continue
             }
-            Write-Warning "Error fetching data from $NextLink : $($_.Exception.Message)"
-            break
+            throw "Error fetching data from $NextLink : $($_.Exception.Message)"
         }
     } while ($NextLink)
 
@@ -274,9 +322,9 @@ function Format-ChangeDetail {
     param(
         [object]$AuditLog
     )
-    
+
     $ChangeDetails = @()
-    
+
     if ($AuditLog.resources) {
         foreach ($Resource in $AuditLog.resources) {
             if ($Resource.modifiedProperties) {
@@ -291,7 +339,7 @@ function Format-ChangeDetail {
             }
         }
     }
-    
+
     return $ChangeDetails
 }
 
@@ -301,12 +349,12 @@ function Get-ChangeSeverity {
         [string]$Activity,
         [string]$Result
     )
-    
+
     # Graph returns "Success"/"Failure" capitalized; normalize so casing never matters
     if ($Result.ToLower() -eq "failure") {
         return "High"
     }
-    
+
     switch -Wildcard ($Activity) {
         "*Delete*" { return "High" }
         "*Create*" { return "Medium" }
@@ -316,50 +364,113 @@ function Get-ChangeSeverity {
     }
 }
 
+function Send-PolicyChangeEmail {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object[]]$Changes,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RecipientAddresses,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SenderUserPrincipalName
+    )
+
+    $toRecipients = @(
+        $RecipientAddresses -split '[,;]' |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            ForEach-Object {
+                try {
+                    $validatedAddress = [System.Net.Mail.MailAddress]::new($_).Address
+                }
+                catch {
+                    throw "Invalid alert email address '$_'."
+                }
+
+                @{ emailAddress = @{ address = $validatedAddress } }
+            }
+    )
+    if ($toRecipients.Count -eq 0) {
+        throw "At least one alert email address is required."
+    }
+
+    $changeLines = @(
+        $Changes | Select-Object -First 10 | ForEach-Object {
+            "$($_.DateTime): $($_.PolicyName) - $($_.Action) by $($_.User)"
+        }
+    )
+    $bodyText = @"
+Policy Changes Report
+
+Time period: Last $DaysBack days
+Total changes: $($Changes.Count)
+
+Recent changes:
+$($changeLines -join [Environment]::NewLine)
+
+Review the Intune audit log for full details.
+"@
+    $payload = @{
+        message = @{
+            subject = "Policy Changes Alert - $($Changes.Count) changes detected"
+            body = @{
+                contentType = "Text"
+                content = $bodyText
+            }
+            toRecipients = $toRecipients
+        }
+        saveToSentItems = $true
+    }
+
+    $encodedSender = [uri]::EscapeDataString($SenderUserPrincipalName)
+    $mailUri = "https://graph.microsoft.com/beta/users/$encodedSender/sendMail"
+    Invoke-MgGraphRequest -Uri $mailUri -Method POST -Body ($payload | ConvertTo-Json -Depth 10) -ContentType "application/json" -ErrorAction Stop | Out-Null
+}
+
 # ============================================================================
 # MAIN SCRIPT LOGIC
 # ============================================================================
 
 try {
     Write-Output "Starting Policies changes analysis..."
-    
+
     # Calculate start date in UTC so the filter matches Graph timestamps
     $StartDate = (Get-Date).ToUniversalTime().AddDays(-$DaysBack)
     $StartDateFormatted = $StartDate.ToString("yyyy-MM-ddTHH:mm:ssZ")
-    
+
     Write-Output "Analyzing changes from: $($StartDate.ToString('yyyy-MM-dd HH:mm:ss'))"
-    
+
     # ========================================================================
     # GET AUDIT LOGS FOR SETTINGS CATALOG CHANGES
     # ========================================================================
-    
+
     Write-Output "Retrieving audit logs for Policies changes..."
-    
+
     try {
         # Query for Policies changes (DeviceConfiguration category)
         $AuditLogsUri = "https://graph.microsoft.com/beta/deviceManagement/auditEvents?`$filter=activityDateTime ge $StartDateFormatted and category eq 'DeviceConfiguration'&`$orderby=activityDateTime desc&`$top=50"
         $AuditLogs = Get-MgGraphAllPage -Uri $AuditLogsUri
-        
+
         Write-Output "Retrieved $($AuditLogs.Count) DeviceConfiguration audit events"
-        
+
         # Filter for Policies (DeviceManagementConfigurationPolicy) activities
-        $PoliciesActivities = $AuditLogs | Where-Object { 
+        $PoliciesActivities = $AuditLogs | Where-Object {
             $_.activityType -like "*DeviceManagementConfigurationPolicy*"
         }
-        
+
         Write-Output "✓ Found $($PoliciesActivities.Count) policy changes"
     }
     catch {
-        Write-Warning "Failed to retrieve audit logs: $($_.Exception.Message)"
-        $PoliciesActivities = @()
+        throw "Failed to retrieve audit logs: $($_.Exception.Message)"
     }
-    
+
     # ========================================================================
     # FILTER AND PROCESS CHANGES
     # ========================================================================
-    
+
     Write-Output "Processing Policies policy changes..."
-    
+
     # Filter changes if OnlyShowChanges is specified
     if ($OnlyShowChanges) {
         $PoliciesActivities = $PoliciesActivities | Where-Object {
@@ -367,47 +478,47 @@ try {
         }
         Write-Output "Filtered to show only policy modifications: $($PoliciesActivities.Count) changes"
     }
-    
+
     # Get the last 5 changes
     $Last5Changes = $PoliciesActivities | Select-Object -First 5
-    
+
     if ($Last5Changes.Count -eq 0) {
         Write-Output "No Policies policy changes found in the specified time period."
         return
     }
-    
+
     Write-Output "`n========================================"
     Write-Output "LAST 5 POLICIES POLICY CHANGES"
     Write-Output "========================================"
-    
+
     # Prepare CSV data for export
     $CsvData = @()
-    
+
     $ChangeNumber = 1
     foreach ($Change in $Last5Changes) {
         try {
             # Get policy name and user info
             $PolicyName = "Unknown Policy"
             $UserName = "System"
-            
+
             if ($Change.resources -and $Change.resources.Count -gt 0) {
                 $PolicyName = $Change.resources[0].displayName
             }
-            
+
             if ($Change.actor -and $Change.actor.userPrincipalName) {
                 $UserName = $Change.actor.userPrincipalName
             }
-            
+
             Write-Output "`n[$ChangeNumber] $($Change.activityDateTime)"
             Write-Output "Policy: $PolicyName"
             Write-Output "Action: $($Change.activityType)"
             Write-Output "User: $UserName"
             Write-Output "Result: $($Change.activityResult)"
-            
+
             # Collect change details for CSV export
             $ChangeDetails = ""
             $Severity = Get-ChangeSeverity -Activity $Change.activityType -Result $Change.activityResult
-            
+
             # Show modified properties (before/after values)
             if ($Change.resources -and $Change.resources[0].modifiedProperties) {
                 Write-Output "Changes:"
@@ -416,7 +527,7 @@ try {
                     $OldValue = if ($Property.oldValue) { $Property.oldValue } else { "(empty)" }
                     $NewValue = if ($Property.newValue) { $Property.newValue } else { "(empty)" }
                     Write-Output "  - $($Property.displayName): '$OldValue' → '$NewValue'"
-                    
+
                     if ($IncludeDetails) {
                         $ChangeDetailsList += "$($Property.displayName): '$OldValue' → '$NewValue'"
                     }
@@ -426,7 +537,7 @@ try {
             else {
                 Write-Output "  No detailed change information available"
             }
-            
+
             # Add to CSV data
             $CsvRecord = [PSCustomObject]@{
                 DateTime   = $Change.activityDateTime
@@ -438,7 +549,7 @@ try {
                 Details    = if ($IncludeDetails) { $ChangeDetails } else { "" }
             }
             $CsvData += $CsvRecord
-            
+
             $ChangeNumber++
         }
         catch {
@@ -446,11 +557,11 @@ try {
             continue
         }
     }
-    
+
     # ========================================================================
     # EXPORT TO CSV
     # ========================================================================
-    
+
     if ($CsvData.Count -gt 0) {
         # Create output directory if it does not exist
         if (-not (Test-Path $OutputPath)) {
@@ -467,36 +578,28 @@ try {
             Write-Warning "Failed to export CSV report: $($_.Exception.Message)"
         }
     }
-    
+
     # ========================================================================
     # EMAIL ALERTS
     # ========================================================================
-    
-    if ($SendEmailAlert -and $AlertEmailAddress -and $CsvData.Count -gt 0) {
-        try {
-            $Subject = "Policy Changes Alert - $($CsvData.Count) changes detected"
-            $Body = @"
-Policy Changes Report
 
-Time Period: Last $DaysBack days
-Total Changes: $($CsvData.Count)
-
-Recent Changes:
-$($CsvData | ForEach-Object { "- $($_.DateTime): $($_.PolicyName) - $($_.Action) by $($_.User)" } | Select-Object -First 10 | Out-String)
-
-For full details, please check the attached CSV report or review the Intune audit logs.
-"@
-            
-            # Note: Email sending would require additional modules like Send-MailMessage or Microsoft Graph
-            Write-Output "Email alert prepared for: $AlertEmailAddress"
-            Write-Output "Subject: $Subject"
-            Write-Warning "Email sending functionality requires additional configuration (SMTP settings or Microsoft Graph permissions)"
+    if ($SendEmailAlert) {
+        if ([string]::IsNullOrWhiteSpace($AlertEmailAddress)) {
+            throw "AlertEmailAddress is required when SendEmailAlert is enabled."
         }
-        catch {
-            Write-Warning "Failed to prepare email alert: $($_.Exception.Message)"
+        if ([string]::IsNullOrWhiteSpace($SenderUPN)) {
+            throw "SenderUPN is required when SendEmailAlert is enabled."
+        }
+
+        if ($CsvData.Count -gt 0) {
+            Send-PolicyChangeEmail -Changes $CsvData -RecipientAddresses $AlertEmailAddress -SenderUserPrincipalName $SenderUPN
+            Write-Output "✓ Policy change email sent."
+        }
+        else {
+            Write-Output "No policy changes detected. Email alert was not sent."
         }
     }
-    
+
     Write-Output "`n✓ Policies changes analysis completed successfully"
 }
 catch {
