@@ -24,9 +24,10 @@
     Ugur Koc
 
 .VERSION
-    1.6
+    1.7
 
 .CHANGELOG
+    1.7 - Let the finally block own Graph disconnection so early exits do not emit a second-disconnect error
     1.6 - Ignore empty string-array values supplied by Azure Automation when validating the selected target
     1.5 - Added a portal-safe DryRun mode and records an empty target group as a successful no-op
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
@@ -497,7 +498,6 @@ try {
 
     if ($targetDevices.Count -eq 0) {
         Write-Output 'No target devices found. No restart action is required.'
-        $null = Disconnect-MgGraph
         exit 0
     }
 
@@ -512,7 +512,6 @@ try {
 
     if ($DryRun) {
         Write-Output "✓ Dry run completed. No restart actions were sent."
-        $null = Disconnect-MgGraph
         exit 0
     }
 
@@ -526,7 +525,6 @@ try {
 
         if ($confirmation -ne 'CONFIRM') {
             Write-Output "Operation cancelled by user."
-            $null = Disconnect-MgGraph
             exit 0
         }
     }
@@ -589,8 +587,10 @@ catch {
 finally {
     # Disconnect from Microsoft Graph
     try {
-        $null = Disconnect-MgGraph
-        Write-Output '✓ Disconnected from Microsoft Graph'
+        if (Get-MgContext) {
+            $null = Disconnect-MgGraph -ErrorAction SilentlyContinue
+            Write-Output '✓ Disconnected from Microsoft Graph'
+        }
     }
     catch {
         # Ignore disconnection errors - this is expected behavior when already disconnected
