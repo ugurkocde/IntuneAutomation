@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/90e81af6-faca-47a6-92ae-00d916977860" alt="Intune Automation Logo" />
+  <img src="docs/images/readme-banner.svg" alt="IntuneAutomation, PowerShell scripts for Microsoft Intune" width="100%" />
 </p>
 
 <p align="center">
