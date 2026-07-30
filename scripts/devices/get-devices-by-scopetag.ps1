@@ -29,9 +29,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Fixed managed-device URI construction when no platform or compliance filter is supplied
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - HTML-encode all report values to prevent markup injection and limit the initial device fetch with select
@@ -954,7 +955,7 @@ try {
         "$BaseUri?`$filter=" + ($FilterParts -join ' and ') + "&$SelectClause"
     }
     else {
-        "$BaseUri?$SelectClause"
+        "${BaseUri}?$SelectClause"
     }
 
     # Retrieve all managed devices
