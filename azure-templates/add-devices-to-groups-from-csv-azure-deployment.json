@@ -3,59 +3,59 @@
   "contentVersion": "2.0.0.0",
   "parameters": {
     "automationAccountName": {
-      "type": "string",
       "metadata": {
         "description": "Name of an existing Azure Automation account, or the name to create when createAutomationAccount is true."
-      }
+      },
+      "type": "string"
     },
     "createAutomationAccount": {
-      "defaultValue": false,
+      "type": "bool",
       "metadata": {
         "description": "Create a new Automation account. Leave false to reuse an account in the selected resource group without modifying its identity or region."
       },
-      "type": "bool"
+      "defaultValue": false
     },
     "newAutomationAccountLocation": {
-      "defaultValue": "[resourceGroup().location]",
+      "type": "string",
       "metadata": {
         "description": "Used only when createAutomationAccount is true. Existing accounts always use their current Azure region."
       },
-      "type": "string"
+      "defaultValue": "[resourceGroup().location]"
     },
     "runtimeEnvironmentName": {
-      "defaultValue": "IntuneAutomation-PS74",
+      "type": "string",
       "metadata": {
         "description": "PowerShell 7.4 Runtime Environment to create or associate with the runbook."
       },
-      "type": "string"
+      "defaultValue": "IntuneAutomation-PS74"
     },
     "createRuntimeEnvironment": {
-      "defaultValue": true,
+      "type": "bool",
       "metadata": {
         "description": "Create or update the PowerShell 7.4 Runtime Environment and Microsoft.Graph.Authentication package. Set false only when the named environment already exists and contains that package."
       },
-      "type": "bool"
+      "defaultValue": true
     },
     "graphAuthenticationModuleVersion": {
-      "defaultValue": "2.38.1",
+      "type": "string",
       "metadata": {
         "description": "Microsoft.Graph.Authentication package version imported when createRuntimeEnvironment is true."
       },
-      "type": "string"
+      "defaultValue": "2.38.1"
     },
     "runbookName": {
-      "defaultValue": "add-devices-to-groups-from-csv",
+      "type": "string",
       "metadata": {
         "description": "Name of the runbook to create or update."
       },
-      "type": "string"
+      "defaultValue": "add-devices-to-groups-from-csv"
     },
     "runbookDescription": {
-      "defaultValue": "This script reads a CSV file containing device identifiers and group names, then adds",
+      "type": "string",
       "metadata": {
         "description": "Description stored on the Azure Automation runbook."
       },
-      "type": "string"
+      "defaultValue": "This script reads a CSV file containing device identifiers and group names, then adds"
     }
   },
   "variables": {
@@ -66,18 +66,19 @@
       "identity": {
         "type": "SystemAssigned"
       },
-      "apiVersion": "2024-10-23",
-      "type": "Microsoft.Automation/automationAccounts",
       "name": "[parameters('automationAccountName')]",
+      "type": "Microsoft.Automation/automationAccounts",
       "properties": {
         "sku": {
           "name": "Basic"
         }
       },
+      "condition": "[parameters('createAutomationAccount')]",
       "location": "[parameters('newAutomationAccountLocation')]",
-      "condition": "[parameters('createAutomationAccount')]"
+      "apiVersion": "2024-10-23"
     },
     {
+      "type": "Microsoft.Resources/deployments",
       "properties": {
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -110,76 +111,66 @@
           },
           "resources": [
             {
-              "apiVersion": "2024-10-23",
-              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
-              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
               "properties": {
+                "description": "IntuneAutomation PowerShell 7.4 runtime",
                 "runtime": {
                   "language": "PowerShell",
                   "version": "7.4"
                 },
                 "defaultPackages": {
                   "Az": "12.3.0"
-                },
-                "description": "IntuneAutomation PowerShell 7.4 runtime"
+                }
               },
+              "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
+              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
+              "condition": "[parameters('createRuntimeEnvironment')]",
               "location": "[parameters('accountLocation')]",
-              "condition": "[parameters('createRuntimeEnvironment')]"
+              "apiVersion": "2024-10-23"
             },
             {
-              "apiVersion": "2024-10-23",
-              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+              "properties": {
+                "contentLink": {
+                  "version": "[parameters('graphAuthenticationModuleVersion')]",
+                  "uri": "[variables('graphAuthenticationPackageUri')]"
+                }
+              },
               "name": "[format('{0}/{1}/Microsoft.Graph.Authentication', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
+              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+              "condition": "[parameters('createRuntimeEnvironment')]",
               "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]"
               ],
-              "properties": {
-                "contentLink": {
-                  "uri": "[variables('graphAuthenticationPackageUri')]",
-                  "version": "[parameters('graphAuthenticationModuleVersion')]"
-                }
-              },
               "location": "[parameters('accountLocation')]",
-              "condition": "[parameters('createRuntimeEnvironment')]"
+              "apiVersion": "2024-10-23"
             },
             {
-              "apiVersion": "2024-10-23",
-              "type": "Microsoft.Automation/automationAccounts/runbooks",
+              "properties": {
+                "logProgress": false,
+                "logVerbose": false,
+                "description": "[parameters('runbookDescription')]",
+                "runbookType": "PowerShell",
+                "publishContentLink": {
+                  "uri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/add-devices-to-groups-from-csv.ps1"
+                },
+                "runtimeEnvironment": "[parameters('runtimeEnvironmentName')]"
+              },
               "name": "[format('{0}/{1}', parameters('automationAccountName'), parameters('runbookName'))]",
+              "type": "Microsoft.Automation/automationAccounts/runbooks",
               "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('automationAccountName'), parameters('runtimeEnvironmentName'))]",
                 "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments/packages', parameters('automationAccountName'), parameters('runtimeEnvironmentName'), 'Microsoft.Graph.Authentication')]"
               ],
               "location": "[parameters('accountLocation')]",
-              "properties": {
-                "publishContentLink": {
-                  "uri": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/scripts/devices/add-devices-to-groups-from-csv.ps1"
-                },
-                "logProgress": false,
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "runtimeEnvironment": "[parameters('runtimeEnvironmentName')]",
-                "description": "[parameters('runbookDescription')]"
-              }
+              "apiVersion": "2024-10-23"
             }
           ]
         },
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
         "parameters": {
-          "accountLocation": {
-            "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]"
-          },
-          "runbookDescription": {
-            "value": "[parameters('runbookDescription')]"
+          "runtimeEnvironmentName": {
+            "value": "[parameters('runtimeEnvironmentName')]"
           },
           "runbookName": {
             "value": "[parameters('runbookName')]"
-          },
-          "runtimeEnvironmentName": {
-            "value": "[parameters('runtimeEnvironmentName')]"
           },
           "graphAuthenticationModuleVersion": {
             "value": "[parameters('graphAuthenticationModuleVersion')]"
@@ -187,55 +178,64 @@
           "createRuntimeEnvironment": {
             "value": "[parameters('createRuntimeEnvironment')]"
           },
+          "accountLocation": {
+            "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]"
+          },
+          "runbookDescription": {
+            "value": "[parameters('runbookDescription')]"
+          },
           "automationAccountName": {
             "value": "[parameters('automationAccountName')]"
           }
+        },
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
         }
       },
+      "apiVersion": "2025-04-01",
+      "name": "configureRunbook",
       "dependsOn": [
         "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
-      ],
-      "name": "configureRunbook",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01"
+      ]
     }
   ],
   "outputs": {
     "runbookName": {
-      "type": "string",
-      "value": "[parameters('runbookName')]"
+      "value": "[parameters('runbookName')]",
+      "type": "string"
     },
     "automationAccountName": {
-      "type": "string",
-      "value": "[parameters('automationAccountName')]"
+      "value": "[parameters('automationAccountName')]",
+      "type": "string"
     },
     "automationAccountLocation": {
-      "type": "string",
-      "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]"
+      "value": "[if(parameters('createAutomationAccount'), parameters('newAutomationAccountLocation'), reference(resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName')), '2024-10-23', 'Full').location)]",
+      "type": "string"
     },
     "runtimeEnvironmentName": {
-      "type": "string",
-      "value": "[parameters('runtimeEnvironmentName')]"
+      "value": "[parameters('runtimeEnvironmentName')]",
+      "type": "string"
     },
     "requiredGraphPermissions": {
-      "type": "array",
       "value": [
         "Group.ReadWrite.All",
         "DeviceManagementManagedDevices.Read.All",
         "Directory.Read.All"
-      ]
+      ],
+      "type": "array"
     },
     "runbookUrl": {
-      "type": "string",
-      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]"
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Automation/automationAccounts/', parameters('automationAccountName'), '/runbooks/', parameters('runbookName'))]",
+      "type": "string"
     },
     "scriptSourceUrl": {
-      "type": "string",
-      "value": "[variables('scriptUri')]"
+      "value": "[variables('scriptUri')]",
+      "type": "string"
     },
     "deploymentInstructions": {
-      "type": "string",
-      "value": "The runbook is published and linked to the selected PowerShell Runtime Environment. Grant only the required Microsoft Graph application permissions shown in requiredGraphPermissions to the Automation account managed identity, then test the runbook with explicit parameters."
+      "value": "The runbook is published and linked to the selected PowerShell Runtime Environment. Grant only the required Microsoft Graph application permissions shown in requiredGraphPermissions to the Automation account managed identity, then test the runbook with explicit parameters.",
+      "type": "string"
     }
   }
 }
