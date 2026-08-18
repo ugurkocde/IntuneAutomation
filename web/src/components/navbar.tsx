@@ -12,6 +12,7 @@ import {
   Github,
   Library,
   Menu,
+  Plug,
   X,
   Search,
   Sparkles,
@@ -126,6 +127,14 @@ export default function Navbar() {
               Stats
             </Link>
 
+            <a
+              href="/mcp"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-accent inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <Plug className="h-3.5 w-3.5" strokeWidth={2} />
+              MCP
+            </a>
+
             {isHome ? (
               <button
                 type="button"
@@ -237,6 +246,15 @@ export default function Navbar() {
                 <BarChart3 className="h-4 w-4" strokeWidth={2} />
                 Stats
               </Link>
+
+              <a
+                href="/mcp"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-foreground hover:bg-card flex items-center gap-2 rounded-md px-3 py-2.5 transition-colors"
+              >
+                <Plug className="h-4 w-4" strokeWidth={2} />
+                MCP
+              </a>
 
               {isHome ? (
                 <button

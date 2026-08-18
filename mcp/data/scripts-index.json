@@ -1,7 +1,7 @@
 {
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
-  "generated": "2026-08-17T06:11:50Z",
+  "generated": "2026-08-18T14:45:27.426Z",
   "count": 69,
   "categories": [
     "apps",
@@ -43,6 +43,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fadd-devices-to-groups-from-csv-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/add-devices-to-groups-from-csv-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -139,6 +144,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapp-deployment-failure-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/app-deployment-failure-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -210,6 +220,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fapple-token-expiration-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/apple-token-expiration-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -275,6 +290,7 @@
         "runtime": "",
         "exclusionReason": "Local-only interactive script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -345,6 +361,7 @@
         "runtime": "",
         "exclusionReason": "Local-only interactive script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -411,6 +428,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-apple-token-validity-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-apple-token-validity-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -501,6 +523,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-bitlocker-keys-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-bitlocker-keys-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -579,6 +606,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-certificate-profile-expiry-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-certificate-profile-expiry-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -646,6 +678,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-connector-health-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-connector-health-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -712,6 +749,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-filevault-keys-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-filevault-keys-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -790,6 +832,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-policy-changes-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-policy-changes-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -883,6 +930,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcheck-unassigned-policies-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/check-unassigned-policies-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -950,6 +1002,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcleanup-autopilot-devices-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/cleanup-autopilot-devices-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1035,6 +1092,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcleanup-duplicate-device-records-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/cleanup-duplicate-device-records-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1100,6 +1162,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcleanup-orphaned-apps-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/cleanup-orphaned-apps-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1175,6 +1242,7 @@
         "runtime": "",
         "exclusionReason": "Local-only interactive script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1255,6 +1323,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fcreate-app-based-groups-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/create-app-based-groups-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1369,6 +1442,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-antivirus-definitions.ps1",
@@ -1407,6 +1481,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-disk-cleanup.ps1",
@@ -1452,6 +1527,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-local-admin-drift.ps1",
@@ -1497,6 +1573,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-onedrive-kfm.ps1",
@@ -1535,6 +1612,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-reboot-pending.ps1",
@@ -1573,6 +1651,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Detection",
       "pairScript": "remediate-winget-updates.ps1",
@@ -1611,6 +1690,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fdevice-compliance-drift-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/device-compliance-drift-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "Email",
       "remediationType": "",
@@ -1676,6 +1760,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2ffix-primary-user-assignment-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/fix-primary-user-assignment-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1744,6 +1833,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-app-assignment-conflicts-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-app-assignment-conflicts-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -1803,6 +1897,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-app-installation-status-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-app-installation-status-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1892,6 +1991,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-application-inventory-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-application-inventory-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -1983,6 +2087,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-assignment-filter-audit-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-assignment-filter-audit-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2044,6 +2153,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-assignment-matrix-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-assignment-matrix-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2119,6 +2233,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-compliance-policy-coverage-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-compliance-policy-coverage-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2177,6 +2296,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-defender-status-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-defender-status-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2243,6 +2367,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-device-checkin-health-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-device-checkin-health-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2320,6 +2449,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-device-compliance-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-device-compliance-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2380,6 +2514,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-devices-by-scopetag-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-devices-by-scopetag-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2474,6 +2613,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-duplicate-applications-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-duplicate-applications-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2527,6 +2671,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-endpoint-analytics-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-endpoint-analytics-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2626,6 +2775,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-enrollment-failure-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-enrollment-failure-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2700,6 +2854,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-firewall-and-asr-status-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-firewall-and-asr-status-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -2761,6 +2920,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-group-assignments-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-group-assignments-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2840,6 +3004,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-audit-logs-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-audit-logs-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -2960,6 +3129,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-intune-role-assignments-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-intune-role-assignments-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3033,6 +3207,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-maa-compliance-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-maa-compliance-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -3109,6 +3288,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-noncompliant-devices-with-reasons-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-noncompliant-devices-with-reasons-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3175,6 +3359,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-outdated-ios-devices-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-outdated-ios-devices-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -3244,6 +3433,7 @@
         "runtime": "",
         "exclusionReason": "Local-only interactive script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3308,6 +3498,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-stale-devices-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-stale-devices-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -3394,6 +3589,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-vpp-license-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-vpp-license-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3469,6 +3669,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-windows-laps-audit-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-windows-laps-audit-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3534,6 +3739,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-windows-update-compliance-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-windows-update-compliance-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -3602,6 +3812,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fget-windows11-readiness-report-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/get-windows11-readiness-report-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -3667,6 +3882,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2flicense-threshold-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/license-threshold-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "Email",
       "remediationType": "",
@@ -3755,6 +3975,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fmaa-pending-requests-monitor-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/maa-pending-requests-monitor-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -3839,6 +4064,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fnew-device-enrollment-digest-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/new-device-enrollment-digest-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -3910,6 +4140,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-antivirus-definitions-outdated.ps1",
@@ -3948,6 +4179,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-disk-cleanup-needed.ps1",
@@ -3993,6 +4225,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-local-admin-drift.ps1",
@@ -4038,6 +4271,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-onedrive-kfm-not-configured.ps1",
@@ -4076,6 +4310,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-reboot-pending.ps1",
@@ -4114,6 +4349,7 @@
         "runtime": "",
         "exclusionReason": "Intune remediation endpoint script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "Remediation",
       "pairScript": "detect-winget-updates-available.ps1",
@@ -4152,6 +4388,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frename-devices-from-csv-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/rename-devices-from-csv-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -4234,6 +4475,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frestart-devices-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/restart-devices-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -4320,6 +4566,7 @@
         "runtime": "",
         "exclusionReason": "Local-only interactive script"
       },
+      "azureDeploy": null,
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4393,6 +4640,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frotate-bitlocker-keys-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/rotate-bitlocker-keys-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "",
       "remediationType": "",
       "pairScript": "",
@@ -4461,6 +4713,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2frotate-macos-laps-passwords-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/rotate-macos-laps-passwords-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -4567,6 +4824,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fstale-device-cleanup-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/stale-device-cleanup-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -4632,6 +4894,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fsync-devices-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/sync-devices-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",
@@ -4719,6 +4986,11 @@
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
       },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fwindows-update-failure-alert-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/windows-update-failure-alert-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
+      },
       "output": "Email",
       "remediationType": "",
       "pairScript": "",
@@ -4791,6 +5063,11 @@
         "eligible": true,
         "runtime": "PowerShell 7.4",
         "exclusionReason": ""
+      },
+      "azureDeploy": {
+        "deployUrl": "https://portal.azure.com/#create/Microsoft.Template/uri/https%3a%2f%2fraw.githubusercontent.com%2fugurkocde%2fIntuneAutomation%2fmain%2fazure-templates%2fwipe-devices-azure-deployment.json",
+        "templateUrl": "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/main/azure-templates/wipe-devices-azure-deployment.json",
+        "supportsExistingAutomationAccount": true
       },
       "output": "",
       "remediationType": "",

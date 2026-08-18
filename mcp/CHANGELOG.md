@@ -1,7 +1,35 @@
 # Changelog
 
-All notable changes to `@ugurkocde/intuneautomation-mcp` are documented here.
+All notable changes to the IntuneAutomation MCP are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
+
+## 2.0.0
+
+The MCP moved to a hosted Streamable HTTP endpoint: `https://intuneautomation.com/mcp`.
+Nothing to install, no API key, still read-only with no tenant access.
+
+### Changed
+
+- The npm package `@ugurkocde/intuneautomation-mcp` (stdio) is deprecated.
+  Existing installs keep working but no longer receive updates; connect to the
+  hosted endpoint instead.
+- `search_scripts` absorbed `list_scripts`: the query is now optional (omit it
+  to browse), and new `category`, `tag`, `platform`, and `permission` filters
+  plus `limit`/`offset` pagination were added.
+- `get_script` now chunks large sources (`start`, `maxCharacters`, `nextStart`).
+- All tools return structured content with output schemas and are annotated
+  read-only and idempotent.
+- Script metadata now includes Azure Automation runbook eligibility and, where
+  available, a one-click Azure deployment link.
+
+### Added
+
+- `list_script_catalog`: discover categories, tags, platforms, Graph
+  permissions, and minimum roles with usage counts.
+
+### Removed
+
+- `list_scripts` (use `search_scripts` without a query).
 
 ## 1.0.1
 
