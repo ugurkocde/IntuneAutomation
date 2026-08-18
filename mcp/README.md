@@ -30,8 +30,9 @@ claude mcp add --transport http --scope user intuneautomation https://intuneauto
 
 The MCP server implementation runs as part of the website
 ([`web/src/server/mcp/`](../web/src/server/mcp/) and
-[`web/src/app/mcp/route.ts`](../web/src/app/mcp/route.ts)). This directory
-holds the data pipeline it serves:
+[`web/src/app/api/mcp/route.ts`](../web/src/app/api/mcp/route.ts), with the
+guide page at [`web/src/app/mcp/page.tsx`](../web/src/app/mcp/page.tsx)).
+This directory holds the data pipeline it serves:
 
 | Path | Purpose |
 | --- | --- |

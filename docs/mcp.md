@@ -132,8 +132,9 @@ authentication, exactly as documented at
 
 ## Implementation
 
-The server runs as part of the website: route handler at
-`web/src/app/mcp/route.ts`, server logic under `web/src/server/mcp/`, catalog
-data pipeline under `mcp/`. The former npm package
+The server runs as part of the website: protocol handler at
+`web/src/app/api/mcp/route.ts` (reached through a middleware rewrite from the
+public `/mcp` URL), guide page at `web/src/app/mcp/page.tsx`, server logic
+under `web/src/server/mcp/`, catalog data pipeline under `mcp/`. The former npm package
 (`@ugurkocde/intuneautomation-mcp`, stdio) is deprecated; existing installs
 keep working but new users should connect to the hosted endpoint.
