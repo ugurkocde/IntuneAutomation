@@ -1,5 +1,5 @@
-# Builds, typechecks, and end-to-end verifies the intuneautomation-mcp package,
-# and guards the committed MCP data (index + authoring guide) against drift.
+# Tests the hosted MCP server (web/src/server/mcp + web/src/app/mcp) and
+# guards the committed MCP data (index + authoring guide) against drift.
 name: MCP CI
 
 on:
@@ -7,11 +7,17 @@ on:
     branches: [main, master]
     paths:
       - "mcp/**"
+      - "web/src/server/mcp/**"
+      - "web/src/app/mcp/**"
+      - "web/tests/**"
       - ".github/workflows/mcp-ci.yml"
   pull_request:
     paths:
       - "mcp/**"
       - "scripts/**"
+      - "web/src/server/mcp/**"
+      - "web/src/app/mcp/**"
+      - "web/tests/**"
       - "web/src/server/generator/system-prompt.ts"
       - "web/src/lib/generator-graph-data.ts"
       - "web/scripts/export-generator-instructions.mjs"
@@ -22,27 +28,26 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: build & verify (node ${{ matrix.node }})
+  hosted:
+    name: hosted server tests (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node: ["18", "20", "22"]
+        node: ["22", "24"]
     defaults:
       run:
-        working-directory: mcp
+        working-directory: web
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: mcp/package-lock.json
+          cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run build
-      - run: npm run verify
+      - run: SKIP_ENV_VALIDATION=1 npm run typecheck
+      - run: npm run test
 
   drift:
     name: data drift guard

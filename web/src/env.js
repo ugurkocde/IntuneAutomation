@@ -16,6 +16,8 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
     GENERATOR_DAILY_TOKEN_CAP: z.coerce.number().int().positive().optional(),
+    // Extra browser origins allowed to call the /mcp endpoint (comma-separated).
+    MCP_ALLOWED_ORIGINS: z.string().optional(),
   },
 
   /**
@@ -40,6 +42,7 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     GENERATOR_DAILY_TOKEN_CAP: process.env.GENERATOR_DAILY_TOKEN_CAP,
+    MCP_ALLOWED_ORIGINS: process.env.MCP_ALLOWED_ORIGINS,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
     NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
   },

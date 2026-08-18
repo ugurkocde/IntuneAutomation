@@ -27,7 +27,10 @@ interface FooterColumn {
 const COLUMNS: FooterColumn[] = [
   {
     title: "LIBRARY",
-    links: [{ label: "Browse scripts", href: "/scripts/" }],
+    links: [
+      { label: "Browse scripts", href: "/scripts/" },
+      { label: "MCP server", href: "/mcp" },
+    ],
   },
   {
     title: "PROJECT",

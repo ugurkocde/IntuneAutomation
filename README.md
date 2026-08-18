@@ -92,15 +92,15 @@ Do not grant a broad default permission bundle. Every script declares its own re
 
 ### Option 3: Ask Claude (MCP Server)
 
-Use the [`@ugurkocde/intuneautomation-mcp`](mcp/) server to **search and retrieve these scripts from inside Claude Code** (or any MCP client) using natural language — no API key, no login, nothing to host.
+Use the hosted [IntuneAutomation MCP server](https://intuneautomation.com/mcp) to **search and retrieve these scripts from inside Claude** (or any MCP client) using natural language: no API key, no login, nothing to install. In Claude Desktop, add `https://intuneautomation.com/mcp` as a custom connector; in Claude Code:
 
 ```bash
-claude mcp add intuneautomation -- npx -y @ugurkocde/intuneautomation-mcp
+claude mcp add --transport http --scope user intuneautomation https://intuneautomation.com/mcp
 ```
 
 Then just ask: _"Which Intune scripts report on non-compliant devices?"_ or _"Show me the script to rotate BitLocker keys and what permissions it needs."_ Claude returns the right script with its required Microsoft Graph permissions, minimum role, parameters, and full source.
 
-It can also **write new scripts** that follow the project's conventions: the server exposes the same authoring guide used by [intuneautomation.com/generator](https://intuneautomation.com/generator), so asking _"write me an Intune script to report stale devices"_ produces a script matching the library's strict format, auth patterns, and safety rules. See [mcp/README.md](mcp/README.md) for details.
+It can also **write new scripts** that follow the project's conventions: the server exposes the same authoring guide used by [intuneautomation.com/generator](https://intuneautomation.com/generator), so asking _"write me an Intune script to report stale devices"_ produces a script matching the library's strict format, auth patterns, and safety rules. Open [intuneautomation.com/mcp](https://intuneautomation.com/mcp) in a browser for setup instructions per client, or see [docs/mcp.md](docs/mcp.md).
 
 ## 📁 Scripts Overview
 
