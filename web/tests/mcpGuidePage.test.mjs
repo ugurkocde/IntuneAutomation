@@ -73,5 +73,5 @@ test("guide copy documents the endpoint, the five tools, and the trust model", a
   }
   assert.match(html, /never connects to your Microsoft tenant/i);
   assert.match(html, /claude mcp add --transport http/);
-  assert.ok(!html.includes("—"), "guide page must not contain em dashes");
+  assert.ok(!html.includes("\u2014"), "guide page must not contain em dashes");
 });
