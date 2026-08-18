@@ -20,7 +20,7 @@
 - Permission.Read.All
 
 **Minimum Role:** 
-<!-- Specify the minimum Intune/Azure AD role required -->
+<!-- Specify the minimum Intune/Entra ID role required -->
 
 ## ✅ Testing Checklist
 

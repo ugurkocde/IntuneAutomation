@@ -356,7 +356,7 @@ Check runbook logs for:
 
 1. **Principle of Least Privilege**: Only grant required permissions
 2. **Regular Audits**: Review assigned permissions quarterly
-3. **Access Monitoring**: Monitor Managed Identity usage in Azure AD logs
+3. **Access Monitoring**: Monitor Managed Identity usage in Entra ID logs
 
 ### Email Security
 

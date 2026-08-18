@@ -54,7 +54,7 @@ This gives you a detailed view of how deployment is progressing across devices.
 
 ## Automating App Deployment
 
-App deployment becomes powerful when you scale it across multiple groups. Imagine needing to assign the same app to ten different Azure AD groups. Doing that manually can be error-prone. With PowerShell, you can loop through target groups and assign the app automatically:
+App deployment becomes powerful when you scale it across multiple groups. Imagine needing to assign the same app to ten different Entra ID groups. Doing that manually can be error-prone. With PowerShell, you can loop through target groups and assign the app automatically:
 
 ```powershell
 foreach ($groupId in $targetGroups) {

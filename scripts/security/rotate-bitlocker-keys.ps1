@@ -54,7 +54,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Local runs prompt for confirmation before rotating unless -Force is specified; Azure Automation runbooks require -Force
     - BitLocker key rotation is triggered immediately but may take time to complete on the device
     - The script will show real-time progress and results

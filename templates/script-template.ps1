@@ -17,7 +17,7 @@
     Windows
 
 .MINROLE
-    [Minimum Intune/Azure AD role required - e.g., Intune Administrator, Global Administrator]
+    [Minimum Intune/Entra ID role required - e.g., Intune Administrator, Global Administrator]
 
 .PERMISSIONS
     [Required Microsoft Graph permissions - comma separated list]

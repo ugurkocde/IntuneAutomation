@@ -66,7 +66,7 @@
     - Azure Automation: Uses Managed Identity authentication
     - Requires Microsoft.Graph.Authentication module (auto-installs if missing in local environment)
     - Use -ForceModuleInstall to skip installation prompts in local environment
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Restart operations are triggered immediately but may take 5-30 minutes to execute
     - Devices will restart within 5 minutes when users are logged in
     - Confirmation prompts are shown unless -Force parameter is used

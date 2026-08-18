@@ -673,7 +673,7 @@ try {
                     $intuneDevice = $devices | Where-Object { $_.id -eq $device.DeviceId } | Select-Object -First 1
 
                     if ($intuneDevice -and $intuneDevice.azureADDeviceId) {
-                        # Look up the device in Entra ID by Azure AD Device ID
+                        # Look up the device in Entra ID by Entra ID Device ID
                         $filter = "deviceId eq '$($intuneDevice.azureADDeviceId)'"
                         $entraDeviceUri = "https://graph.microsoft.com/beta/devices?`$filter=$filter"
                         $entraDeviceResponse = Invoke-MgGraphRequest -Uri $entraDeviceUri -Method GET
@@ -689,11 +689,11 @@ try {
                             Write-Verbose "Found Entra ID device: $($intuneDevice.deviceName) -> $($entraDevice.id)"
                         }
                         else {
-                            Write-Warning "Device not found in Entra ID: $($intuneDevice.deviceName) (Azure AD Device ID: $($intuneDevice.azureADDeviceId))"
+                            Write-Warning "Device not found in Entra ID: $($intuneDevice.deviceName) (Entra ID Device ID: $($intuneDevice.azureADDeviceId))"
                         }
                     }
                     else {
-                        Write-Warning "No Azure AD Device ID for: $($intuneDevice.deviceName)"
+                        Write-Warning "No Entra ID Device ID for: $($intuneDevice.deviceName)"
                     }
                 }
                 catch {

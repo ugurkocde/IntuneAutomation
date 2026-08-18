@@ -53,7 +53,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Checks all policy types: Device Configuration, Settings Catalog, Administrative Templates
     - Unassigned policies may indicate incomplete deployment or unused configurations
     - Regular monitoring helps maintain policy governance and compliance

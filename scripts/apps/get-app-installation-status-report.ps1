@@ -55,7 +55,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Large tenants may take considerable time to complete due to API rate limits
     - Reports are saved in both CSV and HTML formats
     - Uses beta endpoint for comprehensive installation status data

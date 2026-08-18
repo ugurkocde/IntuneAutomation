@@ -89,7 +89,7 @@ function Test-AllowedMember {
     # Built-in Administrator account (RID 500) is always allowed
     if ($Member.Sid -and $Member.Sid -match "-500$") { return $true }
 
-    # Entra role SIDs (Global Administrator / Azure AD Joined Device Local Admin)
+    # Entra role SIDs (Global Administrator / Entra ID Joined Device Local Admin)
     # are provisioned by the join process and always allowed
     if ($Member.Sid -and $Member.Sid -like "S-1-12-1-*") { return $true }
 

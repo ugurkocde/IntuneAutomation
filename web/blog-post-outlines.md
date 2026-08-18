@@ -314,7 +314,7 @@ title: "Mastering Conditional Access Automation: PowerShell Scripts for Policy M
 description: "Automate Microsoft Conditional Access policy creation, testing, and management using PowerShell and Graph API. Includes templates for common security scenarios."
 date: "2024-02-10"
 author: "IntuneAutomation Team"
-tags: ["Conditional Access", "PowerShell", "Microsoft Graph", "Azure AD", "Security", "Automation", "Zero Trust"]
+tags: ["Conditional Access", "PowerShell", "Microsoft Graph", "Entra ID", "Security", "Automation", "Zero Trust"]
 category: "security"
 readingTime: "16 min read"
 published: true
@@ -322,7 +322,7 @@ published: true
 
 ### SEO Keywords
 - Primary: conditional access automation powershell
-- Secondary: automated conditional access policies, graph api conditional access management, azure ad policy automation scripts
+- Secondary: automated conditional access policies, graph api conditional access management, Entra ID policy automation scripts
 - Long-tail: automate conditional access policy deployment microsoft 365, powershell scripts for zero trust implementation
 
 ### Content Structure for ChatGPT

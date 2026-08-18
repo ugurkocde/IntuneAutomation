@@ -226,7 +226,7 @@ const faqData: FAQItem[] = [
           <li className="flex items-start gap-2">
             <span className="text-accent-hi mt-1">•</span>
             <div>
-              <strong>Appropriate Azure AD permissions</strong> for your user
+              <strong>Appropriate Entra ID permissions</strong> for your user
               account or app registration
             </div>
           </li>

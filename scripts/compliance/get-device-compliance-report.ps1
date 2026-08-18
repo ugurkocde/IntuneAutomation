@@ -49,7 +49,7 @@
 
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
-    - Requires appropriate permissions in Azure AD
+    - Requires appropriate permissions in Entra ID
     - Large tenants may take several minutes to complete
     - Reports are saved in both CSV and HTML formats
     - Disclaimer: This script is provided AS IS without warranty of any kind. Use it at your own risk.

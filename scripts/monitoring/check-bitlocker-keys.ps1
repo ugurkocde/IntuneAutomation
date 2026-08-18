@@ -52,7 +52,7 @@
 .NOTES
     - Requires Microsoft.Graph.Authentication module: Install-Module Microsoft.Graph.Authentication
     - BitLocker keys are automatically escrowed to Entra ID when properly configured
-    - Devices must be Azure AD joined or Hybrid Azure AD joined for key escrow
+    - Devices must be Entra ID joined or Hybrid Entra ID joined for key escrow
     - Consider configuring BitLocker policies to enforce key escrow
     - Regular monitoring helps ensure compliance with data protection requirements
     - Local interactive sign-in uses the MgGraphCommunity module to avoid the Graph SDK's mandatory WAM broker on Windows
@@ -317,11 +317,11 @@ function Test-BitLockerKeyAvailability {
     )
 
     if ([string]::IsNullOrWhiteSpace($AzureADDeviceId)) {
-        Write-Verbose "Device $DeviceName has no Azure AD Device ID"
+        Write-Verbose "Device $DeviceName has no Entra ID Device ID"
         return @{
             HasKey   = $false
             KeyCount = 0
-            Status   = "No Azure AD Device ID"
+            Status   = "No Entra ID Device ID"
         }
     }
 
