@@ -9,6 +9,8 @@ on:
       - "mcp/**"
       - "web/src/server/mcp/**"
       - "web/src/app/mcp/**"
+      - "web/src/app/api/mcp/**"
+      - "web/src/middleware.ts"
       - "web/tests/**"
       - ".github/workflows/mcp-ci.yml"
   pull_request:
@@ -17,6 +19,8 @@ on:
       - "scripts/**"
       - "web/src/server/mcp/**"
       - "web/src/app/mcp/**"
+      - "web/src/app/api/mcp/**"
+      - "web/src/middleware.ts"
       - "web/tests/**"
       - "web/src/server/generator/system-prompt.ts"
       - "web/src/lib/generator-graph-data.ts"
