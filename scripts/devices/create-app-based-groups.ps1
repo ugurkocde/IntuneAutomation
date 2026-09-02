@@ -25,9 +25,10 @@
     Ugur Koc
 
 .VERSION
-    1.4
+    1.5
 
 .CHANGELOG
+    1.5 - Fix BadRequest when updating an existing group with exactly one new device (single-item pipeline results were unrolled into a string, producing an invalid members@odata.bind body)
     1.4 - Added Azure Automation contract validation, portal-safe boolean parameters, beta Graph endpoints, and terminating paging errors
     1.3 - Azure Automation now records script progress, outcomes, and summaries in job history
     1.2 - Apply -MinimumVersion to report-based rows, suppress progress bars in runbooks, flag apps with incomplete report data, use hashtable device lookup, and limit list calls with select
@@ -35,7 +36,7 @@
     1.0 - Initial release
 
 .LASTUPDATE
-    2026-07-30
+    2026-09-02
 
 .EXAMPLE
     .\create-app-based-groups.ps1 -ApplicationName "TeamViewer"
@@ -617,7 +618,7 @@ try {
 
     foreach ($appName in $appDeviceMap.Keys) {
         $appInfo = $appDeviceMap[$appName]
-        $uniqueDevices = $appInfo.Devices | Select-Object -Property DeviceId -Unique
+        $uniqueDevices = @($appInfo.Devices | Select-Object -Property DeviceId -Unique)
         $deviceCount = $uniqueDevices.Count
 
         if ($deviceCount -eq 0) {
@@ -711,12 +712,12 @@ try {
                     # Get current members
                     $currentMembersUri = "https://graph.microsoft.com/beta/groups/$($existingGroup.id)/members"
                     $currentMembers = Get-MgGraphAllPage -Uri $currentMembersUri
-                    $currentMemberIds = $currentMembers | ForEach-Object { $_.id }
+                    $currentMemberIds = @($currentMembers | ForEach-Object { $_.id })
 
                     # Calculate additions and removals - use Entra device IDs
-                    $entraDeviceIds = $entraDevices | ForEach-Object { $_.EntraDeviceId }
-                    $deviceIdsToAdd = $entraDeviceIds | Where-Object { $_ -notin $currentMemberIds }
-                    $deviceIdsToRemove = $currentMemberIds | Where-Object { $_ -notin $entraDeviceIds }
+                    $entraDeviceIds = @($entraDevices | ForEach-Object { $_.EntraDeviceId })
+                    $deviceIdsToAdd = @($entraDeviceIds | Where-Object { $_ -notin $currentMemberIds })
+                    $deviceIdsToRemove = @($currentMemberIds | Where-Object { $_ -notin $entraDeviceIds })
 
                     # Add new members
                     if ($deviceIdsToAdd.Count -gt 0) {
@@ -725,9 +726,9 @@ try {
                         for ($i = 0; $i -lt $deviceIdsToAdd.Count; $i += $batchSize) {
                             $batch = $deviceIdsToAdd[$i..([Math]::Min($i + $batchSize - 1, $deviceIdsToAdd.Count - 1))]
                             $addBody = @{
-                                "members@odata.bind" = $batch | ForEach-Object {
+                                "members@odata.bind" = @($batch | ForEach-Object {
                                     "https://graph.microsoft.com/beta/directoryObjects/$_"
-                                }
+                                })
                             } | ConvertTo-Json -Depth 10
 
                             Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/beta/groups/$($existingGroup.id)" -Method PATCH -Body $addBody -ContentType "application/json"
