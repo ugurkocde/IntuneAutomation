@@ -10,6 +10,7 @@ import type {
 } from "./scripts";
 import { generateSlug, ensureUniqueSlug } from "./scripts";
 import { AnalyticsService } from "./supabase-analytics";
+import { fetchWithRetry, mapWithConcurrency } from "./fetch-resilience";
 
 interface GitHubFile {
   name: string;
@@ -48,6 +49,17 @@ const STRUCTURED_TEST_RESULTS_URL =
 const PERMISSIONS_URL =
   "https://raw.githubusercontent.com/ugurkocde/IntuneAutomation/refs/heads/main/permissions.json";
 
+// How many script files to download from GitHub at the same time. High enough
+// to keep a cold render fast, low enough to stay clear of secondary rate limits.
+const SCRIPT_FETCH_CONCURRENCY = 8;
+
+/**
+ * Last complete catalog this server instance produced. If GitHub becomes
+ * unreachable after a successful fetch, callers keep serving this snapshot
+ * instead of an empty list that pages would misread as "script not found".
+ */
+let lastKnownGoodScripts: Script[] | null = null;
+
 class GitHubService {
   private token: string;
 
@@ -56,18 +68,22 @@ class GitHubService {
   }
 
   private async fetchWithAuth(url: string): Promise<Response> {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "IntuneAutomation-Website",
-      },
-      next: { revalidate: 300 }, // Cache for 5 minutes
-    });
+    // Transient GitHub failures (429, 5xx, dropped connections) are retried
+    // with backoff so a single hiccup does not fail the whole catalog fetch.
+    const response = await fetchWithRetry(() =>
+      fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "IntuneAutomation-Website",
+        },
+        next: { revalidate: 300 }, // Cache for 5 minutes
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(
-        `GitHub API error: ${response.status} ${response.statusText}`,
+        `GitHub API error: ${response.status} ${response.statusText} (${url})`,
       );
     }
 
@@ -95,23 +111,21 @@ class GitHubService {
   async getAllScriptFiles(): Promise<GitHubFile[]> {
     const allFiles: GitHubFile[] = [];
 
+    // Directory listing errors propagate on purpose: a partial file list would
+    // make the missing scripts look deleted rather than temporarily unavailable.
     const processDirectory = async (path: string): Promise<void> => {
-      try {
-        const files = await this.getRepositoryFiles(path);
+      const files = await this.getRepositoryFiles(path);
 
-        for (const file of files) {
-          if (
-            file.type === "file" &&
-            (file.name.endsWith(".ps1") || file.name.endsWith(".sh"))
-          ) {
-            allFiles.push(file);
-          } else if (file.type === "dir") {
-            // Recursively process subdirectories
-            await processDirectory(file.path);
-          }
+      for (const file of files) {
+        if (
+          file.type === "file" &&
+          (file.name.endsWith(".ps1") || file.name.endsWith(".sh"))
+        ) {
+          allFiles.push(file);
+        } else if (file.type === "dir") {
+          // Recursively process subdirectories
+          await processDirectory(file.path);
         }
-      } catch (error) {
-        console.warn(`Failed to process directory ${path}:`, error);
       }
     };
 
@@ -416,188 +430,213 @@ class GitHubService {
     };
   }
 
+  /**
+   * Loads the full script catalog from GitHub.
+   *
+   * Throws when the catalog cannot be assembled completely and no earlier
+   * snapshot exists on this instance. Callers that render a specific script
+   * must let that error propagate (Next.js returns an uncached 500) instead of
+   * treating it as "not found", which ISR would otherwise cache as a 404.
+   */
   async fetchAllScripts(): Promise<Script[]> {
     try {
-      const [files, testResults, structuredTests, analyticsData] =
-        await Promise.all([
-          this.getAllScriptFiles(),
-          this.fetchTestResults(),
-          this.fetchStructuredTestResults(),
-          AnalyticsService.getAllScriptAnalytics(),
-        ]);
-
-      const scripts: Script[] = [];
-      const remediationScripts = new Map<
-        string,
-        { detection?: Script; remediation?: Script }
-      >();
-      const existingSlugs: string[] = [];
-
-      for (const file of files) {
-        try {
-          const content = await this.getFileContent(file.path);
-          const fileExtension = file.name.endsWith(".ps1") ? ".ps1" : ".sh";
-          const metadata = this.parseScriptMetadata(content, fileExtension);
-
-          // Generate ID from filename
-          const id = file.name.replace(/\.(ps1|sh)$/, "");
-
-          // Find matching test result
-          const testResult = testResults.find(
-            (result) =>
-              result.filename === file.name || result.filename === id + ".ps1",
-          );
-
-          // Structured per-tier tests
-          const tests = structuredTests[file.name];
-
-          // Get analytics data for this script, fallback to mock data if not available
-          const analytics = analyticsData[id];
-          const usageStats: ScriptUsageStats = analytics
-            ? {
-                totalViews: analytics.total_views,
-                totalDownloads: analytics.total_downloads,
-                totalDeployments: analytics.total_deployments,
-                weeklyViews: analytics.weekly_views,
-                weeklyDownloads: analytics.weekly_downloads,
-                weeklyDeployments: analytics.weekly_deployments,
-                lastViewedAt: analytics.last_viewed_at,
-              }
-            : this.generateMockUsageStats(id);
-
-          // Determine script type
-          const isRemediationScript = file.path.includes(
-            "scripts/remediation/",
-          );
-          const scriptType: ScriptType = isRemediationScript
-            ? "remediation"
-            : "standalone";
-
-          // Generate title and slug
-          const title =
-            metadata.title ||
-            file.name.replace(/\.(ps1|sh)$/, "").replace(/-/g, " ");
-          const baseSlug = generateSlug(title);
-          const slug = ensureUniqueSlug(baseSlug, existingSlugs);
-          existingSlugs.push(slug);
-
-          // Create script object with defaults
-          const script: Script = {
-            id,
-            slug,
-            title,
-            description: metadata.description || "No description available",
-            code: content,
-            tags:
-              metadata.tags ||
-              (isRemediationScript ? ["Remediation"] : ["Configuration"]),
-            lastUpdated: metadata.lastUpdated,
-            minRole: metadata.minRole,
-            testedPlatforms: metadata.testedPlatforms,
-            author: metadata.author,
-            version: metadata.version,
-            permissions: metadata.permissions,
-            example: metadata.example,
-            notes: metadata.notes,
-            changelog: metadata.changelog,
-            githubPath: file.path,
-            githubUrl: file.html_url,
-            testResult: testResult,
-            tests: tests,
-            usageStats: usageStats,
-            scriptType: scriptType,
-            pairScript: metadata.pairScript,
-            remediationType: metadata.remediationType,
-          };
-
-          // Handle remediation scripts separately
-          if (isRemediationScript && metadata.remediationType) {
-            // Extract folder name from path (e.g., "antivirus-definition-updates")
-            const pathParts = file.path.split("/");
-            const folderName = pathParts[pathParts.length - 2];
-
-            if (folderName && !remediationScripts.has(folderName)) {
-              remediationScripts.set(folderName, {});
-            }
-
-            const remediationGroup = folderName
-              ? remediationScripts.get(folderName)!
-              : null;
-            if (!remediationGroup) continue;
-            if (metadata.remediationType === "Detection") {
-              remediationGroup.detection = script;
-            } else if (metadata.remediationType === "Remediation") {
-              remediationGroup.remediation = script;
-            }
-          } else {
-            // Regular standalone script
-            scripts.push(script);
-          }
-        } catch (error) {
-          console.warn(`Failed to process script ${file.name}:`, error);
-        }
-      }
-
-      // Process remediation scripts and create combined entries
-      for (const [folderName, pair] of remediationScripts.entries()) {
-        if (pair.detection && pair.remediation) {
-          // Create a combined remediation script entry
-          const remediationTitle = pair.detection.title.replace(
-            " Detection",
-            "",
-          );
-          const remediationSlug = ensureUniqueSlug(
-            generateSlug(remediationTitle),
-            existingSlugs,
-          );
-          existingSlugs.push(remediationSlug);
-
-          const remediationScript: Script = {
-            id: folderName,
-            slug: remediationSlug,
-            title: remediationTitle,
-            description: pair.detection.description,
-            code: pair.detection.code, // Default to detection code
-            tags: [
-              "Remediation",
-              ...pair.detection.tags.filter((t) => t !== "Remediation"),
-            ],
-            lastUpdated:
-              pair.detection.lastUpdated || pair.remediation.lastUpdated,
-            minRole: pair.detection.minRole,
-            testedPlatforms: pair.detection.testedPlatforms,
-            author: pair.detection.author,
-            version: pair.detection.version,
-            permissions: pair.detection.permissions,
-            example: pair.detection.example,
-            notes: pair.detection.notes,
-            changelog: pair.detection.changelog,
-            githubPath: `scripts/remediation/${folderName}`,
-            githubUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/main/scripts/remediation/${folderName}`,
-            testResult: pair.detection.testResult,
-            tests: pair.detection.tests,
-            usageStats: pair.detection.usageStats,
-            scriptType: "remediation",
-            category: "remediation",
-            remediationPair: {
-              detection: pair.detection,
-              remediation: pair.remediation,
-            },
-          };
-
-          scripts.push(remediationScript);
-        } else {
-          // If we don't have both scripts, add them individually
-          if (pair.detection) scripts.push(pair.detection);
-          if (pair.remediation) scripts.push(pair.remediation);
-        }
-      }
-
+      const scripts = await this.buildScriptCatalog();
+      lastKnownGoodScripts = scripts;
       return scripts;
     } catch (error) {
       console.error("Failed to fetch scripts from GitHub:", error);
-      return [];
+      if (lastKnownGoodScripts) {
+        console.warn(
+          `Serving last known good catalog (${lastKnownGoodScripts.length} scripts)`,
+        );
+        return lastKnownGoodScripts;
+      }
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to fetch scripts from GitHub");
     }
+  }
+
+  private async buildScriptCatalog(): Promise<Script[]> {
+    const [files, testResults, structuredTests, analyticsData] =
+      await Promise.all([
+        this.getAllScriptFiles(),
+        this.fetchTestResults(),
+        this.fetchStructuredTestResults(),
+        AnalyticsService.getAllScriptAnalytics(),
+      ]);
+
+    if (files.length === 0) {
+      throw new Error("GitHub returned no script files");
+    }
+
+    // Download file contents in parallel. Any single failure rejects the
+    // whole catalog: an incomplete list would 404 the scripts it is missing.
+    const contents = await mapWithConcurrency(
+      files,
+      SCRIPT_FETCH_CONCURRENCY,
+      (file) => this.getFileContent(file.path),
+    );
+
+    const scripts: Script[] = [];
+    const remediationScripts = new Map<
+      string,
+      { detection?: Script; remediation?: Script }
+    >();
+    const existingSlugs: string[] = [];
+
+    for (const [index, file] of files.entries()) {
+      const content = contents[index] as string;
+      const fileExtension = file.name.endsWith(".ps1") ? ".ps1" : ".sh";
+      const metadata = this.parseScriptMetadata(content, fileExtension);
+
+      // Generate ID from filename
+      const id = file.name.replace(/\.(ps1|sh)$/, "");
+
+      // Find matching test result
+      const testResult = testResults.find(
+        (result) =>
+          result.filename === file.name || result.filename === id + ".ps1",
+      );
+
+      // Structured per-tier tests
+      const tests = structuredTests[file.name];
+
+      // Get analytics data for this script, fallback to mock data if not available
+      const analytics = analyticsData[id];
+      const usageStats: ScriptUsageStats = analytics
+        ? {
+            totalViews: analytics.total_views,
+            totalDownloads: analytics.total_downloads,
+            totalDeployments: analytics.total_deployments,
+            weeklyViews: analytics.weekly_views,
+            weeklyDownloads: analytics.weekly_downloads,
+            weeklyDeployments: analytics.weekly_deployments,
+            lastViewedAt: analytics.last_viewed_at,
+          }
+        : this.generateMockUsageStats(id);
+
+      // Determine script type
+      const isRemediationScript = file.path.includes("scripts/remediation/");
+      const scriptType: ScriptType = isRemediationScript
+        ? "remediation"
+        : "standalone";
+
+      // Generate title and slug
+      const title =
+        metadata.title ||
+        file.name.replace(/\.(ps1|sh)$/, "").replace(/-/g, " ");
+      const baseSlug = generateSlug(title);
+      const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+      existingSlugs.push(slug);
+
+      // Create script object with defaults
+      const script: Script = {
+        id,
+        slug,
+        title,
+        description: metadata.description || "No description available",
+        code: content,
+        tags:
+          metadata.tags ||
+          (isRemediationScript ? ["Remediation"] : ["Configuration"]),
+        lastUpdated: metadata.lastUpdated,
+        minRole: metadata.minRole,
+        testedPlatforms: metadata.testedPlatforms,
+        author: metadata.author,
+        version: metadata.version,
+        permissions: metadata.permissions,
+        example: metadata.example,
+        notes: metadata.notes,
+        changelog: metadata.changelog,
+        githubPath: file.path,
+        githubUrl: file.html_url,
+        testResult: testResult,
+        tests: tests,
+        usageStats: usageStats,
+        scriptType: scriptType,
+        pairScript: metadata.pairScript,
+        remediationType: metadata.remediationType,
+      };
+
+      // Handle remediation scripts separately
+      if (isRemediationScript && metadata.remediationType) {
+        // Extract folder name from path (e.g., "antivirus-definition-updates")
+        const pathParts = file.path.split("/");
+        const folderName = pathParts[pathParts.length - 2];
+
+        if (folderName && !remediationScripts.has(folderName)) {
+          remediationScripts.set(folderName, {});
+        }
+
+        const remediationGroup = folderName
+          ? remediationScripts.get(folderName)!
+          : null;
+        if (!remediationGroup) continue;
+        if (metadata.remediationType === "Detection") {
+          remediationGroup.detection = script;
+        } else if (metadata.remediationType === "Remediation") {
+          remediationGroup.remediation = script;
+        }
+      } else {
+        // Regular standalone script
+        scripts.push(script);
+      }
+    }
+
+    // Process remediation scripts and create combined entries
+    for (const [folderName, pair] of remediationScripts.entries()) {
+      if (pair.detection && pair.remediation) {
+        // Create a combined remediation script entry
+        const remediationTitle = pair.detection.title.replace(" Detection", "");
+        const remediationSlug = ensureUniqueSlug(
+          generateSlug(remediationTitle),
+          existingSlugs,
+        );
+        existingSlugs.push(remediationSlug);
+
+        const remediationScript: Script = {
+          id: folderName,
+          slug: remediationSlug,
+          title: remediationTitle,
+          description: pair.detection.description,
+          code: pair.detection.code, // Default to detection code
+          tags: [
+            "Remediation",
+            ...pair.detection.tags.filter((t) => t !== "Remediation"),
+          ],
+          lastUpdated:
+            pair.detection.lastUpdated || pair.remediation.lastUpdated,
+          minRole: pair.detection.minRole,
+          testedPlatforms: pair.detection.testedPlatforms,
+          author: pair.detection.author,
+          version: pair.detection.version,
+          permissions: pair.detection.permissions,
+          example: pair.detection.example,
+          notes: pair.detection.notes,
+          changelog: pair.detection.changelog,
+          githubPath: `scripts/remediation/${folderName}`,
+          githubUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/main/scripts/remediation/${folderName}`,
+          testResult: pair.detection.testResult,
+          tests: pair.detection.tests,
+          usageStats: pair.detection.usageStats,
+          scriptType: "remediation",
+          category: "remediation",
+          remediationPair: {
+            detection: pair.detection,
+            remediation: pair.remediation,
+          },
+        };
+
+        scripts.push(remediationScript);
+      } else {
+        // If we don't have both scripts, add them individually
+        if (pair.detection) scripts.push(pair.detection);
+        if (pair.remediation) scripts.push(pair.remediation);
+      }
+    }
+
+    return scripts;
   }
 }
 
