@@ -38,7 +38,12 @@ export default async function StatsPage() {
   const [monthly, analyticsMap, scripts] = await Promise.all([
     AnalyticsService.getMonthlyAnalytics(12),
     AnalyticsService.getAllScriptAnalytics(),
-    githubService.fetchAllScripts(),
+    // fetchAllScripts throws when GitHub is unreachable; this page can still
+    // render from analytics alone, so degrade to an empty list here.
+    githubService.fetchAllScripts().catch((error: unknown) => {
+      console.error("Error fetching scripts for stats page:", error);
+      return [];
+    }),
   ]);
 
   const scriptById = new Map(scripts.map((s) => [s.id, s]));
