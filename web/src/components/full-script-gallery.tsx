@@ -292,8 +292,9 @@ export default function FullScriptGallery() {
       </header>
 
       {/* ─────────────── Filter chrome ─────────────── */}
+      {/* Raise the blur-created stacking context so the sort menu clears the cards. */}
       <div
-        className="bg-card/40 mb-10 rounded-lg border backdrop-blur-md"
+        className="bg-card/40 relative z-10 mb-10 rounded-lg border backdrop-blur-md"
         style={{ borderColor: "var(--brand-rule)" }}
       >
         {/* Search row */}
