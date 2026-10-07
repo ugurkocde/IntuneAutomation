@@ -65,7 +65,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 The scrubbed prompt is forwarded to Anthropic PBC for processing
-                by the Claude Haiku 4.5 language model. The streaming response
+                by the Claude Haiku 5.5 language model. The streaming response
                 is sent back through our function to your browser
               </li>
               <li>

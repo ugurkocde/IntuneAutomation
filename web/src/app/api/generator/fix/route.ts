@@ -30,9 +30,12 @@ const MAX_SCRIPT_LENGTH = 30_000;
 const MAX_ORIGINAL_PROMPT_LENGTH = 4000;
 const MAX_FINDING_DETAIL_LENGTH = 500;
 const MAX_FINDINGS = 20;
-const MAX_OUTPUT_TOKENS = 6000;
-const RESERVED_TOKENS_PER_REQUEST = 8000;
-const MODEL_ID = "claude-haiku-4-5";
+// Haiku 5.5 thinks by default and thinking tokens count toward this cap.
+const MAX_OUTPUT_TOKENS = 10000;
+// Worst-case input (system prompt + original prompt + current script) plus the full output cap,
+// so concurrent requests cannot overshoot the daily cap.
+const RESERVED_TOKENS_PER_REQUEST = 20_000 + MAX_OUTPUT_TOKENS;
+const MODEL_ID = "claude-haiku-5-5";
 
 type FixBody = {
   originalPrompt?: unknown;
@@ -261,7 +264,8 @@ Produce a corrected version of the script that addresses ONLY these specific iss
   const result = streamText({
     model: anthropic(MODEL_ID),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
-    temperature: 0.1,
+    // Haiku 5.5 rejects temperature; effort steers thinking depth instead.
+    providerOptions: { anthropic: { effort: "medium" } },
     abortSignal: streamAbortSignal(req),
     messages: [
       {

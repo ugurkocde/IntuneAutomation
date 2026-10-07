@@ -86,7 +86,7 @@ const GENERATOR_FAQS = [
   {
     question: "Which AI model powers the script generator?",
     answer:
-      "The generator is powered by Anthropic's Claude Haiku 4.5. Haiku 4.5 is fast, code-aware, and tuned for structured output, which makes it well-suited for generating PowerShell that follows IntuneAutomation conventions including comment-based help, parameter validation, and explicit Microsoft Graph permission scopes.",
+      "The generator is powered by Anthropic's Claude Haiku 5.5. Haiku 5.5 is fast, code-aware, and tuned for structured output, which makes it well-suited for generating PowerShell that follows IntuneAutomation conventions including comment-based help, parameter validation, and explicit Microsoft Graph permission scopes.",
   },
   {
     question: "Are my prompts stored or used to train AI models?",
@@ -114,7 +114,7 @@ const QUICK_FACTS: Array<[string, string]> = [
   ["Price", "Free"],
   ["Sign-in required", "No"],
   ["Daily limit", "20 generations per IP"],
-  ["AI model", "Claude Haiku 4.5 (Anthropic)"],
+  ["AI model", "Claude Haiku 5.5 (Anthropic)"],
   ["Output format", "PowerShell (.ps1)"],
   ["Prompt storage", "None — not stored on our servers"],
   ["Secret redaction", "Automatic for GUIDs, tokens, API keys, and emails"],
@@ -145,7 +145,7 @@ const FEATURE_LIST = [
   "Automatic secret redaction (GUIDs, tokens, keys, emails)",
   "No sign-in required",
   "Free with daily quota",
-  "Powered by Claude Haiku 4.5",
+  "Powered by Claude Haiku 5.5",
 ];
 
 // Quality checks displayed in the inspector panel. Kept in sync with the

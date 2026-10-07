@@ -28,11 +28,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_PROMPT_LENGTH = 4000;
-const MAX_OUTPUT_TOKENS = 6000;
+// Haiku 5.5 thinks by default and thinking tokens count toward this cap.
+const MAX_OUTPUT_TOKENS = 10000;
 // Pessimistic reservation: assume worst-case input + output tokens for the
-// daily-cap accounting. Reconciled with actuals when the stream finishes.
-const RESERVED_TOKENS_PER_REQUEST = 8000;
-const MODEL_ID = "claude-haiku-4-5";
+// daily-cap accounting (system prompt + user prompt + full output cap).
+// Reconciled with actuals when the stream finishes.
+const RESERVED_TOKENS_PER_REQUEST = 10_000 + MAX_OUTPUT_TOKENS;
+const MODEL_ID = "claude-haiku-5-5";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -193,7 +195,8 @@ export async function POST(req: NextRequest) {
   const result = streamText({
     model: anthropic(MODEL_ID),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
-    temperature: 0.2,
+    // Haiku 5.5 rejects temperature; effort steers thinking depth instead.
+    providerOptions: { anthropic: { effort: "medium" } },
     // Propagate client disconnects + hard stream timeout so cancels/stalls
     // release the reservation promptly.
     abortSignal: streamAbortSignal(req),
