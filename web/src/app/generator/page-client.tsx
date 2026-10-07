@@ -1262,7 +1262,7 @@ export default function GeneratorClient({
             <p className="text-muted-foreground">
               Powered by{" "}
               <span className="text-foreground font-medium">
-                Claude Haiku 4.5
+                Claude Haiku 5.5
               </span>
               . Free for everyone — please use responsibly so it stays free.
             </p>

@@ -22,7 +22,7 @@ const perIpLimiter = redis
     })
   : null;
 
-const DAILY_CAP_TOKENS = env.GENERATOR_DAILY_TOKEN_CAP ?? 2_000_000;
+const DAILY_CAP_TOKENS = env.GENERATOR_DAILY_TOKEN_CAP ?? 4_000_000;
 
 function utcDateKey() {
   // YYYY-MM-DD in UTC — single bucket per day

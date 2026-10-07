@@ -5,7 +5,7 @@ import { env } from "~/env";
 
 // Used only when the cheap keyword filter rejects. Most legitimate prompts
 // hit a keyword and skip this call — only the ambiguous edge cases pay for it.
-const CLASSIFIER_MODEL = "claude-haiku-4-5";
+const CLASSIFIER_MODEL = "claude-haiku-5-5";
 
 const CLASSIFIER_SYSTEM = `You decide whether a user prompt is a request to write or modify an admin script for Microsoft Intune, Microsoft Graph, Microsoft 365, Entra ID / Azure AD, or device management on Windows / macOS / iOS / Android.
 
@@ -40,8 +40,10 @@ export async function classifyOnTopicWithLLM(prompt: string): Promise<boolean> {
     const anthropic = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
     const { text } = await generateText({
       model: anthropic(CLASSIFIER_MODEL),
-      maxOutputTokens: 5,
-      temperature: 0,
+      // Thinking tokens count toward the cap, so leave room beyond the
+      // one-word answer. Low effort keeps this check fast and cheap.
+      maxOutputTokens: 1024,
+      providerOptions: { anthropic: { effort: "low" } },
       messages: [
         {
           role: "system",
