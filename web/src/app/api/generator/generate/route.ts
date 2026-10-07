@@ -31,8 +31,9 @@ const MAX_PROMPT_LENGTH = 4000;
 // Haiku 5.5 thinks by default and thinking tokens count toward this cap.
 const MAX_OUTPUT_TOKENS = 10000;
 // Pessimistic reservation: assume worst-case input + output tokens for the
-// daily-cap accounting. Reconciled with actuals when the stream finishes.
-const RESERVED_TOKENS_PER_REQUEST = 8000;
+// daily-cap accounting (system prompt + user prompt + full output cap).
+// Reconciled with actuals when the stream finishes.
+const RESERVED_TOKENS_PER_REQUEST = 10_000 + MAX_OUTPUT_TOKENS;
 const MODEL_ID = "claude-haiku-5-5";
 
 export async function POST(req: NextRequest) {
