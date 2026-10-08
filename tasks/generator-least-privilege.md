@@ -34,7 +34,7 @@ Goal: every generated script shows the minimum Graph permissions it needs, and t
 8. Unit tests cover 1 to 5 and pass. Typecheck passes. A separate reviewer agent signs off.
 
 ## Review
-- 18 unit tests in `web/tests/generatorPermissions.test.mjs`; `npm test` passes 56 of 56; `tsc` is clean.
+- 19 unit tests in `web/tests/generatorPermissions.test.mjs`; `npm test` passes 57 of 57; `tsc` is clean.
 - 70 catalog scripts scanned: 56 make Intune calls, with 0 false excess and 0 false missing.
 - Mutation check: Read changed to ReadWrite in 50 catalog scripts, 41 flagged. The rest have writes that can't be attributed, so they stay silent by design.
 - Lokka app-only: GET deviceConfigurations, managedDevices, mobileApps and deviceCompliancePolicies, and POST reports/getDeviceNonComplianceReport, all returned 200.

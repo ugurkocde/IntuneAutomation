@@ -339,3 +339,21 @@ test("an unused declared Intune scope rules out the least-privilege pass", () =>
   ]);
   assert.ok(!ids(lintScript(code)).includes("permissions-least-privilege"));
 });
+
+test("a splat closed on the same line as its last key finds the method", () => {
+  const code = script({
+    permissions: "DeviceManagementConfiguration.ReadWrite.All",
+    body: `$p = @{
+    Uri    = "${BETA}/deviceManagement/deviceConfigurations/\${id}"
+    Method = 'PATCH' }
+Invoke-MgGraphRequest @p
+$c = Invoke-MgGraphRequest -Uri "${BETA}/deviceManagement/deviceConfigurations"`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, true);
+  assert.deepEqual(analysis.excess, []);
+  assert.deepEqual(analysis.required.flatMap((r) => r.calls).sort(), [
+    "GET /deviceManagement/deviceConfigurations",
+    "PATCH /deviceManagement/deviceConfigurations/{deviceConfigurationId}",
+  ]);
+});

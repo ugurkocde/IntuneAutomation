@@ -179,6 +179,26 @@ type Usage = {
   possible?: boolean;
 };
 
+// Index of the `}` closing the `{` at `open`. Braces inside quoted strings
+// (such as `${id}` in a URI) are skipped. Returns -1 when unbalanced.
+function matchingBrace(code: string, open: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = open; i < code.length; i++) {
+    const ch = code[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}" && --depth === 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // Finds the HTTP method for a Graph URI at `idx`. Looks at the statement the
 // URI is in (following backtick continuations), then at an enclosing splat
 // hashtable. Returns the token position so unattributed writes can be found.
@@ -208,11 +228,7 @@ function methodAt(
   const before = code.slice(lineStart, idx);
   if (/\bUri['"]?\s*=\s*$/i.test(before)) {
     const open = code.lastIndexOf("@{", idx);
-    // The splat closes on its own line; a `}` inside `${...}` in the URI
-    // must not end the search early.
-    const closeRe = /^\s*\}/gm;
-    closeRe.lastIndex = idx;
-    const close = closeRe.exec(code)?.index ?? -1;
+    const close = open === -1 ? -1 : matchingBrace(code, open + 1);
     if (open !== -1 && close !== -1) {
       const inSplat = scan(open, close);
       if (inSplat) return inSplat;
@@ -362,10 +378,16 @@ function minimumScopes(
   // scopes are tried first so the broader one that is needed anyway stays.
   for (const scope of [...chosen.keys()].sort((a, b) => rank(a) - rank(b))) {
     const others = [...chosen.keys()].filter((s) => s !== scope);
-    const redundant = chosen
-      .get(scope)!
-      .every((call) => others.some((o) => covers(o, call)));
-    if (redundant) chosen.delete(scope);
+    const scopeCalls = chosen.get(scope)!;
+    if (!scopeCalls.every((call) => others.some((o) => covers(o, call)))) {
+      continue;
+    }
+    // Keep the calls visible under the scope that now covers them.
+    for (const call of scopeCalls) {
+      const owner = others.find((o) => covers(o, call))!;
+      chosen.set(owner, [...chosen.get(owner)!, call]);
+    }
+    chosen.delete(scope);
   }
   return [...chosen.entries()]
     .map(([scope, cs]) => ({
