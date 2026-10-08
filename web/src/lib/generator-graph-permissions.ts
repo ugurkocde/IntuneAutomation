@@ -179,9 +179,13 @@ type Usage = {
   possible?: boolean;
 };
 
-// Index of the `}` closing the `{` at `open`. Braces inside quoted strings
-// (such as `${id}` in a URI) are skipped. Returns -1 when unbalanced.
-function matchingBrace(code: string, open: number): number {
+// Index of the bracket closing the one at `open`. Brackets inside quoted
+// strings (such as `${id}` in a URI) are skipped. Returns -1 when unbalanced.
+function matchingBrace(
+  code: string,
+  open: number,
+  [opener, closer] = ["{", "}"],
+): number {
   let depth = 0;
   let quote: string | null = null;
   for (let i = open; i < code.length; i++) {
@@ -190,13 +194,122 @@ function matchingBrace(code: string, open: number): number {
       if (ch === quote) quote = null;
     } else if (ch === '"' || ch === "'") {
       quote = ch;
-    } else if (ch === "{") {
+    } else if (ch === opener) {
       depth++;
-    } else if (ch === "}" && --depth === 0) {
+    } else if (ch === closer && --depth === 0) {
       return i;
     }
   }
   return -1;
+}
+
+// Splits a call statement's arguments into `-Name value` pairs and
+// positional values. Stops at a pipe, statement end, or a closing bracket
+// the statement did not open.
+function callArgs(statement: string): {
+  named: [string, string][];
+  positional: string[];
+} {
+  const tokens: string[] = [];
+  let depth = 0;
+  for (const t of statement.matchAll(
+    /"[^"\n]*"|'[^'\n]*'|[()|;]|[^\s()|;]+/g,
+  )) {
+    const tok = t[0];
+    if (tok === "(") depth++;
+    else if (tok === ")" && --depth < 0) break;
+    else if ((tok === "|" || tok === ";") && depth === 0) break;
+    else if (depth === 0) tokens.push(tok);
+  }
+  const named: [string, string][] = [];
+  const positional: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i]!;
+    const param = tok.match(/^-([A-Za-z]\w*)(?::(.*))?$/);
+    if (!param) {
+      positional.push(tok);
+      continue;
+    }
+    // `-Name:value` carries its value; otherwise the next token is the value
+    // unless it is another parameter (switches take none).
+    let value = param[2] ?? "";
+    if (param[2] === undefined && i + 1 < tokens.length) {
+      if (!/^-[A-Za-z]/.test(tokens[i + 1]!)) value = tokens[++i]!;
+    }
+    named.push([param[1]!.toLowerCase(), value]);
+  }
+  return { named, positional };
+}
+
+// `-Method $Method` inside a helper such as Invoke-GraphRequest only forwards
+// its parameter. Every value the helper can receive then shows up as a method
+// token of its own: callers' `-Method X` and the default `$Method = 'X'`. So
+// the forwarding token adds nothing, provided that:
+//   - it sits in a function whose own param() block declares $Method
+//     (script-level parameters can be set by the user at run time)
+//   - every call of that function passes arguments by name only, so no
+//     method can arrive positionally
+function isCountedForwarder(
+  code: string,
+  tokenIndex: number,
+  value: string,
+): boolean {
+  if (!/^\$method$/i.test(value)) return false;
+
+  let fn: { name: string; open: number; close: number } | null = null;
+  for (const m of code.matchAll(/\bfunction\s+([\w-]+)\s*\{/gi)) {
+    const open = (m.index ?? 0) + m[0].length - 1;
+    const close = matchingBrace(code, open);
+    // Innermost function containing the token wins.
+    if (close !== -1 && open < tokenIndex && tokenIndex < close) {
+      fn = { name: m[1] ?? "", open, close };
+    }
+  }
+  if (!fn) return false;
+
+  const head = code
+    .slice(fn.open + 1, fn.close)
+    .match(/^\s*(?:\[CmdletBinding\([^)]*\)\]\s*)?param\s*\(/i);
+  if (!head) return false;
+  const paramOpen = fn.open + 1 + head[0].length - 1;
+  const paramClose = matchingBrace(code, paramOpen, ["(", ")"]);
+  if (paramClose === -1) return false;
+  if (!/\$method\b/i.test(code.slice(paramOpen, paramClose))) return false;
+  // An [Alias()] lets other names bind to $Method; stay cautious.
+  if (/\[Alias\(/i.test(code.slice(paramOpen, paramClose))) return false;
+
+  const callRe = new RegExp(
+    `(?<![\\w-])${fn.name.replace(/[-]/g, "\\-")}(?![\\w-])`,
+    "gi",
+  );
+  for (const c of code.matchAll(callRe)) {
+    const at = c.index ?? 0;
+    // Skip the definition itself.
+    if (/\bfunction\s+$/i.test(code.slice(Math.max(0, at - 40), at))) continue;
+    let end = code.indexOf("\n", at);
+    while (end !== -1 && /`\s*$/.test(code.slice(at, end))) {
+      end = code.indexOf("\n", end + 1);
+    }
+    const statement = code.slice(
+      at + c[0].length,
+      end === -1 ? code.length : end,
+    );
+    const { named, positional } = callArgs(statement);
+    if (positional.length > 0) return false;
+    // PowerShell binds abbreviations (`-Meth PATCH`); only an exact -Method
+    // is a counted token, so any shorter prefix must carry a literal GET.
+    for (const [name, v] of named) {
+      if (name === "method") continue;
+      const verb = methodOf(v);
+      if (
+        WRITE_METHODS.has(verb) ||
+        ("method".startsWith(name) && verb !== "GET")
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // Finds the HTTP method for a Graph URI at `idx`. Looks at the statement the
@@ -411,7 +524,9 @@ export function analyzeGraphPermissions(
   // Every method spec that is not a literal GET must belong to a resolved
   // call; otherwise some write is unaccounted for and excess stays silent.
   const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter(
-    (m) => methodOf(m[1] ?? "") !== "GET",
+    (m) =>
+      methodOf(m[1] ?? "") !== "GET" &&
+      !isCountedForwarder(body, m.index ?? 0, m[1] ?? ""),
   );
   // A write the docs list no scopes for could need any of them.
   const undocumentedWrite = [...allCalls, ...possibleCalls].some(

@@ -357,3 +357,145 @@ $c = Invoke-MgGraphRequest -Uri "${BETA}/deviceManagement/deviceConfigurations"`
     "PATCH /deviceManagement/deviceConfigurations/{deviceConfigurationId}",
   ]);
 });
+
+test("a helper that forwards its -Method parameter does not count as a write", () => {
+  const helper = (extra) => `function Invoke-GraphRequest {
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [ValidateSet('GET', 'POST', 'PATCH')][string]$Method = 'GET'
+    )
+    Invoke-MgGraphRequest -Uri $Uri -Method $Method -ErrorAction Stop
+}
+$apps = Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps"
+${extra}`;
+  const readOnly = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(""),
+    }),
+  );
+  assert.equal(readOnly.writesResolved, true);
+  assert.equal(
+    readOnly.excess[0]?.replacement,
+    "DeviceManagementApps.Read.All",
+  );
+
+  const named = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(
+        `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Method PATCH`,
+      ),
+    }),
+  );
+  assert.deepEqual(named.excess, []);
+
+  const positional = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(
+        `Invoke-GraphRequest "${BETA}/deviceAppManagement/mobileApps/$id" 'PATCH'`,
+      ),
+    }),
+  );
+  assert.equal(positional.writesResolved, false);
+  assert.deepEqual(positional.excess, []);
+
+  for (const call of [
+    `Invoke-GraphRequest "${BETA}/deviceAppManagement/mobileApps/$id" PATCH`,
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Meth PATCH`,
+  ]) {
+    const bare = analyzeGraphPermissions(
+      script({
+        permissions: "DeviceManagementApps.ReadWrite.All",
+        body: helper(call),
+      }),
+    );
+    assert.equal(bare.writesResolved, false, call);
+  }
+});
+
+test("a script-level -Method parameter forwarded to Graph stays a possible write", () => {
+  const code = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: `$apps = Get-MgGraphAllPage -Uri "${BETA}/deviceAppManagement/mobileApps"
+Invoke-MgGraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Method $Method`,
+  }).replace(
+    "[CmdletBinding()]\nparam()",
+    "[CmdletBinding()]\nparam([string]$Method = 'GET')",
+  );
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, false);
+  assert.deepEqual(analysis.excess, []);
+});
+
+test("a forwarded parameter with another name stays a possible write", () => {
+  const code = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: `function Send-Graph {
+    param([string]$Uri, [string]$Verb = 'GET')
+    Invoke-MgGraphRequest -Uri $Uri -Method $Verb
+}
+$apps = Send-Graph -Uri "${BETA}/deviceAppManagement/mobileApps"`,
+  });
+  assert.equal(analyzeGraphPermissions(code).writesResolved, false);
+});
+
+test("the forwarder exemption is bound to the function that declares $Method", () => {
+  const unrelated = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: `function Format-Row {
+    param([string]$Method)
+    "$Method"
+}
+$apps = Get-MgGraphAllPage -Uri "${BETA}/deviceAppManagement/mobileApps"
+Invoke-MgGraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Method $Method`,
+  });
+  assert.equal(analyzeGraphPermissions(unrelated).writesResolved, false);
+
+  const helper = (extra, dflt = "'GET'") => `function Invoke-GraphRequest {
+    param([string]$Uri, [string]$Method = ${dflt})
+    Invoke-MgGraphRequest -Uri $Uri -Method $Method
+}
+$apps = Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps"
+${extra}`;
+  const positionalVariable = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: helper(
+      `$r = Invoke-GraphRequest "${BETA}/deviceAppManagement/mobileApps/$id" $env:GRAPH_METHOD`,
+    ),
+  });
+  assert.equal(
+    analyzeGraphPermissions(positionalVariable).writesResolved,
+    false,
+  );
+
+  const envDefault = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: helper("", "$env:GRAPH_METHOD"),
+  });
+  assert.equal(analyzeGraphPermissions(envDefault).writesResolved, false);
+});
+
+test("an alias on $Method or a write verb under another name keeps the token", () => {
+  const helper = (paramBlock, call) =>
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: `function Invoke-GraphRequest {
+    param(${paramBlock})
+    Invoke-MgGraphRequest -Uri $Uri -Method $Method
+}
+$apps = Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps"
+${call}`,
+    });
+  const aliased = helper(
+    "[string]$Uri, [Alias('Verb')][string]$Method = 'GET'",
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Verb PATCH`,
+  );
+  assert.equal(analyzeGraphPermissions(aliased).writesResolved, false);
+  const otherName = helper(
+    "[string]$Uri, [string]$Method = 'GET', [string]$Mode",
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Mode PATCH`,
+  );
+  assert.equal(analyzeGraphPermissions(otherName).writesResolved, false);
+});
