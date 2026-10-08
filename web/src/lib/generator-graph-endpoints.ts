@@ -8,7 +8,7 @@
 // The compiled matchers are cached at module scope — first call pays the
 // (small) regex-compile cost, subsequent calls are O(templates) per lookup.
 
-import { GRAPH_ENDPOINTS } from "./generator-graph-data";
+import { GRAPH_ENDPOINTS } from "./generator-graph-data.ts";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -16,6 +16,10 @@ type CompiledEndpoint = {
   template: string;
   regex: RegExp;
   segmentCount: number;
+  // Position in GRAPH_ENDPOINTS, so callers can look up aligned data such as
+  // GRAPH_ENDPOINT_SCOPES.
+  index: number;
+  literalSegments: number;
 };
 
 let compiled: Map<Method, CompiledEndpoint[]> | null = null;
@@ -50,7 +54,7 @@ function ensureCompiled(): {
   if (compiled && templatesByMethod) return { compiled, templatesByMethod };
   const out: Map<Method, CompiledEndpoint[]> = new Map();
   const tpl: Map<Method, string[]> = new Map();
-  for (const entry of GRAPH_ENDPOINTS) {
+  for (const [index, entry] of GRAPH_ENDPOINTS.entries()) {
     const spaceIdx = entry.indexOf(" ");
     if (spaceIdx < 0) continue;
     const method = entry.slice(0, spaceIdx).toUpperCase() as Method;
@@ -65,6 +69,11 @@ function ensureCompiled(): {
       template: path,
       regex: templateToRegex(path),
       segmentCount: path.split("/").filter(Boolean).length,
+      index,
+      literalSegments: path
+        .split("/")
+        .filter((seg) => seg && !(seg.includes("{") && seg.includes("}")))
+        .length,
     });
     let tlist = tpl.get(method);
     if (!tlist) {
@@ -91,6 +100,25 @@ export function isKnownGraphEndpoint(method: string, path: string): boolean {
   if (!list) return false;
   const normalized = stripVersion(path);
   return list.some((e) => e.regex.test(normalized));
+}
+
+// Like isKnownGraphEndpoint, but returns the matching catalog entry. When
+// several templates match (`/users/delta()` also fits `/users/{id}`), the one
+// with the most literal segments wins.
+export function matchGraphEndpoint(
+  method: string,
+  path: string,
+): { template: string; index: number } | null {
+  const { compiled } = ensureCompiled();
+  const list = compiled.get(method.toUpperCase() as Method);
+  if (!list) return null;
+  const normalized = stripVersion(path);
+  let best: CompiledEndpoint | null = null;
+  for (const e of list) {
+    if (!e.regex.test(normalized)) continue;
+    if (!best || e.literalSegments > best.literalSegments) best = e;
+  }
+  return best ? { template: best.template, index: best.index } : null;
 }
 
 // Cheap segment-overlap similarity. Higher = closer. Used to surface a few
@@ -165,8 +193,7 @@ export function extractGraphEndpointUsages(
   // the MATCHING closing quote (via backreference, so the inner `'macOS'`
   // inside a double-quoted URI doesn't terminate the match early) and on an
   // embedded newline (`.` doesn't match `\n` in JS regex by default).
-  const uriRe =
-    /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
+  const uriRe = /(["'])https:\/\/graph\.microsoft\.com\/(?:v1\.0|beta)\/.*?\1/g;
   for (const match of scriptBody.matchAll(uriRe)) {
     const raw = match[0].slice(1, -1); // strip quotes
     const url = stripQueryAndFragment(raw);
