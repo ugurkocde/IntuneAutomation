@@ -476,3 +476,26 @@ ${extra}`;
   });
   assert.equal(analyzeGraphPermissions(envDefault).writesResolved, false);
 });
+
+test("an alias on $Method or a write verb under another name keeps the token", () => {
+  const helper = (paramBlock, call) =>
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: `function Invoke-GraphRequest {
+    param(${paramBlock})
+    Invoke-MgGraphRequest -Uri $Uri -Method $Method
+}
+$apps = Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps"
+${call}`,
+    });
+  const aliased = helper(
+    "[string]$Uri, [Alias('Verb')][string]$Method = 'GET'",
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Verb PATCH`,
+  );
+  assert.equal(analyzeGraphPermissions(aliased).writesResolved, false);
+  const otherName = helper(
+    "[string]$Uri, [string]$Method = 'GET', [string]$Mode",
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Mode PATCH`,
+  );
+  assert.equal(analyzeGraphPermissions(otherName).writesResolved, false);
+});

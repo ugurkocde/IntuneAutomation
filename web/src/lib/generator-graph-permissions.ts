@@ -275,6 +275,8 @@ function isCountedForwarder(
   const paramClose = matchingBrace(code, paramOpen, ["(", ")"]);
   if (paramClose === -1) return false;
   if (!/\$method\b/i.test(code.slice(paramOpen, paramClose))) return false;
+  // An [Alias()] lets other names bind to $Method; stay cautious.
+  if (/\[Alias\(/i.test(code.slice(paramOpen, paramClose))) return false;
 
   const callRe = new RegExp(
     `(?<![\\w-])${fn.name.replace(/[-]/g, "\\-")}(?![\\w-])`,
@@ -297,10 +299,11 @@ function isCountedForwarder(
     // PowerShell binds abbreviations (`-Meth PATCH`); only an exact -Method
     // is a counted token, so any shorter prefix must carry a literal GET.
     for (const [name, v] of named) {
+      if (name === "method") continue;
+      const verb = methodOf(v);
       if (
-        name !== "method" &&
-        "method".startsWith(name) &&
-        methodOf(v) !== "GET"
+        WRITE_METHODS.has(verb) ||
+        ("method".startsWith(name) && verb !== "GET")
       ) {
         return false;
       }
