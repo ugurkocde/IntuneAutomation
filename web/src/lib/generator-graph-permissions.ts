@@ -50,13 +50,58 @@ const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const INTUNE_PATH = /^\/device(?:Management|AppManagement)(?:\/|$)/;
 const PLACEHOLDER = "__var__";
 
+// Any method spec: `-Method PATCH`, `-Method:PATCH`, `-Method $verb`,
+// `Method = 'PATCH'`, `'Method' = $m`. The value is classified by methodOf.
 const METHOD_TOKEN_RE =
-  /(?:-Method\s+|\bMethod\s*=\s*)["']?(GET|POST|PUT|PATCH|DELETE)\b/gi;
+  /(?:-Method(?:\s*:\s*|\s+)|['"]?\bMethod['"]?\s*=\s*)([^\s;,)}]+)/gi;
 
-// Mg SDK cmdlets that change data. Invoke-MgGraphRequest is handled through
-// its -Method token instead.
-const SDK_WRITE_RE =
-  /\b(?:New|Update|Remove|Set|Add|Clear|Restart|Sync|Lock|Reset|Move|Invoke)-Mg(?!GraphRequest\b)\w+/i;
+// A value that is not a literal verb (a variable, an if expression) could be
+// a write, so it counts as one that cannot be attributed.
+function methodOf(value: string): string {
+  const verb = value.replace(/^["']|["']$/g, "").toUpperCase();
+  return verb === "GET" || WRITE_METHODS.has(verb) ? verb : "UNKNOWN";
+}
+
+// Mg SDK cmdlets other than these read-only verbs may change data.
+// Invoke-MgGraphRequest is handled through its -Method token instead.
+const SDK_SAFE_VERBS = new Set([
+  "get",
+  "find",
+  "connect",
+  "disconnect",
+  "select",
+  "test",
+]);
+function hasSdkWrite(code: string): boolean {
+  for (const m of code.matchAll(/\b([A-Za-z]+)-Mg(\w*)/g)) {
+    const verb = (m[1] ?? "").toLowerCase();
+    if (SDK_SAFE_VERBS.has(verb)) continue;
+    if (verb === "invoke" && /^GraphRequest$/i.test(m[2] ?? "")) continue;
+    return true;
+  }
+  return false;
+}
+
+// Removes `#` comments that are outside quotes, so `"Baseline #2"` survives.
+function stripLineComments(code: string): string {
+  return code
+    .split("\n")
+    .map((line) => {
+      let quote: string | null = null;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (quote) {
+          if (ch === quote) quote = null;
+        } else if (ch === '"' || ch === "'") {
+          quote = ch;
+        } else if (ch === "#" && (i === 0 || /\s/.test(line[i - 1]!))) {
+          return line.slice(0, i);
+        }
+      }
+      return line;
+    })
+    .join("\n");
+}
 
 function readSibling(scope: string): string | null {
   if (!scope.includes(".ReadWrite.")) return null;
@@ -121,7 +166,15 @@ function stripQuery(path: string): string {
   return q >= 0 ? path.slice(0, q) : path;
 }
 
-type Usage = { method: string; path: string; tokenIndex: number | null };
+// `possible` usages come from call sites after the variable was reassigned.
+// The reassignment may be conditional, so the call might still hit this
+// path; such usages only make the excess check more cautious.
+type Usage = {
+  method: string;
+  path: string;
+  tokenIndex: number | null;
+  possible?: boolean;
+};
 
 // Finds the HTTP method for a Graph URI at `idx`. Looks at the statement the
 // URI is in (following backtick continuations), then at an enclosing splat
@@ -141,7 +194,7 @@ function methodAt(
     re.lastIndex = from;
     const m = re.exec(code);
     if (m && m.index < to) {
-      return { method: (m[1] ?? "GET").toUpperCase(), tokenIndex: m.index };
+      return { method: methodOf(m[1] ?? ""), tokenIndex: m.index };
     }
     return null;
   };
@@ -150,7 +203,7 @@ function methodAt(
 
   // Splatted call: @{ Uri = "..."; Method = "PATCH" }
   const before = code.slice(lineStart, idx);
-  if (/\bUri\s*=\s*$/i.test(before)) {
+  if (/\bUri['"]?\s*=\s*$/i.test(before)) {
     const open = code.lastIndexOf("@{", idx);
     const close = code.indexOf("}", idx);
     if (open !== -1 && close !== -1) {
@@ -199,32 +252,33 @@ function extractUsages(code: string): Usage[] {
     // `$uri = "..."` followed later by `-Uri $uri`: use the methods at the
     // call sites. Otherwise the literal is the call site.
     const lineStart = code.lastIndexOf("\n", literalIdx - 1) + 1;
-    const assigned = code
-      .slice(lineStart, literalIdx)
-      .match(/^\s*\$(\w+)\s*=\s*$/);
-    const sites: number[] = [];
+    const assigned = code.slice(lineStart, literalIdx).match(/\$(\w+)\s*=\s*$/);
+    const sites: { index: number; possible: boolean }[] = [];
     if (assigned?.[1]) {
-      // Only call sites before the variable is reassigned belong to this
-      // literal; scripts reuse names like $Uri across functions.
-      const reassign = new RegExp(`^\\s*\\$${assigned[1]}\\s*=(?!=)`, "gim");
+      // Call sites before the next reassignment certainly use this literal.
+      // Later ones possibly do (the reassignment may sit in an if block, or
+      // the name may be reused in another function).
+      const reassign = new RegExp(`\\$${assigned[1]}\\s*=(?!=)`, "gi");
       reassign.lastIndex = literalIdx + m[0].length;
       const scopeEnd = reassign.exec(code)?.index ?? code.length;
       const useRe = new RegExp(
-        `(?:-Uri\\s+|\\bUri\\s*=\\s*)\\$${assigned[1]}\\b`,
+        `(?:-Uri\\s+|\\bUri['"]?\\s*=\\s*)\\$${assigned[1]}\\b`,
         "gi",
       );
       useRe.lastIndex = literalIdx;
-      for (
-        let u = useRe.exec(code);
-        u && u.index < scopeEnd;
-        u = useRe.exec(code)
-      ) {
-        sites.push(u.index);
+      for (let u = useRe.exec(code); u; u = useRe.exec(code)) {
+        sites.push({ index: u.index, possible: u.index >= scopeEnd });
       }
     }
-    if (sites.length === 0) sites.push(literalIdx);
+    if (!sites.some((s) => !s.possible)) {
+      sites.push({ index: literalIdx, possible: false });
+    }
     for (const site of sites) {
-      usages.push({ path, ...methodAt(code, site) });
+      usages.push({
+        path,
+        ...methodAt(code, site.index),
+        possible: site.possible,
+      });
     }
   }
   return usages;
@@ -232,24 +286,27 @@ function extractUsages(code: string): Usage[] {
 
 function resolve(usages: Usage[]): {
   calls: GraphCall[];
+  possibleCalls: GraphCall[];
   attributedTokens: Set<number>;
 } {
   const calls = new Map<string, GraphCall>();
+  const possibleCalls = new Map<string, GraphCall>();
   const attributedTokens = new Set<number>();
   for (const u of usages) {
     const hit = matchGraphEndpoint(u.method, u.path);
+    const target = u.possible ? possibleCalls : calls;
     // A write to a path we can read and that is clearly outside Intune (such
     // as /users/{upn}/sendMail, missing from the catalog) cannot need an
     // Intune scope, so it does not block the excess check either.
     const knownNonIntune =
       !u.path.startsWith(`/${PLACEHOLDER}`) && !INTUNE_PATH.test(u.path);
-    if ((hit || knownNonIntune) && u.tokenIndex !== null) {
+    if ((hit || knownNonIntune) && u.tokenIndex !== null && !u.possible) {
       attributedTokens.add(u.tokenIndex);
     }
     if (!hit) continue;
     const key = `${u.method} ${hit.template}`;
-    if (calls.has(key)) continue;
-    calls.set(key, {
+    if (target.has(key)) continue;
+    target.set(key, {
       method: u.method,
       template: hit.template,
       accepted: (GRAPH_ENDPOINT_SCOPES[hit.index] ?? []).map(
@@ -257,7 +314,11 @@ function resolve(usages: Usage[]): {
       ),
     });
   }
-  return { calls: [...calls.values()], attributedTokens };
+  return {
+    calls: [...calls.values()],
+    possibleCalls: [...possibleCalls.values()],
+    attributedTokens,
+  };
 }
 
 function rank(scope: string): number {
@@ -309,20 +370,20 @@ export function analyzeGraphPermissions(
 ): PermissionAnalysis | null {
   const declaredList = parseDeclaredScopes(code);
   // Help text and comments often quote URIs and verbs; only scan real code.
-  const body = code
-    .replace(/<#[\s\S]*?#>/g, "")
-    .replace(/(^|\s)#[^\n]*/g, "$1");
+  const body = stripLineComments(code.replace(/<#[\s\S]*?#>/g, ""));
   const usages = extractUsages(body);
-  const { calls: allCalls, attributedTokens } = resolve(usages);
+  const { calls: allCalls, possibleCalls, attributedTokens } = resolve(usages);
   const calls = allCalls.filter((c) => INTUNE_PATH.test(c.template));
   if (calls.length === 0) return null;
 
-  const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter((m) =>
-    WRITE_METHODS.has((m[1] ?? "").toUpperCase()),
+  // Every method spec that is not a literal GET must belong to a resolved
+  // call; otherwise some write is unaccounted for and excess stays silent.
+  const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter(
+    (m) => methodOf(m[1] ?? "") !== "GET",
   );
   const writesResolved =
     writeTokens.every((m) => attributedTokens.has(m.index ?? -1)) &&
-    !SDK_WRITE_RE.test(body);
+    !hasSdkWrite(body);
 
   const declared = new Set(declaredList);
   const excess: ExcessScope[] = [];
@@ -332,7 +393,12 @@ export function analyzeGraphPermissions(
       if (!read) continue;
       const covered = calls.filter((c) => covers(scope, c));
       if (covered.length === 0) continue;
-      if (covered.every((c) => isReadLike(c) && c.accepted.includes(read))) {
+      const mightNeed = possibleCalls.filter((c) => covers(scope, c));
+      if (
+        [...covered, ...mightNeed].every(
+          (c) => isReadLike(c) && c.accepted.includes(read),
+        )
+      ) {
         excess.push({ scope, replacement: read });
       }
     }

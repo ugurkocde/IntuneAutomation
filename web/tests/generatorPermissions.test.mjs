@@ -233,3 +233,48 @@ Invoke-MgGraphRequest -Method PATCH -Uri "${BETA}/deviceManagement/deviceConfigu
   );
   assert.deepEqual(analysis.excess, []);
 });
+
+test("write calls the parser cannot pin down never produce excess warnings", () => {
+  const rw = "DeviceManagementConfiguration.ReadWrite.All";
+  const get = `$all = Get-MgGraphAllPage -Uri "${BETA}/deviceManagement/deviceConfigurations"`;
+  const cases = {
+    "variable method": `$verb = if ($create) { "POST" } else { "PATCH" }
+Invoke-MgGraphRequest -Method $verb -Uri "${BETA}/deviceManagement/deviceConfigurations/$id" -Body $b`,
+    "colon method": `Invoke-MgGraphRequest -Method:PATCH -Uri "${BETA}/deviceManagement/deviceConfigurations/$id"`,
+    "quoted splat keys": `$p = @{
+    'Uri'    = "${BETA}/deviceManagement/deviceConfigurations/$id"
+    'Method' = 'PATCH'
+}
+Invoke-MgGraphRequest @p`,
+    "hash inside a string": `Invoke-MgGraphRequest -Uri "${BETA}/deviceManagement/deviceConfigurations/$id" -Body @{ displayName = "Baseline #2" } -Method PATCH`,
+    "SDK verb outside the old list": `Disable-MgBetaDeviceManagementDeviceConfiguration -DeviceConfigurationId $id`,
+    "conditional reassignment": `$uri = "${BETA}/deviceManagement/deviceConfigurations/$cid"
+$c = Invoke-MgGraphRequest -Uri $uri
+if ($x) { $uri = "${BETA}/deviceManagement/managedDevices/$id" }
+Invoke-MgGraphRequest -Uri $uri -Method PATCH -Body $b`,
+  };
+  for (const [name, body] of Object.entries(cases)) {
+    const analysis = analyzeGraphPermissions(
+      script({ permissions: rw, body: `${get}\n${body}` }),
+    );
+    assert.deepEqual(analysis?.excess ?? [], [], name);
+  }
+});
+
+test("a reused variable name in another function does not leak its method", () => {
+  const code = script({
+    permissions: "DeviceManagementConfiguration.Read.All, Mail.Send",
+    body: `$Uri = "${BETA}/deviceManagement/deviceConfigurations"
+$all = Get-MgGraphAllPage -Uri $Uri
+function Send-Report {
+    $Uri = "${BETA}/users/$SenderUPN/sendMail"
+    Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $mail
+}`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.deepEqual(analysis.missing, []);
+  assert.deepEqual(
+    analysis.required.flatMap((r) => r.calls),
+    ["GET /deviceManagement/deviceConfigurations"],
+  );
+});
