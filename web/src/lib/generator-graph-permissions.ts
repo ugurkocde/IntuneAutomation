@@ -203,53 +203,110 @@ function matchingBrace(
   return -1;
 }
 
-// True when `$name` is a parameter of a function defined in the script.
-// Script-level parameters do not count: a user can set them at run time.
-function isFunctionParameter(code: string, name: string): boolean {
-  const re = new RegExp(`\\$${name}\\b`, "i");
-  for (const m of code.matchAll(/\bparam\s*\(/gi)) {
-    const before = code.slice(0, m.index ?? 0);
-    if (
-      !/\bfunction\s+[\w-]+\s*\{\s*(?:\[CmdletBinding\([^)]*\)\]\s*)?$/i.test(
-        before,
-      )
-    ) {
+// Splits a call statement's arguments into `-Name value` pairs and
+// positional values. Stops at a pipe, statement end, or a closing bracket
+// the statement did not open.
+function callArgs(statement: string): {
+  named: [string, string][];
+  positional: string[];
+} {
+  const tokens: string[] = [];
+  let depth = 0;
+  for (const t of statement.matchAll(
+    /"[^"\n]*"|'[^'\n]*'|[()|;]|[^\s()|;]+/g,
+  )) {
+    const tok = t[0];
+    if (tok === "(") depth++;
+    else if (tok === ")" && --depth < 0) break;
+    else if ((tok === "|" || tok === ";") && depth === 0) break;
+    else if (depth === 0) tokens.push(tok);
+  }
+  const named: [string, string][] = [];
+  const positional: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i]!;
+    const param = tok.match(/^-([A-Za-z]\w*)(?::(.*))?$/);
+    if (!param) {
+      positional.push(tok);
       continue;
     }
-    const open = (m.index ?? 0) + m[0].length - 1;
-    const close = matchingBrace(code, open, ["(", ")"]);
-    if (close !== -1 && re.test(code.slice(open, close))) return true;
+    // `-Name:value` carries its value; otherwise the next token is the value
+    // unless it is another parameter (switches take none).
+    let value = param[2] ?? "";
+    if (param[2] === undefined && i + 1 < tokens.length) {
+      if (!/^-[A-Za-z]/.test(tokens[i + 1]!)) value = tokens[++i]!;
+    }
+    named.push([param[1]!.toLowerCase(), value]);
   }
-  return false;
+  return { named, positional };
 }
 
 // `-Method $Method` inside a helper such as Invoke-GraphRequest only forwards
-// its parameter. When the parameter is named Method, callers pass
-// `-Method X` and a default reads `$Method = 'X'`; both are method tokens in
-// their own right, so the forwarding token adds nothing. Under any other
-// name it is harmless only when every value passed or defaulted is GET.
-function isForwardedReadOrCounted(code: string, value: string): boolean {
-  const name = value.match(/^\$(\w+)$/)?.[1];
-  if (!name || !isFunctionParameter(code, name)) return false;
-  // A write verb outside a method token or ValidateSet may be passed
-  // positionally (`Invoke-GraphRequest $uri 'PATCH'`); stay cautious.
-  const loose = code
-    .replace(/\[ValidateSet\([^)]*\)\]/gi, "")
-    .replace(new RegExp(METHOD_TOKEN_RE.source, "gi"), "");
-  if (/["'](?:POST|PUT|PATCH|DELETE)["']/i.test(loose)) return false;
-  // Bare verbs bind in command mode too (`Invoke-GraphRequest $u PATCH`).
-  const outsideStrings = loose.replace(/"[^"\n]*"|'[^'\n]*'/g, "");
-  if (/(?<![\w$.-])(?:POST|PUT|PATCH|DELETE)(?![\w-])/i.test(outsideStrings)) {
-    return false;
+// its parameter. Every value the helper can receive then shows up as a method
+// token of its own: callers' `-Method X` and the default `$Method = 'X'`. So
+// the forwarding token adds nothing, provided that:
+//   - it sits in a function whose own param() block declares $Method
+//     (script-level parameters can be set by the user at run time)
+//   - every call of that function passes arguments by name only, so no
+//     method can arrive positionally
+function isCountedForwarder(
+  code: string,
+  tokenIndex: number,
+  value: string,
+): boolean {
+  if (!/^\$method$/i.test(value)) return false;
+
+  let fn: { name: string; open: number; close: number } | null = null;
+  for (const m of code.matchAll(/\bfunction\s+([\w-]+)\s*\{/gi)) {
+    const open = (m.index ?? 0) + m[0].length - 1;
+    const close = matchingBrace(code, open);
+    // Innermost function containing the token wins.
+    if (close !== -1 && open < tokenIndex && tokenIndex < close) {
+      fn = { name: m[1] ?? "", open, close };
+    }
   }
-  if (name.toLowerCase() === "method") return true;
-  const values = [
-    ...code.matchAll(
-      new RegExp(`-${name}(?:\\s*:\\s*|\\s+)([^\\s;,)}]+)`, "gi"),
-    ),
-    ...code.matchAll(new RegExp(`\\$${name}\\s*=(?!=)\\s*([^\\s;,)}]+)`, "gi")),
-  ].map((m) => methodOf(m[1] ?? ""));
-  return values.every((v) => v === "GET");
+  if (!fn) return false;
+
+  const head = code
+    .slice(fn.open + 1, fn.close)
+    .match(/^\s*(?:\[CmdletBinding\([^)]*\)\]\s*)?param\s*\(/i);
+  if (!head) return false;
+  const paramOpen = fn.open + 1 + head[0].length - 1;
+  const paramClose = matchingBrace(code, paramOpen, ["(", ")"]);
+  if (paramClose === -1) return false;
+  if (!/\$method\b/i.test(code.slice(paramOpen, paramClose))) return false;
+
+  const callRe = new RegExp(
+    `(?<![\\w-])${fn.name.replace(/[-]/g, "\\-")}(?![\\w-])`,
+    "gi",
+  );
+  for (const c of code.matchAll(callRe)) {
+    const at = c.index ?? 0;
+    // Skip the definition itself.
+    if (/\bfunction\s+$/i.test(code.slice(Math.max(0, at - 40), at))) continue;
+    let end = code.indexOf("\n", at);
+    while (end !== -1 && /`\s*$/.test(code.slice(at, end))) {
+      end = code.indexOf("\n", end + 1);
+    }
+    const statement = code.slice(
+      at + c[0].length,
+      end === -1 ? code.length : end,
+    );
+    const { named, positional } = callArgs(statement);
+    if (positional.length > 0) return false;
+    // PowerShell binds abbreviations (`-Meth PATCH`); only an exact -Method
+    // is a counted token, so any shorter prefix must carry a literal GET.
+    for (const [name, v] of named) {
+      if (
+        name !== "method" &&
+        "method".startsWith(name) &&
+        methodOf(v) !== "GET"
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // Finds the HTTP method for a Graph URI at `idx`. Looks at the statement the
@@ -466,7 +523,7 @@ export function analyzeGraphPermissions(
   const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter(
     (m) =>
       methodOf(m[1] ?? "") !== "GET" &&
-      !isForwardedReadOrCounted(body, m[1] ?? ""),
+      !isCountedForwarder(body, m.index ?? 0, m[1] ?? ""),
   );
   // A write the docs list no scopes for could need any of them.
   const undocumentedWrite = [...allCalls, ...possibleCalls].some(
