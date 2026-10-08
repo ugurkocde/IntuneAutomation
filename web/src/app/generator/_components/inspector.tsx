@@ -489,6 +489,12 @@ function MinimumPermissionsSection({
           );
         })}
       </ul>
+      {!permissions.writesResolved && (
+        <p className="text-muted-foreground border-border/40 border-t px-3.5 py-2 text-[11px] leading-relaxed">
+          Some write calls could not be mapped to an endpoint, so this list may
+          be incomplete. Check scopes for those calls on Microsoft Learn.
+        </p>
+      )}
     </div>
   );
 }

@@ -267,7 +267,10 @@ function extractUsages(code: string): Usage[] {
       );
       useRe.lastIndex = literalIdx;
       for (let u = useRe.exec(code); u; u = useRe.exec(code)) {
-        sites.push({ index: u.index, possible: u.index >= scopeEnd });
+        // Point at the variable so methodAt sees `Uri = ` before it and
+        // checks an enclosing splat for the method.
+        const index = u.index + u[0].lastIndexOf("$");
+        sites.push({ index, possible: u.index >= scopeEnd });
       }
     }
     if (!sites.some((s) => !s.possible)) {
@@ -381,9 +384,14 @@ export function analyzeGraphPermissions(
   const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter(
     (m) => methodOf(m[1] ?? "") !== "GET",
   );
+  // A write the docs list no scopes for could need any of them.
+  const undocumentedWrite = [...allCalls, ...possibleCalls].some(
+    (c) => !isReadLike(c) && c.accepted.length === 0,
+  );
   const writesResolved =
     writeTokens.every((m) => attributedTokens.has(m.index ?? -1)) &&
-    !hasSdkWrite(body);
+    !hasSdkWrite(body) &&
+    !undocumentedWrite;
 
   const declared = new Set(declaredList);
   const excess: ExcessScope[] = [];

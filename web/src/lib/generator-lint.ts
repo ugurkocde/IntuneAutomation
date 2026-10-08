@@ -283,7 +283,11 @@ export function lintScript(code: string): LintResult {
         detail: `Add \`${suggestion}\` to .PERMISSIONS and to the Connect-MgGraph -Scopes list. Microsoft documents these scopes for this call: ${c.accepted.join(", ")}.`,
       });
     }
-    if (permissions.excess.length === 0 && permissions.missing.length === 0) {
+    if (
+      permissions.writesResolved &&
+      permissions.excess.length === 0 &&
+      permissions.missing.length === 0
+    ) {
       findings.push({
         id: "permissions-least-privilege",
         severity: "pass",

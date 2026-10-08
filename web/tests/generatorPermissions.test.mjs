@@ -278,3 +278,34 @@ function Send-Report {
     ["GET /deviceManagement/deviceConfigurations"],
   );
 });
+
+test("a splat pointing at a $uri variable takes the splat's method", () => {
+  const code = script({
+    permissions: "DeviceManagementConfiguration.ReadWrite.All",
+    body: `$uri = "${BETA}/deviceManagement/deviceConfigurations/$id"
+$p = @{
+    Method = 'PATCH'
+    Uri    = $uri
+}
+Invoke-MgGraphRequest @p`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, true);
+  assert.deepEqual(
+    analysis.required.flatMap((r) => r.calls),
+    ["PATCH /deviceManagement/deviceConfigurations/{deviceConfigurationId}"],
+  );
+  assert.deepEqual(analysis.excess, []);
+});
+
+test("a write with no documented scopes suppresses excess and the pass", () => {
+  const code = script({
+    permissions: "DeviceManagementConfiguration.ReadWrite.All",
+    body: `$c = Get-MgGraphAllPage -Uri "${BETA}/deviceManagement/deviceConfigurations"
+Invoke-MgGraphRequest -Method POST -Uri "${BETA}/deviceManagement/virtualEndpoint/externalPartners/$pid/deployAgent"`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, false);
+  assert.deepEqual(analysis.excess, []);
+  assert.ok(!ids(lintScript(code)).includes("permissions-least-privilege"));
+});
