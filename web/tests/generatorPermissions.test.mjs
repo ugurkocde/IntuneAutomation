@@ -357,3 +357,100 @@ $c = Invoke-MgGraphRequest -Uri "${BETA}/deviceManagement/deviceConfigurations"`
     "PATCH /deviceManagement/deviceConfigurations/{deviceConfigurationId}",
   ]);
 });
+
+test("a helper that forwards its -Method parameter does not count as a write", () => {
+  const helper = (extra) => `function Invoke-GraphRequest {
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [ValidateSet('GET', 'POST', 'PATCH')][string]$Method = 'GET'
+    )
+    Invoke-MgGraphRequest -Uri $Uri -Method $Method -ErrorAction Stop
+}
+$apps = Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps"
+${extra}`;
+  const readOnly = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(""),
+    }),
+  );
+  assert.equal(readOnly.writesResolved, true);
+  assert.equal(
+    readOnly.excess[0]?.replacement,
+    "DeviceManagementApps.Read.All",
+  );
+
+  const named = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(
+        `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Method PATCH`,
+      ),
+    }),
+  );
+  assert.deepEqual(named.excess, []);
+
+  const positional = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: helper(
+        `Invoke-GraphRequest "${BETA}/deviceAppManagement/mobileApps/$id" 'PATCH'`,
+      ),
+    }),
+  );
+  assert.equal(positional.writesResolved, false);
+  assert.deepEqual(positional.excess, []);
+
+  for (const call of [
+    `Invoke-GraphRequest "${BETA}/deviceAppManagement/mobileApps/$id" PATCH`,
+    `Invoke-GraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Meth PATCH`,
+  ]) {
+    const bare = analyzeGraphPermissions(
+      script({
+        permissions: "DeviceManagementApps.ReadWrite.All",
+        body: helper(call),
+      }),
+    );
+    assert.equal(bare.writesResolved, false, call);
+  }
+});
+
+test("a script-level -Method parameter forwarded to Graph stays a possible write", () => {
+  const code = script({
+    permissions: "DeviceManagementApps.ReadWrite.All",
+    body: `$apps = Get-MgGraphAllPage -Uri "${BETA}/deviceAppManagement/mobileApps"
+Invoke-MgGraphRequest -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Method $Method`,
+  }).replace(
+    "[CmdletBinding()]\nparam()",
+    "[CmdletBinding()]\nparam([string]$Method = 'GET')",
+  );
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, false);
+  assert.deepEqual(analysis.excess, []);
+});
+
+test("a forwarded parameter with another name must only ever carry GET", () => {
+  const body = (call) => `function Send-Graph {
+    param([string]$Uri, [string]$Verb = 'GET')
+    Invoke-MgGraphRequest -Uri $Uri -Method $Verb
+}
+$apps = Send-Graph -Uri "${BETA}/deviceAppManagement/mobileApps"
+${call}`;
+  const ok = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: body(""),
+    }),
+  );
+  assert.equal(ok.writesResolved, true);
+  const write = analyzeGraphPermissions(
+    script({
+      permissions: "DeviceManagementApps.ReadWrite.All",
+      body: body(
+        `Send-Graph -Uri "${BETA}/deviceAppManagement/mobileApps/$id" -Verb PATCH`,
+      ),
+    }),
+  );
+  assert.equal(write.writesResolved, false);
+  assert.deepEqual(write.excess, []);
+});

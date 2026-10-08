@@ -179,9 +179,13 @@ type Usage = {
   possible?: boolean;
 };
 
-// Index of the `}` closing the `{` at `open`. Braces inside quoted strings
-// (such as `${id}` in a URI) are skipped. Returns -1 when unbalanced.
-function matchingBrace(code: string, open: number): number {
+// Index of the bracket closing the one at `open`. Brackets inside quoted
+// strings (such as `${id}` in a URI) are skipped. Returns -1 when unbalanced.
+function matchingBrace(
+  code: string,
+  open: number,
+  [opener, closer] = ["{", "}"],
+): number {
   let depth = 0;
   let quote: string | null = null;
   for (let i = open; i < code.length; i++) {
@@ -190,13 +194,62 @@ function matchingBrace(code: string, open: number): number {
       if (ch === quote) quote = null;
     } else if (ch === '"' || ch === "'") {
       quote = ch;
-    } else if (ch === "{") {
+    } else if (ch === opener) {
       depth++;
-    } else if (ch === "}" && --depth === 0) {
+    } else if (ch === closer && --depth === 0) {
       return i;
     }
   }
   return -1;
+}
+
+// True when `$name` is a parameter of a function defined in the script.
+// Script-level parameters do not count: a user can set them at run time.
+function isFunctionParameter(code: string, name: string): boolean {
+  const re = new RegExp(`\\$${name}\\b`, "i");
+  for (const m of code.matchAll(/\bparam\s*\(/gi)) {
+    const before = code.slice(0, m.index ?? 0);
+    if (
+      !/\bfunction\s+[\w-]+\s*\{\s*(?:\[CmdletBinding\([^)]*\)\]\s*)?$/i.test(
+        before,
+      )
+    ) {
+      continue;
+    }
+    const open = (m.index ?? 0) + m[0].length - 1;
+    const close = matchingBrace(code, open, ["(", ")"]);
+    if (close !== -1 && re.test(code.slice(open, close))) return true;
+  }
+  return false;
+}
+
+// `-Method $Method` inside a helper such as Invoke-GraphRequest only forwards
+// its parameter. When the parameter is named Method, callers pass
+// `-Method X` and a default reads `$Method = 'X'`; both are method tokens in
+// their own right, so the forwarding token adds nothing. Under any other
+// name it is harmless only when every value passed or defaulted is GET.
+function isForwardedReadOrCounted(code: string, value: string): boolean {
+  const name = value.match(/^\$(\w+)$/)?.[1];
+  if (!name || !isFunctionParameter(code, name)) return false;
+  // A write verb outside a method token or ValidateSet may be passed
+  // positionally (`Invoke-GraphRequest $uri 'PATCH'`); stay cautious.
+  const loose = code
+    .replace(/\[ValidateSet\([^)]*\)\]/gi, "")
+    .replace(new RegExp(METHOD_TOKEN_RE.source, "gi"), "");
+  if (/["'](?:POST|PUT|PATCH|DELETE)["']/i.test(loose)) return false;
+  // Bare verbs bind in command mode too (`Invoke-GraphRequest $u PATCH`).
+  const outsideStrings = loose.replace(/"[^"\n]*"|'[^'\n]*'/g, "");
+  if (/(?<![\w$.-])(?:POST|PUT|PATCH|DELETE)(?![\w-])/i.test(outsideStrings)) {
+    return false;
+  }
+  if (name.toLowerCase() === "method") return true;
+  const values = [
+    ...code.matchAll(
+      new RegExp(`-${name}(?:\\s*:\\s*|\\s+)([^\\s;,)}]+)`, "gi"),
+    ),
+    ...code.matchAll(new RegExp(`\\$${name}\\s*=(?!=)\\s*([^\\s;,)}]+)`, "gi")),
+  ].map((m) => methodOf(m[1] ?? ""));
+  return values.every((v) => v === "GET");
 }
 
 // Finds the HTTP method for a Graph URI at `idx`. Looks at the statement the
@@ -411,7 +464,9 @@ export function analyzeGraphPermissions(
   // Every method spec that is not a literal GET must belong to a resolved
   // call; otherwise some write is unaccounted for and excess stays silent.
   const writeTokens = [...body.matchAll(METHOD_TOKEN_RE)].filter(
-    (m) => methodOf(m[1] ?? "") !== "GET",
+    (m) =>
+      methodOf(m[1] ?? "") !== "GET" &&
+      !isForwardedReadOrCounted(body, m[1] ?? ""),
   );
   // A write the docs list no scopes for could need any of them.
   const undocumentedWrite = [...allCalls, ...possibleCalls].some(
