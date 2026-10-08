@@ -309,3 +309,33 @@ Invoke-MgGraphRequest -Method POST -Uri "${BETA}/deviceManagement/virtualEndpoin
   assert.deepEqual(analysis.excess, []);
   assert.ok(!ids(lintScript(code)).includes("permissions-least-privilege"));
 });
+
+test("a splat whose URI contains ${...} still finds the method", () => {
+  const code = script({
+    permissions: "DeviceManagementConfiguration.ReadWrite.All",
+    body: `$p = @{
+    Uri    = "${BETA}/deviceManagement/deviceConfigurations/\${id}"
+    Method = 'PATCH'
+}
+Invoke-MgGraphRequest @p`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.equal(analysis.writesResolved, true);
+  assert.deepEqual(
+    analysis.required.flatMap((r) => r.calls),
+    ["PATCH /deviceManagement/deviceConfigurations/{deviceConfigurationId}"],
+  );
+});
+
+test("an unused declared Intune scope rules out the least-privilege pass", () => {
+  const code = script({
+    permissions:
+      "DeviceManagementConfiguration.Read.All, DeviceManagementManagedDevices.ReadWrite.All",
+    body: `$c = Get-MgGraphAllPage -Uri "${BETA}/deviceManagement/deviceConfigurations"`,
+  });
+  const analysis = analyzeGraphPermissions(code);
+  assert.deepEqual(analysis.unused, [
+    "DeviceManagementManagedDevices.ReadWrite.All",
+  ]);
+  assert.ok(!ids(lintScript(code)).includes("permissions-least-privilege"));
+});

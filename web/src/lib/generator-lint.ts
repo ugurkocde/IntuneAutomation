@@ -285,6 +285,7 @@ export function lintScript(code: string): LintResult {
     }
     if (
       permissions.writesResolved &&
+      permissions.unused.length === 0 &&
       permissions.excess.length === 0 &&
       permissions.missing.length === 0
     ) {

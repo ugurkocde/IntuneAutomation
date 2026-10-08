@@ -44,6 +44,9 @@ export type PermissionAnalysis = {
   // False when the script has write calls we could not attribute to an
   // endpoint (or uses Mg SDK write cmdlets); excess is not reported then.
   writesResolved: boolean;
+  // Declared Intune scopes that no resolved call needs. Not a warning (the
+  // scope may serve a call we could not resolve), but it rules out a pass.
+  unused: string[];
 };
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -205,7 +208,11 @@ function methodAt(
   const before = code.slice(lineStart, idx);
   if (/\bUri['"]?\s*=\s*$/i.test(before)) {
     const open = code.lastIndexOf("@{", idx);
-    const close = code.indexOf("}", idx);
+    // The splat closes on its own line; a `}` inside `${...}` in the URI
+    // must not end the search early.
+    const closeRe = /^\s*\}/gm;
+    closeRe.lastIndex = idx;
+    const close = closeRe.exec(code)?.index ?? -1;
     if (open !== -1 && close !== -1) {
       const inSplat = scan(open, close);
       if (inSplat) return inSplat;
@@ -422,5 +429,10 @@ export function analyzeGraphPermissions(
     excess,
     missing,
     writesResolved,
+    unused: declaredList.filter(
+      (d) =>
+        /^(?:DeviceManagement|CloudPC)/.test(d) &&
+        ![...calls, ...possibleCalls].some((c) => covers(d, c)),
+    ),
   };
 }

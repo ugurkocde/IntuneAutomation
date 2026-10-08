@@ -435,7 +435,9 @@ function MinimumPermissionsSection({
 }: {
   permissions: PermissionAnalysis;
 }) {
-  if (permissions.required.length === 0) return null;
+  if (permissions.required.length === 0 && permissions.writesResolved) {
+    return null;
+  }
   const excess = new Set(permissions.excess.map((e) => e.replacement));
   const missingCalls = new Set(
     permissions.missing.map((c) => `${c.method} ${c.template}`),
