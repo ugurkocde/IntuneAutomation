@@ -1,13 +1,18 @@
 // Lightweight quality + safety linter for AI-generated PowerShell scripts.
 // Pure function — runs client-side after streaming completes. No server roundtrip.
 
-import { GRAPH_SCOPES } from "./generator-graph-data";
-import { checkGraphEndpoints } from "./generator-graph-endpoints";
-import { checkForMaliciousScript } from "./generator-abuse";
+import { GRAPH_SCOPES } from "./generator-graph-data.ts";
+import { checkGraphEndpoints } from "./generator-graph-endpoints.ts";
+import {
+  analyzeGraphPermissions,
+  type PermissionAnalysis,
+} from "./generator-graph-permissions.ts";
+import { checkForMaliciousScript } from "./generator-abuse.ts";
 //
 // Categories of checks:
 //   - Metadata completeness (the .TITLE/.SYNOPSIS/... block)
-//   - Microsoft Graph permission validity (whitelist of real scopes)
+//   - Microsoft Graph permission validity (whitelist of real scopes) and
+//     least privilege (declared scopes vs. the Intune calls the script makes)
 //   - Security patterns (Invoke-Expression, hardcoded credentials, etc.)
 //   - Cmdlet pitfalls observed in real Claude outputs (Secure Boot, etc.)
 //   - Safety on destructive Graph operations (SupportsShouldProcess)
@@ -31,6 +36,9 @@ export type LintResult = {
   // If true, the output didn't look like a valid PowerShell script at all.
   // The UI should suppress the code panel and show a rejection message.
   hardReject: { reason: string } | null;
+  // Least-privilege breakdown, or null when the script makes no Intune
+  // Graph calls we could resolve.
+  permissions: PermissionAnalysis | null;
 };
 
 // Structural pre-check. Returns a hard-reject reason if the text doesn't look
@@ -124,6 +132,7 @@ export function lintScript(code: string): LintResult {
       warnCount: 0,
       failCount: 1,
       hardReject,
+      permissions: null,
     };
   }
 
@@ -239,6 +248,54 @@ export function lintScript(code: string): LintResult {
             "Verify the spelling on the Microsoft Graph permissions reference. May be valid but uncommon, or hallucinated.",
         });
       }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 4b. Least privilege: compare declared scopes with the Intune calls the
+  //     script makes. Warnings carry the exact replacement in `detail` so
+  //     the fix pass can apply it.
+  // ------------------------------------------------------------------
+  const permissions = analyzeGraphPermissions(code);
+  if (permissions) {
+    for (const e of permissions.excess) {
+      const keepsRead = permissions.declared.includes(e.replacement);
+      findings.push({
+        id: `permissions-excess-${e.scope}`,
+        severity: "warn",
+        category: "permissions",
+        message: `\`${e.scope}\` is broader than needed: the script only reads data it covers.`,
+        detail: keepsRead
+          ? `Remove \`${e.scope}\` from .PERMISSIONS and from the Connect-MgGraph -Scopes list; \`${e.replacement}\` is already declared and covers these calls.`
+          : `Replace \`${e.scope}\` with \`${e.replacement}\` in .PERMISSIONS and in the Connect-MgGraph -Scopes list. Do not change any Graph calls.`,
+      });
+    }
+    for (const c of permissions.missing) {
+      const suggestion =
+        permissions.required.find((r) =>
+          r.calls.includes(`${c.method} ${c.template}`),
+        )?.scope ?? c.accepted[0];
+      findings.push({
+        id: `permissions-missing-${c.method}-${c.template}`,
+        severity: "warn",
+        category: "permissions",
+        message: `No declared scope covers ${c.method} ${c.template}.`,
+        detail: `Add \`${suggestion}\` to .PERMISSIONS and to the Connect-MgGraph -Scopes list. Microsoft documents these scopes for this call: ${c.accepted.join(", ")}.`,
+      });
+    }
+    if (
+      permissions.writesResolved &&
+      permissions.unused.length === 0 &&
+      permissions.excess.length === 0 &&
+      permissions.missing.length === 0
+    ) {
+      findings.push({
+        id: "permissions-least-privilege",
+        severity: "pass",
+        category: "permissions",
+        message:
+          "Declared scopes are the least privileged for the Intune calls made.",
+      });
     }
   }
 
@@ -530,5 +587,12 @@ export function lintScript(code: string): LintResult {
   const warnCount = findings.filter((f) => f.severity === "warn").length;
   const failCount = findings.filter((f) => f.severity === "fail").length;
 
-  return { findings, passCount, warnCount, failCount, hardReject: null };
+  return {
+    findings,
+    passCount,
+    warnCount,
+    failCount,
+    hardReject: null,
+    permissions,
+  };
 }

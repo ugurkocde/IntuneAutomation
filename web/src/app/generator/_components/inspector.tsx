@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   HelpCircle,
+  KeyRound,
   Loader2,
   Wand2,
   X,
@@ -13,6 +14,7 @@ import {
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import type { LintFinding, LintResult } from "~/lib/generator-lint";
+import type { PermissionAnalysis } from "~/lib/generator-graph-permissions";
 
 export type EndpointCheckRow = {
   method: string;
@@ -51,7 +53,7 @@ const categoryTooltip: Record<LintFinding["category"], string> = {
   metadata:
     "The comment-based help block: all 12 required fields present, AI-generated author tag, .LASTUPDATE is today.",
   permissions:
-    "Every scope in .PERMISSIONS exists in the official Microsoft Graph permission list (~700 scopes).",
+    "Every scope in .PERMISSIONS exists in the official Microsoft Graph permission list (~700 scopes), and no Intune scope is broader than the calls the script makes.",
   security:
     "Code-injection and credential-leak risks: no Invoke-Expression, no hardcoded passwords/keys, no ExecutionPolicy Bypass, no non-Microsoft external URLs.",
   correctness:
@@ -79,6 +81,14 @@ const EARLY_COMMIT_PASS_IDS = new Set([
   "destructive-with-shouldprocess",
 ]);
 
+function isLeastPrivilegeFinding(f: LintFinding): boolean {
+  return (
+    f.id.startsWith("permissions-excess-") ||
+    f.id.startsWith("permissions-missing-") ||
+    f.id === "permissions-least-privilege"
+  );
+}
+
 function categoryState(
   category: LintFinding["category"],
   isStreaming: boolean,
@@ -93,7 +103,10 @@ function categoryState(
       f.category === category &&
       // The Graph endpoint findings are surfaced in their own section, not in
       // Correctness — exclude them here so the row doesn't double-report.
-      !f.id.startsWith("graph-endpoint"),
+      !f.id.startsWith("graph-endpoint") &&
+      // Least-privilege findings depend on every call in the script; a write
+      // later in the stream can clear them, so hold them until it ends.
+      !(isStreaming && isLeastPrivilegeFinding(f)),
   );
   const fails = inCategory.filter((f) => f.severity === "fail");
   const warns = inCategory.filter((f) => f.severity === "warn");
@@ -181,6 +194,10 @@ export function Inspector({
           />
         ))}
       </ul>
+
+      {!isStreaming && !isAutoFixing && lintResult?.permissions && (
+        <MinimumPermissionsSection permissions={lintResult.permissions} />
+      )}
 
       {/* Graph endpoint section — live during streaming, summary after */}
       <GraphEndpointSection
@@ -386,7 +403,7 @@ function GraphEndpointSection({
       </div>
 
       {endpointChecks.length > 0 && (
-        <ul className="border-border/40 max-h-[200px] divide-y divide-border/40 overflow-y-auto border-t">
+        <ul className="border-border/40 divide-border/40 max-h-[200px] divide-y overflow-y-auto border-t">
           {endpointChecks.map((c) => (
             <li
               key={`${c.method} ${c.path}`}
@@ -408,6 +425,77 @@ function GraphEndpointSection({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+function MinimumPermissionsSection({
+  permissions,
+}: {
+  permissions: PermissionAnalysis;
+}) {
+  if (permissions.required.length === 0 && permissions.writesResolved) {
+    return null;
+  }
+  const excess = new Set(permissions.excess.map((e) => e.replacement));
+  const missingCalls = new Set(
+    permissions.missing.map((c) => `${c.method} ${c.template}`),
+  );
+
+  return (
+    <div className="border-border/40 border-t">
+      <div
+        className="flex items-center gap-2 px-3.5 py-2 text-[12.5px]"
+        title="The least-privileged Microsoft Graph scopes that cover every Intune call in the script, based on the permissions Microsoft documents for each endpoint. Calls outside /deviceManagement and /deviceAppManagement are not mapped."
+      >
+        <KeyRound
+          className="text-muted-foreground h-3.5 w-3.5"
+          aria-hidden="true"
+        />
+        <span className="text-foreground flex-1">Minimum permissions</span>
+        <span className="text-muted-foreground text-[11px] tabular-nums">
+          {permissions.required.length}
+        </span>
+      </div>
+      <ul className="border-border/40 divide-border/40 divide-y border-t">
+        {permissions.required.map((r) => {
+          // Scopes not declared verbatim are fine when a broader declared
+          // scope covers their calls; only flag narrower options and gaps.
+          const status = excess.has(r.scope)
+            ? "narrower"
+            : r.calls.some((c) => missingCalls.has(c))
+              ? "missing"
+              : "ok";
+          return (
+            <li key={r.scope} className="px-3.5 py-2 text-[11.5px]">
+              <div className="flex items-start gap-2">
+                <span className="text-foreground min-w-0 flex-1 font-mono leading-snug break-words">
+                  {r.scope}
+                </span>
+                {status !== "ok" && (
+                  <span
+                    className={cn(
+                      "flex-shrink-0 rounded-sm border px-1.5 py-0.5 text-[10.5px] font-medium",
+                      "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                    )}
+                  >
+                    {status === "narrower" ? "use instead" : "not declared"}
+                  </span>
+                )}
+              </div>
+              <div className="text-muted-foreground mt-0.5 font-mono text-[10.5px] leading-snug break-words">
+                {r.calls.join(", ")}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {!permissions.writesResolved && (
+        <p className="text-muted-foreground border-border/40 border-t px-3.5 py-2 text-[11px] leading-relaxed">
+          Some write calls could not be mapped to an endpoint, so this list may
+          be incomplete. Check scopes for those calls on Microsoft Learn.
+        </p>
       )}
     </div>
   );
