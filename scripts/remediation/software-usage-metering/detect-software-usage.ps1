@@ -48,7 +48,8 @@
 
 .NOTES
     - Runs in SYSTEM context via Intune Remediations. Detection only: deploy without a remediation script, in 64-bit PowerShell, on an hourly schedule
-    - Edit $Programs before uploading. Use executable file names such as 'visio.exe'; matching ignores case and folder
+    - Edit $Programs before uploading. Use executable file names such as 'visio.exe'; matching ignores case and folder. The script lists common licensed products above $Programs
+    - To meter different programs for different groups, upload one copy per list and assign the copies to groups that do not overlap. Copies on the same device share one checkpoint and would reset each other
     - Enable Audit Process Creation (Success) through a policy, for example the Auditing category of the settings catalog. The script never changes audit policy
     - Exit 0 = metering works. Exit 1 = Audit Process Creation is off. Exit 2 = invalid $Programs or a failed run. Intune lists exits 1 and 2 under "With issues", so that view shows the devices that do not meter
     - Counts program starts. It does not measure how long a program was in use and does not check installations
@@ -59,7 +60,15 @@
 
 $ErrorActionPreference = "Stop"
 
-# Executable names of the programs to meter.
+# Executable names of the programs to meter. Common licensed products:
+#   Microsoft  Visio 'visio.exe', Project 'winproj.exe', Access 'msaccess.exe',
+#              Power BI Desktop 'pbidesktop.exe', Visual Studio 'devenv.exe'
+#   Adobe      Acrobat 'acrobat.exe', Photoshop 'photoshop.exe', Illustrator 'illustrator.exe',
+#              InDesign 'indesign.exe', After Effects 'afterfx.exe', Premiere Pro 'adobe premiere pro.exe'
+#   Autodesk   AutoCAD 'acad.exe', Revit 'revit.exe', Inventor 'inventor.exe', 3ds Max '3dsmax.exe'
+#   Others     SOLIDWORKS 'sldworks.exe', MATLAB 'matlab.exe', Tableau Desktop 'tableau.exe',
+#              SketchUp 'sketchup.exe', ArcGIS Pro 'arcgispro.exe'
+# For any other program, start it and look up its file name in Task Manager > Details.
 $Programs = @(
     'winword.exe'
     'excel.exe'
