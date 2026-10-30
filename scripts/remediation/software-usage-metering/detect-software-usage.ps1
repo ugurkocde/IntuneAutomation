@@ -33,9 +33,10 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Recover checkpoint folders that shut SYSTEM out; never read a foreign checkpoint that could not be deleted yet; show watch starts to the minute so they never appear later than a start
     1.0 - Initial release
 
 .LASTUPDATE
@@ -53,7 +54,7 @@
     - Enable Audit Process Creation (Success) through a policy, for example the Auditing category of the settings catalog. The script never changes audit policy
     - Exit 0 = metering works. Exit 1 = Audit Process Creation is off. Exit 2 = invalid $Programs or a failed run. Intune lists exits 1 and 2 under "With issues", so that view shows the devices that do not meter
     - Counts program starts. It does not measure how long a program was in use and does not check installations
-    - Collects no user names, command lines or paths and contacts no network endpoint. Its only file is a checkpoint in %ProgramData%\IntuneAutomation\SoftwareMetering
+    - Collects no user names, command lines or paths and contacts no network endpoint. Its only file is a checkpoint in %ProgramData%\IntuneAutomation\SoftwareMetering. While it resets a checkpoint from a folder someone else created, it also keeps the registry key HKLM\SOFTWARE\IntuneAutomationMeteringReset
     - Intune keeps 2048 characters of output. Meter about 25 programs or fewer per script; longer results end with "+N more"
     - A busy device can overwrite the Security log between runs. The output then says which starts may be missing; a larger Security log prevents this
 #>
@@ -93,7 +94,7 @@ function ConvertFrom-UtcText($Value) {
 }
 function Get-DayKey([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyyMMdd', $Invariant) }
 function Format-UtcDisplay([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', $Invariant) + ' UTC' }
-# Rounded up, so "since" and "before" never include part of a minute that was not covered.
+# Rounded up, so a gap boundary never cuts off part of the gap.
 function Format-UtcDisplayCeiling([DateTime]$Value) {
     $ticks = $Value.ToUniversalTime().Ticks
     $rest = $ticks % [TimeSpan]::TicksPerMinute
@@ -166,15 +167,26 @@ public static class IntuneAutomationAuditPolicy {
     }
     $root = Join-Path $env:ProgramData 'IntuneAutomation'
     $folder = Join-Path $root 'SoftwareMetering'
-    $foreignOwner = $false
+    $resetKey = 'HKLM:\SOFTWARE\IntuneAutomationMeteringReset'
     foreach ($path in @($root, $folder)) {
         Assert-NoReparsePoint $path
         [void][IO.Directory]::CreateDirectory($path)
         # A standard user may have created the folder first. As its owner they
         # could grant themselves access again, so take ownership and do not
         # trust a checkpoint that was already inside.
-        $owner = (Get-Acl -LiteralPath $path).GetOwner([Security.Principal.SecurityIdentifier]).Value
-        if ($owner -notin @('S-1-5-18', 'S-1-5-32-544')) { $foreignOwner = $true }
+        # A folder that shuts SYSTEM out cannot be read; it is foreign too.
+        try { $owner = (Get-Acl -LiteralPath $path -ErrorAction Stop).GetOwner([Security.Principal.SecurityIdentifier]).Value } catch { $owner = $null }
+        if ($owner -notin @('S-1-5-18', 'S-1-5-32-544')) {
+            # Record the reset where standard users cannot write, before the
+            # folder is touched, so neither a failed run nor anything planted
+            # in the folder can skip it.
+            if (-not (Test-Path -LiteralPath $resetKey)) { [void](New-Item -Path $resetKey -Force) }
+            if ($null -eq $owner) {
+                # Taking ownership restores the right to replace its permissions.
+                & takeown.exe /F $path /A | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw 'Cannot take ownership of the checkpoint folder.' }
+            }
+        }
         $acl = New-Object Security.AccessControl.DirectorySecurity
         $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
         $acl.SetAccessRuleProtection($true, $false)
@@ -187,7 +199,12 @@ public static class IntuneAutomationAuditPolicy {
     }
     $stateFile = Join-Path $folder 'state.json'
     Assert-NoReparsePoint $stateFile
-    if ($foreignOwner -and (Test-Path -LiteralPath $stateFile)) { Remove-Item -LiteralPath $stateFile -Force }
+    # A checkpoint from a foreign-owned folder is never read, even when an open
+    # handle keeps this run from deleting it: the reset stays pending until then.
+    if (Test-Path -LiteralPath $resetKey) {
+        if (Test-Path -LiteralPath $stateFile) { Remove-Item -LiteralPath $stateFile -Force }
+        Remove-Item -LiteralPath $resetKey -Force
+    }
     $status = 'ok'
     $previous = $null
     if (Test-Path -LiteralPath $stateFile) {
@@ -353,10 +370,10 @@ $idle = @(foreach ($exe in ($apps.Keys | Sort-Object)) {
     $entry = $apps[$exe]
     if ($entry.last) { continue }
     # Programs added to the list later say since when they are watched.
-    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplayCeiling $entry.first))" } else { $exe }
+    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplay $entry.first))" } else { $exe }
 })
 
-$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplayCeiling $started)."
+$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplay $started)."
 if ($coverage -gt $started) { $header += " Some starts before $(Format-UtcDisplayCeiling $coverage) may be missing (Security log gap)." }
 
 # Never cut text mid-entry: leave out the oldest entries and say how many.
