@@ -2,7 +2,7 @@
   "repository": "ugurkocde/intuneautomation",
   "branch": "main",
   "generated": "2026-10-29T02:12:00Z",
-  "count": 69,
+  "count": 70,
   "categories": [
     "apps",
     "compliance",
@@ -1624,6 +1624,45 @@
       "path": "scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
       "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/reboot-pending/detect-reboot-pending.ps1",
       "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/reboot-pending/detect-reboot-pending.ps1"
+    },
+    {
+      "id": "detect-software-usage",
+      "title": "Software Usage Metering Detection Script",
+      "synopsis": "Reports when selected Windows programs were last started and on how many days, without user names.",
+      "description": "Meters software usage on Windows devices for license reviews. The script reads\nprocess start events (Security event 4688) for a list of programs, keeps a small\nlocal checkpoint, and reports per program the last start and how many starts\nhappened on how many days of the last 30. Programs that were not started since\nmetering began are listed separately, which points to licenses nobody uses.\nThe result is plain text in the detection output column of the Intune\nRemediations report. Requires Audit Process Creation (Success) on the device.",
+      "category": "remediation",
+      "categoryLabel": "remediation",
+      "tags": [
+        "Remediation",
+        "Detection"
+      ],
+      "permissions": [
+        "DeviceManagementManagedDevices.ReadWrite.All"
+      ],
+      "minRole": "Intune Service Administrator",
+      "platform": "Windows",
+      "author": "Ugur Koc",
+      "version": "1.0",
+      "lastUpdate": "2026-10-30",
+      "schedule": "",
+      "execution": "",
+      "runbook": {
+        "eligible": false,
+        "runtime": "",
+        "exclusionReason": "Intune remediation endpoint script"
+      },
+      "azureDeploy": null,
+      "output": "",
+      "remediationType": "Detection",
+      "pairScript": "",
+      "parameters": [],
+      "examples": [
+        ".\\detect-software-usage.ps1\nReports usage of the programs in $Programs, for example:\nOK. Watching 6 programs since 2026-10-01 14:00 UTC. Used (2): winword.exe last 2026-10-30 08:12 UTC, 37 starts on 12 of 30 days; excel.exe last 2026-10-28 15:40 UTC, 5 starts on 3 of 30 days. Not started (4): powerpnt.exe, visio.exe, winproj.exe, acrobat.exe."
+      ],
+      "notes": "- Detection only: deploy without a remediation script, as SYSTEM, in 64-bit PowerShell, on an hourly schedule\n- Edit $Programs before uploading. Use executable file names such as 'visio.exe'; matching ignores case and folder\n- Enable Audit Process Creation (Success) through a policy, for example the Auditing category of the settings catalog. The script never changes audit policy\n- Exit 0 = metering works. Exit 1 = audit policy off, invalid $Programs, or a failed run, so \"With issues\" lists the devices that do not meter\n- Counts program starts. It does not measure how long a program was in use and does not check installations\n- Collects no user names, command lines or paths and contacts no network endpoint. Its only file is a checkpoint in %ProgramData%\\IntuneAutomation\\SoftwareMetering\n- Intune keeps 2048 characters of output. Meter about 25 programs or fewer per script; longer results end with \"+N more\"\n- A busy device can overwrite the Security log between runs. The output then says which starts may be missing; a larger Security log prevents this",
+      "path": "scripts/remediation/software-usage-metering/detect-software-usage.ps1",
+      "rawUrl": "https://raw.githubusercontent.com/ugurkocde/intuneautomation/main/scripts/remediation/software-usage-metering/detect-software-usage.ps1",
+      "githubUrl": "https://github.com/ugurkocde/intuneautomation/blob/main/scripts/remediation/software-usage-metering/detect-software-usage.ps1"
     },
     {
       "id": "detect-winget-updates-available",
