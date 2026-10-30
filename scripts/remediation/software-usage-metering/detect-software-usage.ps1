@@ -88,6 +88,7 @@ function ConvertFrom-UtcText($Value) {
 }
 function Get-DayKey([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyyMMdd', $Invariant) }
 function Format-UtcDisplay([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', $Invariant) + ' UTC' }
+function Format-Count([int]$Number, [string]$Noun) { if ($Number -eq 1) { "1 $Noun" } else { "$Number ${Noun}s" } }
 
 function Assert-NoReparsePoint([string]$Path) {
     if ((Test-Path -LiteralPath $Path) -and ((Get-Item -LiteralPath $Path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -325,7 +326,7 @@ $rows = @(foreach ($exe in $apps.Keys) {
     $window = [Math]::Min($WindowDays, ($today - $entry.first.Date).Days + 1)
     $starts = 0
     foreach ($count in $entry.days.Values) { $starts += $count }
-    $usage = if ($entry.days.Count) { "$starts starts on $($entry.days.Count) of $window days" } else { "no starts in the last $window days" }
+    $usage = if ($entry.days.Count) { "$(Format-Count $starts 'start') on $($entry.days.Count) of $(Format-Count $window 'day')" } else { "no starts in the last $(Format-Count $window 'day')" }
     [pscustomobject]@{ Last = $entry.last; Text = "$exe last $(Format-UtcDisplay $entry.last), $usage" }
 })
 # Most recent first, so a long result leaves out the oldest starts.
@@ -334,11 +335,11 @@ $idle = @(foreach ($exe in ($apps.Keys | Sort-Object)) {
     $entry = $apps[$exe]
     if ($entry.last) { continue }
     # Programs added to the list later say since when they are watched.
-    if ($entry.first -gt $started.AddMinutes(5)) { "$exe (watched since $(Format-UtcDisplay $entry.first))" } else { $exe }
+    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplay $entry.first))" } else { $exe }
 })
 
 $header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplay $started)."
-if ($coverage -gt $started.AddMinutes(5)) { $header += " Some starts before $(Format-UtcDisplay $coverage) may be missing (Security log gap)." }
+if ($coverage -gt $started) { $header += " Some starts before $(Format-UtcDisplay $coverage) may be missing (Security log gap)." }
 
 # Never cut text mid-entry: leave out the oldest entries and say how many.
 $usedShown = $used.Count
