@@ -84,6 +84,13 @@ function ConvertFrom-UtcText($Value) {
 }
 function Get-DayKey([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyyMMdd', $Invariant) }
 function Format-UtcDisplay([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', $Invariant) + ' UTC' }
+# Rounded up, so "since" and "before" never include part of a minute that was not covered.
+function Format-UtcDisplayCeiling([DateTime]$Value) {
+    $ticks = $Value.ToUniversalTime().Ticks
+    $rest = $ticks % [TimeSpan]::TicksPerMinute
+    if ($rest) { $ticks += [TimeSpan]::TicksPerMinute - $rest }
+    Format-UtcDisplay (New-Object DateTime($ticks, [DateTimeKind]::Utc))
+}
 function Format-Count([int]$Number, [string]$Noun) { if ($Number -eq 1) { "1 $Noun" } else { "$Number ${Noun}s" } }
 
 function Assert-NoReparsePoint([string]$Path) {
@@ -150,10 +157,17 @@ public static class IntuneAutomationAuditPolicy {
     }
     $root = Join-Path $env:ProgramData 'IntuneAutomation'
     $folder = Join-Path $root 'SoftwareMetering'
+    $foreignOwner = $false
     foreach ($path in @($root, $folder)) {
         Assert-NoReparsePoint $path
         [void][IO.Directory]::CreateDirectory($path)
+        # A standard user may have created the folder first. As its owner they
+        # could grant themselves access again, so take ownership and do not
+        # trust a checkpoint that was already inside.
+        $owner = (Get-Acl -LiteralPath $path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+        if ($owner -notin @('S-1-5-18', 'S-1-5-32-544')) { $foreignOwner = $true }
         $acl = New-Object Security.AccessControl.DirectorySecurity
+        $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
         $acl.SetAccessRuleProtection($true, $false)
         foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
             $account = New-Object Security.Principal.SecurityIdentifier($sid)
@@ -164,6 +178,7 @@ public static class IntuneAutomationAuditPolicy {
     }
     $stateFile = Join-Path $folder 'state.json'
     Assert-NoReparsePoint $stateFile
+    if ($foreignOwner -and (Test-Path -LiteralPath $stateFile)) { Remove-Item -LiteralPath $stateFile -Force }
     $status = 'ok'
     $previous = $null
     if (Test-Path -LiteralPath $stateFile) {
@@ -205,9 +220,11 @@ public static class IntuneAutomationAuditPolicy {
         # during initialization could be skipped while their bookmark advances.
         $now = [DateTime]::UtcNow
         if (-not $previous) { $started = $now; $coverage = $now }
-        # Programs added to the list are watched from now on.
+        # Programs added to the list are watched from now on. Everything this
+        # run scans happened before that, so it does not count for them.
+        $added = @{}
         foreach ($exe in $watch.Keys) {
-            if (-not $apps.ContainsKey($exe)) { $apps[$exe] = @{ first = $now; last = $null; days = @{} } }
+            if (-not $apps.ContainsKey($exe)) { $apps[$exe] = @{ first = $now; last = $null; days = @{} }; $added[$exe] = $true }
         }
         $upper = [long]$newest.RecordId
         $lower = $upper # The first run starts metering now, it never backdates.
@@ -255,7 +272,7 @@ public static class IntuneAutomationAuditPolicy {
                         }
                         if ($logEntry.Id -eq 4688) {
                             $exe = [IO.Path]::GetFileName($fields['NewProcessName']).ToLowerInvariant()
-                            if ($watch.ContainsKey($exe)) {
+                            if ($watch.ContainsKey($exe) -and -not $added.ContainsKey($exe)) {
                                 $startTime = $logEntry.TimeCreated.ToUniversalTime()
                                 if ($startTime -le $now) {
                                     $entry = $apps[$exe]
@@ -327,11 +344,11 @@ $idle = @(foreach ($exe in ($apps.Keys | Sort-Object)) {
     $entry = $apps[$exe]
     if ($entry.last) { continue }
     # Programs added to the list later say since when they are watched.
-    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplay $entry.first))" } else { $exe }
+    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplayCeiling $entry.first))" } else { $exe }
 })
 
-$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplay $started)."
-if ($coverage -gt $started) { $header += " Some starts before $(Format-UtcDisplay $coverage) may be missing (Security log gap)." }
+$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplayCeiling $started)."
+if ($coverage -gt $started) { $header += " Some starts before $(Format-UtcDisplayCeiling $coverage) may be missing (Security log gap)." }
 
 # Never cut text mid-entry: leave out the oldest entries and say how many.
 $usedShown = $used.Count
