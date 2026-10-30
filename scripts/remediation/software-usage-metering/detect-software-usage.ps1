@@ -1,4 +1,3 @@
-#Requires -Version 5.1
 <#
 .TITLE
     Software Usage Metering Detection Script
@@ -44,21 +43,21 @@
 
 .EXAMPLE
     .\detect-software-usage.ps1
-    Reports usage of the programs in $Programs, for example:
+    Reports usage of the programs in $Programs. Returns exit 1 if Audit Process Creation is off. Example output:
     OK. Watching 6 programs since 2026-10-01 14:00 UTC. Used (2): winword.exe last 2026-10-30 08:12 UTC, 37 starts on 12 of 30 days; excel.exe last 2026-10-28 15:40 UTC, 5 starts on 3 of 30 days. Not started (4): powerpnt.exe, visio.exe, winproj.exe, acrobat.exe.
 
 .NOTES
-    - Detection only: deploy without a remediation script, as SYSTEM, in 64-bit PowerShell, on an hourly schedule
+    - Runs in SYSTEM context via Intune Remediations. Detection only: deploy without a remediation script, in 64-bit PowerShell, on an hourly schedule
     - Edit $Programs before uploading. Use executable file names such as 'visio.exe'; matching ignores case and folder
     - Enable Audit Process Creation (Success) through a policy, for example the Auditing category of the settings catalog. The script never changes audit policy
-    - Exit 0 = metering works. Exit 1 = audit policy off, invalid $Programs, or a failed run, so "With issues" lists the devices that do not meter
+    - Exit 0 = metering works. Exit 1 = Audit Process Creation is off. Exit 2 = invalid $Programs or a failed run. Intune lists exits 1 and 2 under "With issues", so that view shows the devices that do not meter
     - Counts program starts. It does not measure how long a program was in use and does not check installations
     - Collects no user names, command lines or paths and contacts no network endpoint. Its only file is a checkpoint in %ProgramData%\IntuneAutomation\SoftwareMetering
     - Intune keeps 2048 characters of output. Meter about 25 programs or fewer per script; longer results end with "+N more"
     - A busy device can overwrite the Security log between runs. The output then says which starts may be missing; a larger Security log prevents this
 #>
 
-# ===== CONFIGURATION =====
+$ErrorActionPreference = "Stop"
 
 # Executable names of the programs to meter.
 $Programs = @(
@@ -73,9 +72,6 @@ $Programs = @(
 # Days of history per program, reported as "N starts on X of 30 days".
 $WindowDays = 30
 
-# ===== SETUP =====
-
-$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $MaxOutput = 2048
 $Invariant = [Globalization.CultureInfo]::InvariantCulture
@@ -104,7 +100,7 @@ foreach ($program in $Programs) {
 }
 if ($invalid.Count -or -not $watch.Count) {
     Write-Output "Configuration error: `$Programs must list executable file names such as 'visio.exe'. Invalid: $($invalid -join ', ')"
-    exit 1
+    exit 2
 }
 
 $now = [DateTime]::UtcNow
@@ -116,8 +112,6 @@ $coverage = $now
 $status = 'error'
 $mutex = $null
 $held = $false
-
-# ===== COLLECTION =====
 
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -308,15 +302,13 @@ public static class IntuneAutomationAuditPolicy {
     if ($null -ne $mutex) { $mutex.Dispose() }
 }
 
-# ===== REPORT =====
-
 if ($status -eq 'audit_off') {
     Write-Output 'Not metering: Audit Process Creation (Success) is off on this device. Enable it through policy; metering starts on the next run.'
     exit 1
 }
 if ($status -ne 'ok') {
     Write-Output 'Not metering: this run failed. The next scheduled run tries again.'
-    exit 1
+    exit 2
 }
 
 $today = $now.Date
