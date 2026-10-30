@@ -33,9 +33,10 @@
     Ugur Koc
 
 .VERSION
-    1.0
+    1.1
 
 .CHANGELOG
+    1.1 - Recover checkpoint folders that shut SYSTEM out; never read a foreign checkpoint that could not be deleted yet; show watch starts to the minute so they never appear later than a start
     1.0 - Initial release
 
 .LASTUPDATE
@@ -93,7 +94,7 @@ function ConvertFrom-UtcText($Value) {
 }
 function Get-DayKey([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyyMMdd', $Invariant) }
 function Format-UtcDisplay([DateTime]$Value) { $Value.ToUniversalTime().ToString('yyyy-MM-dd HH:mm', $Invariant) + ' UTC' }
-# Rounded up, so "since" and "before" never include part of a minute that was not covered.
+# Rounded up, so a gap boundary never cuts off part of the gap.
 function Format-UtcDisplayCeiling([DateTime]$Value) {
     $ticks = $Value.ToUniversalTime().Ticks
     $rest = $ticks % [TimeSpan]::TicksPerMinute
@@ -173,7 +174,14 @@ public static class IntuneAutomationAuditPolicy {
         # A standard user may have created the folder first. As its owner they
         # could grant themselves access again, so take ownership and do not
         # trust a checkpoint that was already inside.
-        $owner = (Get-Acl -LiteralPath $path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+        try { $owner = (Get-Acl -LiteralPath $path -ErrorAction Stop).GetOwner([Security.Principal.SecurityIdentifier]).Value }
+        catch {
+            # The folder shuts SYSTEM out. Taking ownership restores the right
+            # to replace its permissions below.
+            & takeown.exe /F $path /A | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot take ownership of the checkpoint folder.' }
+            $owner = $null
+        }
         if ($owner -notin @('S-1-5-18', 'S-1-5-32-544')) { $foreignOwner = $true }
         $acl = New-Object Security.AccessControl.DirectorySecurity
         $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))
@@ -187,7 +195,15 @@ public static class IntuneAutomationAuditPolicy {
     }
     $stateFile = Join-Path $folder 'state.json'
     Assert-NoReparsePoint $stateFile
-    if ($foreignOwner -and (Test-Path -LiteralPath $stateFile)) { Remove-Item -LiteralPath $stateFile -Force }
+    # A checkpoint from a foreign-owned folder is never read, even when an open
+    # handle keeps this run from deleting it: the marker stays until it is gone.
+    # CreateNew never writes through a file or link planted under that name.
+    $reset = Join-Path $folder 'reset'
+    if ($foreignOwner -and -not (Test-Path -LiteralPath $reset)) { [IO.File]::Open($reset, [IO.FileMode]::CreateNew).Dispose() }
+    if (Test-Path -LiteralPath $reset) {
+        if (Test-Path -LiteralPath $stateFile) { Remove-Item -LiteralPath $stateFile -Force }
+        Remove-Item -LiteralPath $reset -Force
+    }
     $status = 'ok'
     $previous = $null
     if (Test-Path -LiteralPath $stateFile) {
@@ -353,10 +369,10 @@ $idle = @(foreach ($exe in ($apps.Keys | Sort-Object)) {
     $entry = $apps[$exe]
     if ($entry.last) { continue }
     # Programs added to the list later say since when they are watched.
-    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplayCeiling $entry.first))" } else { $exe }
+    if ($entry.first -gt $started) { "$exe (watched since $(Format-UtcDisplay $entry.first))" } else { $exe }
 })
 
-$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplayCeiling $started)."
+$header = "OK. Watching $($watch.Count) programs since $(Format-UtcDisplay $started)."
 if ($coverage -gt $started) { $header += " Some starts before $(Format-UtcDisplayCeiling $coverage) may be missing (Security log gap)." }
 
 # Never cut text mid-entry: leave out the oldest entries and say how many.
