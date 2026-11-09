@@ -2,12 +2,12 @@
 // DO NOT EDIT BY HAND. Run `node scripts/sync-msgraph-data.mjs` to refresh.
 // Source: https://graph.pm (https://github.com/merill/msgraph)
 //
-// Generated: 2026-11-02T06:14:14.365Z
+// Generated: 2026-11-09T06:14:10.023Z
 // Scopes: 752
 // Samples: 16
 // Endpoints: 6697
 
-export const GRAPH_DATA_GENERATED_AT = "2026-11-02T06:14:14.365Z";
+export const GRAPH_DATA_GENERATED_AT = "2026-11-09T06:14:10.023Z";
 
 // Every Microsoft Graph permission scope appearing in any endpoint's
 // delegatedWork / delegatedPersonal / application permissions list.
