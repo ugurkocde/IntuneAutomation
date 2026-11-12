@@ -42,6 +42,8 @@ import {
   isKnownGraphEndpoint,
 } from "~/lib/generator-graph-endpoints";
 import { Inspector } from "./_components/inspector";
+import { TenuVaultCard } from "~/components/tenuvault-card";
+import { TOPIC_MESSAGES, writesConfiguration } from "~/lib/tenuvault";
 
 type Redaction = {
   kind: string;
@@ -454,6 +456,26 @@ export default function GeneratorClient({
       limit: prev?.limit ?? 20,
     }));
   }, []);
+
+  // True once a finished script has stayed finished for a moment. The checks
+  // already have a result while the script still streams, and an automatic
+  // fix starts just after the stream ends, so anything shown on "not
+  // streaming" alone would flash in between.
+  const [scriptSettled, setScriptSettled] = useState(false);
+  const scriptDone =
+    !isStreaming &&
+    !isAutoFixing &&
+    !error &&
+    lintResult !== null &&
+    !lintResult.hardReject;
+  useEffect(() => {
+    if (!scriptDone) {
+      setScriptSettled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setScriptSettled(true), 400);
+    return () => window.clearTimeout(timer);
+  }, [scriptDone]);
 
   const isDev = process.env.NODE_ENV === "development";
 
@@ -1192,6 +1214,18 @@ export default function GeneratorClient({
                     lintResult={lintResult}
                     onFix={onFixIssues}
                   />
+                  {scriptSettled && scriptDone && (
+                    <TenuVaultCard
+                      placement="generator"
+                      compact
+                      className="mt-3"
+                      message={
+                        writesConfiguration(lintResult?.permissions)
+                          ? TOPIC_MESSAGES.config_write
+                          : undefined
+                      }
+                    />
+                  )}
                 </aside>
               </div>
 

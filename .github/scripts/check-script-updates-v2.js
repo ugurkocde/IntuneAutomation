@@ -9,6 +9,11 @@ const os = require('os');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// The author's own app, shown as one labelled line above the footer. Tagged so
+// tenuvault.com can tell these visits from the website's.
+const TENUVAULT_URL =
+  'https://www.tenuvault.com/?utm_source=intuneautomation.com&amp;utm_medium=newsletter&amp;utm_campaign=script_updates_email&amp;utm_content=newsletter_v1';
+
 // Generate unsubscribe URL
 function generateUnsubscribeUrl(email) {
   // For now, using the website URL with email parameter
@@ -553,6 +558,9 @@ async function sendNotifications(updates, newScripts) {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="text-align: center;">
+                        <p style="color: #605e5c; font-size: 13px; line-height: 1.5; margin: 0 0 24px 0;">
+                          From the author of these scripts: <a href="${TENUVAULT_URL}" style="color: #005a9e; text-decoration: underline;">TenuVault</a> backs up your Intune configuration and restores deleted policies. Free for one tenant.
+                        </p>
                         <div style="border-top: 1px solid #e1dfdd; padding-top: 24px;">
                           <p style="color: #a19f9d; font-size: 12px; margin: 0 0 8px 0;">
                             You're receiving this because you subscribed to Intune Automation updates.
