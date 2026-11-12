@@ -1214,7 +1214,7 @@ export default function GeneratorClient({
                     lintResult={lintResult}
                     onFix={onFixIssues}
                   />
-                  {scriptSettled && (
+                  {scriptSettled && scriptDone && (
                     <TenuVaultCard
                       placement="generator"
                       compact

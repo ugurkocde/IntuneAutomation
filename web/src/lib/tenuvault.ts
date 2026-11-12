@@ -173,8 +173,16 @@ const BERLIN_DATE = new Intl.DateTimeFormat("en-CA", {
 // is shown on every weekday over two weeks and their clicks can be compared.
 // Nothing is stored in the visitor's browser for this.
 export function generalMessageFor(now: Date): TenuVaultMessage {
-  const [year, month, day] = BERLIN_DATE.format(now).split("-").map(Number);
-  const dayNumber = Math.round(Date.UTC(year!, month! - 1, day!) / 86_400_000);
-  const id = GENERAL_MESSAGE_IDS[dayNumber % GENERAL_MESSAGE_IDS.length]!;
-  return GENERAL_MESSAGES[id];
+  // Read the parts by name: the layout of a formatted date string is locale
+  // data, not something to rely on.
+  const part = (type: "year" | "month" | "day") =>
+    Number(BERLIN_DATE.formatToParts(now).find((p) => p.type === type)?.value);
+  const dayNumber = Math.round(
+    Date.UTC(part("year"), part("month") - 1, part("day")) / 86_400_000,
+  );
+  // An unusable date still yields a message.
+  const index = Number.isFinite(dayNumber)
+    ? dayNumber % GENERAL_MESSAGE_IDS.length
+    : 0;
+  return GENERAL_MESSAGES[GENERAL_MESSAGE_IDS[index]!];
 }

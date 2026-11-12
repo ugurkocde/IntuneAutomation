@@ -199,6 +199,20 @@ test("over two weeks each message is shown on every weekday", () => {
   assert.equal(seen.free.size, 7);
 });
 
+test("the turns continue across daylight saving changes", () => {
+  const at = (iso) => generalMessageFor(new Date(iso)).id;
+  // Clocks change in Berlin on 29 March and 25 October 2026.
+  for (const [before, after] of [
+    ["2026-03-28T12:00:00Z", "2026-03-29T12:00:00Z"],
+    ["2026-03-29T12:00:00Z", "2026-03-30T12:00:00Z"],
+    ["2026-10-24T12:00:00Z", "2026-10-25T12:00:00Z"],
+    ["2026-10-25T12:00:00Z", "2026-10-26T12:00:00Z"],
+  ]) {
+    assert.notEqual(at(before), at(after), `${before} and ${after}`);
+  }
+  assert.ok(["restore", "free"].includes(at("2026-10-25T00:30:00Z")));
+});
+
 test("every message has a versioned tag", () => {
   for (const message of [
     ...Object.values(GENERAL_MESSAGES),
