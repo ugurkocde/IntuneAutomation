@@ -213,6 +213,17 @@ test("the turns continue across daylight saving changes", () => {
   assert.ok(["restore", "free"].includes(at("2026-10-25T00:30:00Z")));
 });
 
+test("dates before 1970 and unusable dates still yield a message", () => {
+  const ids = ["restore", "free"];
+  assert.ok(
+    ids.includes(generalMessageFor(new Date("1969-12-31T12:00:00Z")).id),
+  );
+  assert.ok(
+    ids.includes(generalMessageFor(new Date("1950-06-15T12:00:00Z")).id),
+  );
+  assert.ok(ids.includes(generalMessageFor(new Date("not a date")).id));
+});
+
 test("every message has a versioned tag", () => {
   for (const message of [
     ...Object.values(GENERAL_MESSAGES),

@@ -162,27 +162,32 @@ export function tenuvaultMessageUrl(
 // The companion card on the home page is a plain listing, not a message.
 export const TENUVAULT_COMPANION_URL = tagged("/", "listing", "companion");
 
-const BERLIN_DATE = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Berlin",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
 // The general messages take turns by calendar day (Berlin time), so each one
 // is shown on every weekday over two weeks and their clicks can be compared.
 // Nothing is stored in the visitor's browser for this.
 export function generalMessageFor(now: Date): TenuVaultMessage {
-  // Read the parts by name: the layout of a formatted date string is locale
-  // data, not something to rely on.
-  const part = (type: "year" | "month" | "day") =>
-    Number(BERLIN_DATE.formatToParts(now).find((p) => p.type === type)?.value);
-  const dayNumber = Math.round(
-    Date.UTC(part("year"), part("month") - 1, part("day")) / 86_400_000,
-  );
-  // An unusable date still yields a message.
-  const index = Number.isFinite(dayNumber)
-    ? dayNumber % GENERAL_MESSAGE_IDS.length
-    : 0;
-  return GENERAL_MESSAGES[GENERAL_MESSAGE_IDS[index]!];
+  return GENERAL_MESSAGES[GENERAL_MESSAGE_IDS[dayIndex(now)]!];
+}
+
+function dayIndex(now: Date): number {
+  const count = GENERAL_MESSAGE_IDS.length;
+  let dayNumber: number;
+  try {
+    // Read the parts by name: the layout of a formatted date string is locale
+    // data, not something to rely on.
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(now);
+    const part = (type: "year" | "month" | "day") =>
+      Number(parts.find((p) => p.type === type)?.value);
+    dayNumber = Date.UTC(part("year"), part("month") - 1, part("day"));
+  } catch {
+    // A browser without time zone data falls back to the UTC day.
+    dayNumber = now.getTime();
+  }
+  const day = Math.floor(dayNumber / 86_400_000);
+  return Number.isFinite(day) ? ((day % count) + count) % count : 0;
 }
