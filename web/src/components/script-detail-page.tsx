@@ -37,6 +37,8 @@ import { ScriptsProvider } from "~/components/scripts-provider";
 import SearchDialog from "~/components/search-dialog";
 import { AnalyticsService } from "~/lib/supabase-analytics";
 import { RelatedScripts } from "~/components/related-scripts";
+import { TenuVaultCard } from "~/components/tenuvault-card";
+import { scriptTopicMessage } from "~/lib/tenuvault";
 import { ScriptUsageTrends } from "~/components/script-usage-trends";
 import { QualityChecks } from "~/components/quality-checks";
 
@@ -131,6 +133,7 @@ export function ScriptDetailPage({
   const remediationCodeRef = useRef<HTMLPreElement>(null);
   const hasTrackedView = useRef(false);
   const primaryTag = script.tags[0];
+  const topicMessage = scriptTopicMessage(script.slug);
   const fileExtension = script.githubPath?.endsWith(".sh") ? "sh" : "ps1";
   const githubUrl =
     script.githubUrl ||
@@ -1148,6 +1151,15 @@ export function ScriptDetailPage({
               </section>
             )}
 
+            {/* ───────────── TenuVault, where the script shares its topic ───────────── */}
+            {topicMessage && (
+              <TenuVaultCard
+                placement="script_page"
+                message={topicMessage}
+                className="mt-12"
+              />
+            )}
+
             {/* ───────────── Usage trends ───────────── */}
             <ScriptUsageTrends scriptId={script.id}>
               {(chart) => (
@@ -1169,6 +1181,11 @@ export function ScriptDetailPage({
                 </section>
               )}
             </ScriptUsageTrends>
+
+            {/* ───────────── TenuVault, general message ───────────── */}
+            {!topicMessage && (
+              <TenuVaultCard placement="script_page" className="mt-12" />
+            )}
 
             {/* ───────────── Related scripts ───────────── */}
             {allScripts && allScripts.length > 1 && (

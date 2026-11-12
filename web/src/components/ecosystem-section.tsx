@@ -2,11 +2,13 @@
 // Asymmetric 3-card grid: IntuneBrew flagship (2/3) + IntuneGet + TenuVault.
 // Each card carries a custom inline monogram and a platform-specific chrome
 // (macOS terminal / Windows titlebar / snapshot timeline). Plausible analytics preserved.
+// The TenuVault link is tagged, so tenuvault.com can tell these visits apart.
 
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
+import { TENUVAULT_COMPANION_URL } from "~/lib/tenuvault";
 
 /* -------------------------------------------------------------------------- */
 /*  Data                                                                       */
@@ -45,8 +47,8 @@ const PROJECTS: Record<"brew" | "get" | "vault", CompanionProject> = {
     name: "TenuVault",
     platform: "BACKUP · RESTORE",
     description:
-      "Tenant-level backup and restore for Microsoft Intune. Snapshot policies, profiles, and apps — roll back when something breaks.",
-    link: "https://TenuVault.com",
+      "Desktop app that backs up and restores Microsoft Intune configuration, with drift detection. Free for one tenant.",
+    link: TENUVAULT_COMPANION_URL,
     ariaSummary: "Backup and restore for Microsoft Intune tenants",
   },
 };
@@ -132,8 +134,8 @@ export default function EcosystemSection() {
             </h2>
           </div>
           <p className="text-muted-foreground max-w-sm text-sm leading-relaxed sm:text-right">
-            Three open-source tools that pair with IntuneAutomation — packaging,
-            deployment, and tenant backup.
+            Three tools that pair with IntuneAutomation: packaging, deployment
+            and tenant backup.
           </p>
         </div>
 
@@ -213,7 +215,9 @@ function BentoCard({
     <a
       href={project.link}
       target="_blank"
-      rel="noopener noreferrer"
+      // These are the author's own sites, so they may see where a visitor
+      // came from.
+      rel="noopener"
       onClick={() => trackProjectClick(project)}
       aria-label={`${project.name} — ${project.ariaSummary} (opens in new tab)`}
       className={[

@@ -42,6 +42,8 @@ import {
   isKnownGraphEndpoint,
 } from "~/lib/generator-graph-endpoints";
 import { Inspector } from "./_components/inspector";
+import { TenuVaultCard } from "~/components/tenuvault-card";
+import { TOPIC_MESSAGES, writesConfiguration } from "~/lib/tenuvault";
 
 type Redaction = {
   kind: string;
@@ -1192,6 +1194,25 @@ export default function GeneratorClient({
                     lintResult={lintResult}
                     onFix={onFixIssues}
                   />
+                  {!isStreaming &&
+                    !isAutoFixing &&
+                    lintResult &&
+                    !lintResult.hardReject && (
+                      <TenuVaultCard
+                        placement="generator"
+                        compact
+                        className="mt-3"
+                        message={
+                          writesConfiguration(
+                            lintResult.permissions?.required.map(
+                              (r) => r.scope,
+                            ) ?? [],
+                          )
+                            ? TOPIC_MESSAGES.config_write
+                            : undefined
+                        }
+                      />
+                    )}
                 </aside>
               </div>
 
