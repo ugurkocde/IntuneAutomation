@@ -18,17 +18,20 @@ export type TenuVaultMessageId =
 
 export interface TenuVaultMessage {
   id: TenuVaultMessageId;
+  // Sent as utm_content and with the click event. The number goes up when
+  // the wording changes, so results for old and new wording stay apart.
+  tag: string;
   headline: string;
   body: string;
   action: string;
   path: string;
 }
 
-// Shown where the page has no topic of its own. A visitor gets one of the two
-// and keeps it.
+// Shown where the page has no topic of its own. The two take turns by day.
 export const GENERAL_MESSAGES = {
   restore: {
     id: "restore",
+    tag: "restore_v1",
     headline: "Deleted an Intune policy? Intune has no recycle bin.",
     body: "TenuVault backs up your Intune configuration and restores a deleted policy from the backup. Free for one tenant.",
     action: "See how restore works",
@@ -36,7 +39,8 @@ export const GENERAL_MESSAGES = {
   },
   free: {
     id: "free",
-    headline: "Back up your Intune tenant in minutes.",
+    tag: "free_v1",
+    headline: "Back up your Intune configuration in minutes.",
     body: "TenuVault is a desktop app for Windows and macOS. Free for one tenant, with no card and no TenuVault account.",
     action: "Download free",
     path: "/download",
@@ -47,7 +51,6 @@ export type GeneralMessageId = keyof typeof GENERAL_MESSAGES;
 export const GENERAL_MESSAGE_IDS = Object.keys(
   GENERAL_MESSAGES,
 ) as GeneralMessageId[];
-export const GENERAL_MESSAGE_KEY = "intuneautomation-tenuvault-message";
 
 // Shown where the page itself is about backup, restore or drift. Each one
 // says what the free script does and what the app adds, so a reader can tell
@@ -55,54 +58,84 @@ export const GENERAL_MESSAGE_KEY = "intuneautomation-tenuvault-message";
 export const TOPIC_MESSAGES = {
   backup_script: {
     id: "backup_script",
+    tag: "backup_script_v1",
     headline: "When this script is enough, and when an app helps",
-    body: "This script exports five configuration areas to JSON files that you run and store yourself. That covers a snapshot before a change, or change tracking in source control. TenuVault backs up 40 Intune object types on a schedule, keeps the backups encrypted and shows their history. It is free for one tenant.",
+    body: "This script exports five configuration areas, with their assignments, to JSON files. You run it and keep the files yourself, which covers a snapshot before a change or change tracking in source control. TenuVault backs up over 40 Intune object types on a schedule, encrypted on your device, and keeps a history you can compare and restore from. It is free for one tenant.",
     action: "See what TenuVault backs up",
     path: "/intune-backup",
   },
   restore_script: {
     id: "restore_script",
+    tag: "restore_script_v1",
     headline: "When this script is enough, and when an app helps",
-    body: "This script recreates objects from a backup folder as new entries, and restores assignments when the group IDs still exist. TenuVault restores from its own backups after you review a restore plan. The free plan restores one item at a time as an unassigned copy. The paid plans replace existing policies in place and restore assignments.",
+    body: "This script recreates objects from a backup folder as new entries. Assignments are left out unless you turn them on, and they need the same group IDs in the target tenant. TenuVault shows what a restore will change before it runs. The free plan restores one item at a time as an unassigned copy. The paid plans replace existing policies in place and restore assignments.",
     action: "See how TenuVault restores",
     path: "/intune-restore",
   },
   drift_script: {
     id: "drift_script",
+    tag: "drift_script_v1",
     headline: "When this script is enough, and when an app helps",
-    body: "This script compares three policy types with a baseline folder and reports what was added, removed or changed. TenuVault compares its backups and shows the drift setting by setting, on the free plan too. Reverting a drifted policy needs a paid plan.",
+    body: "This script compares three policy types with a baseline folder and reports what was added, removed or changed. TenuVault compares any two backups setting by setting across all backed-up types, on the free plan too. Reverting a drifted policy needs a paid plan.",
     action: "See drift detection in TenuVault",
     path: "/intune-drift-detection",
   },
   config_write: {
     id: "config_write",
-    headline: "This script changes Intune configuration.",
+    tag: "config_write_v1",
+    headline: "This script can change Intune configuration.",
     body: "Take a backup before you run it. TenuVault backs up your Intune configuration and restores a policy from the backup. Free for one tenant.",
     action: "Back up with TenuVault",
     path: "/intune-backup",
   },
 } as const satisfies Record<string, TenuVaultMessage>;
 
-// Script pages whose topic TenuVault covers, by script slug.
+// Script pages whose topic TenuVault covers, by the script's path in the
+// repository. A path is unique, while a slug comes from the title and would
+// move to another script that got the same title.
 const SCRIPT_TOPICS: Record<string, keyof typeof TOPIC_MESSAGES> = {
-  "backup-intune-configuration": "backup_script",
-  "restore-intune-configuration": "restore_script",
-  "get-policy-drift-report": "drift_script",
+  "scripts/configuration/backup-intune-configuration.ps1": "backup_script",
+  "scripts/configuration/restore-intune-configuration.ps1": "restore_script",
+  "scripts/configuration/get-policy-drift-report.ps1": "drift_script",
 };
 
-export function scriptTopicMessage(slug: string): TenuVaultMessage | undefined {
-  const topic = SCRIPT_TOPICS[slug];
-  return topic ? TOPIC_MESSAGES[topic] : undefined;
+export function scriptTopicMessage(
+  githubPath: string | undefined,
+): TenuVaultMessage | undefined {
+  if (!githubPath || !Object.hasOwn(SCRIPT_TOPICS, githubPath)) {
+    return undefined;
+  }
+  return TOPIC_MESSAGES[SCRIPT_TOPICS[githubPath]!];
 }
 
-// A generated script that needs a configuration write scope can change or
-// delete policies, which a configuration backup can bring back. Scripts that
-// only change devices or apps get the general message: a configuration backup
-// does not undo those.
-export function writesConfiguration(scopes: readonly string[]): boolean {
-  return scopes.some((scope) =>
-    /^DeviceManagementConfiguration\.ReadWrite\b/i.test(scope),
-  );
+// What the generator's permission check knows about a script.
+export interface ScriptPermissions {
+  // Minimum scopes for the calls the check could resolve.
+  required: ReadonlyArray<{ scope: string }>;
+  // Scopes the script itself declares.
+  declared: readonly string[];
+  // False when the script writes in a way the check could not resolve, for
+  // example through Mg SDK cmdlets.
+  writesResolved: boolean;
+}
+
+// Write scopes for things a TenuVault backup can bring back: policies and
+// profiles, platform and compliance scripts, and Intune roles.
+const RESTORABLE_WRITE =
+  /^DeviceManagement(?:Configuration|Scripts|RBAC)\.ReadWrite\b/i;
+
+// A generated script that changes policies, scripts or roles gets a reminder
+// to back up first. Scripts that change devices, apps or the enrollment
+// service (Autopilot devices among them) get the general message: a backup
+// does not undo all of those, so the reminder would promise too much. When
+// the check could not resolve a write, the scopes the script declares decide.
+export function writesConfiguration(
+  permissions: ScriptPermissions | null | undefined,
+): boolean {
+  if (!permissions) return false;
+  const scopes = permissions.required.map((r) => r.scope);
+  if (!permissions.writesResolved) scopes.push(...permissions.declared);
+  return scopes.some((scope) => RESTORABLE_WRITE.test(scope));
 }
 
 function tagged(
@@ -123,39 +156,25 @@ export function tenuvaultMessageUrl(
   message: TenuVaultMessage,
   placement: TenuVaultPlacement,
 ): string {
-  return tagged(message.path, "house_ad", placement, message.id);
+  return tagged(message.path, "house_ad", placement, message.tag);
 }
 
 // The companion card on the home page is a plain listing, not a message.
 export const TENUVAULT_COMPANION_URL = tagged("/", "listing", "companion");
 
-type MessageStorage = Pick<Storage, "getItem" | "setItem">;
+const BERLIN_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Berlin",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
-// Each visitor gets one general message at random and keeps it, so a click or
-// a download can be credited to one message. Without usable storage the
-// message is picked again on every page load.
-export function pickGeneralMessage(
-  storage: MessageStorage | undefined,
-  random: () => number = Math.random,
-): TenuVaultMessage {
-  try {
-    const saved = storage?.getItem(GENERAL_MESSAGE_KEY);
-    const known = GENERAL_MESSAGE_IDS.find((id) => id === saved);
-    if (known) {
-      return GENERAL_MESSAGES[known];
-    }
-  } catch {
-    // Fall through to a fresh pick.
-  }
-  const index = Math.min(
-    GENERAL_MESSAGE_IDS.length - 1,
-    Math.floor(random() * GENERAL_MESSAGE_IDS.length),
-  );
-  const picked = GENERAL_MESSAGES[GENERAL_MESSAGE_IDS[index]!];
-  try {
-    storage?.setItem(GENERAL_MESSAGE_KEY, picked.id);
-  } catch {
-    // The pick still holds for this page view.
-  }
-  return picked;
+// The general messages take turns by calendar day (Berlin time), so each one
+// is shown on every weekday over two weeks and their clicks can be compared.
+// Nothing is stored in the visitor's browser for this.
+export function generalMessageFor(now: Date): TenuVaultMessage {
+  const [year, month, day] = BERLIN_DATE.format(now).split("-").map(Number);
+  const dayNumber = Math.round(Date.UTC(year!, month! - 1, day!) / 86_400_000);
+  const id = GENERAL_MESSAGE_IDS[dayNumber % GENERAL_MESSAGE_IDS.length]!;
+  return GENERAL_MESSAGES[id];
 }

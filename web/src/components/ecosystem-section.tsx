@@ -135,7 +135,7 @@ export default function EcosystemSection() {
           </div>
           <p className="text-muted-foreground max-w-sm text-sm leading-relaxed sm:text-right">
             Three tools that pair with IntuneAutomation: packaging, deployment
-            and tenant backup.
+            and configuration backup.
           </p>
         </div>
 
@@ -493,8 +493,8 @@ function WindowsChrome() {
 }
 
 function VaultChrome() {
-  // Snapshot timeline — vertical list of tenant backup entries with timestamps
-  // and sizes, reading as a real backup history. The latest snapshot is
+  // Snapshot timeline: a vertical list of weekly backups with the number of
+  // items in each, reading as a real backup history. The latest snapshot is
   // accented; older ones decay in opacity.
   const snapshots: Array<{
     when: string;
@@ -503,13 +503,13 @@ function VaultChrome() {
     live?: boolean;
   }> = [
     {
-      when: "TODAY 02:00",
-      label: "policies + apps",
-      size: "184 MB",
+      when: "TODAY 09:00",
+      label: "weekly backup",
+      size: "286 ITEMS",
       live: true,
     },
-    { when: "YESTERDAY", label: "config profiles", size: "127 MB" },
-    { when: "5 DAYS AGO", label: "full tenant", size: "412 MB" },
+    { when: "7 DAYS AGO", label: "weekly backup", size: "284 ITEMS" },
+    { when: "14 DAYS AGO", label: "weekly backup", size: "279 ITEMS" },
   ];
 
   return (

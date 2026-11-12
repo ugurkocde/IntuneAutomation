@@ -457,6 +457,26 @@ export default function GeneratorClient({
     }));
   }, []);
 
+  // True once a finished script has stayed finished for a moment. The checks
+  // already have a result while the script still streams, and an automatic
+  // fix starts just after the stream ends, so anything shown on "not
+  // streaming" alone would flash in between.
+  const [scriptSettled, setScriptSettled] = useState(false);
+  const scriptDone =
+    !isStreaming &&
+    !isAutoFixing &&
+    !error &&
+    lintResult !== null &&
+    !lintResult.hardReject;
+  useEffect(() => {
+    if (!scriptDone) {
+      setScriptSettled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setScriptSettled(true), 400);
+    return () => window.clearTimeout(timer);
+  }, [scriptDone]);
+
   const isDev = process.env.NODE_ENV === "development";
 
   const canGenerate =
@@ -1194,25 +1214,18 @@ export default function GeneratorClient({
                     lintResult={lintResult}
                     onFix={onFixIssues}
                   />
-                  {!isStreaming &&
-                    !isAutoFixing &&
-                    lintResult &&
-                    !lintResult.hardReject && (
-                      <TenuVaultCard
-                        placement="generator"
-                        compact
-                        className="mt-3"
-                        message={
-                          writesConfiguration(
-                            lintResult.permissions?.required.map(
-                              (r) => r.scope,
-                            ) ?? [],
-                          )
-                            ? TOPIC_MESSAGES.config_write
-                            : undefined
-                        }
-                      />
-                    )}
+                  {scriptSettled && (
+                    <TenuVaultCard
+                      placement="generator"
+                      compact
+                      className="mt-3"
+                      message={
+                        writesConfiguration(lintResult?.permissions)
+                          ? TOPIC_MESSAGES.config_write
+                          : undefined
+                      }
+                    />
+                  )}
                 </aside>
               </div>
 

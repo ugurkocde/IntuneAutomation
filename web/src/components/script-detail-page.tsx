@@ -133,7 +133,7 @@ export function ScriptDetailPage({
   const remediationCodeRef = useRef<HTMLPreElement>(null);
   const hasTrackedView = useRef(false);
   const primaryTag = script.tags[0];
-  const topicMessage = scriptTopicMessage(script.slug);
+  const topicMessage = scriptTopicMessage(script.githubPath);
   const fileExtension = script.githubPath?.endsWith(".sh") ? "sh" : "ps1";
   const githubUrl =
     script.githubUrl ||
