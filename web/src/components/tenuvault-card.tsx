@@ -76,7 +76,7 @@ export function TenuVaultCard({
         // TenuVault · From the author of these scripts
       </p>
       <div
-        className={`${fade} ${message ? "" : compact ? "min-h-[9.5rem]" : "min-h-[6.5rem] sm:min-h-[5rem]"}`}
+        className={`${fade} ${message ? "" : compact ? "min-h-[7.75rem]" : "min-h-[6.5rem] sm:min-h-[5rem]"}`}
         aria-hidden={!ready}
       >
         <p
