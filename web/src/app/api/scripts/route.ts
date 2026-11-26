@@ -43,8 +43,8 @@ export async function GET() {
       },
       {
         headers: {
-          // Allow caching for 1 minute to balance performance and freshness
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=59",
+          // Allow caching for 5 minutes / 10 minutes stale to balance performance and freshness
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       },
     );
